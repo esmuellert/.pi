@@ -173,6 +173,19 @@ export function gapFor(texts: string[], line: number[], c: Ctx, maxGap: number):
 	return Math.max(0, Math.min(cap, Math.floor(slack / gaps)));
 }
 
+/** Longest minus shortest line: a balance measure that ink volume cannot inflate. */
+function spread(texts: string[], lines: number[][], c: Ctx): number {
+	if (lines.length < 2) return 0;
+	let lo = Number.POSITIVE_INFINITY;
+	let hi = 0;
+	for (const line of lines) {
+		const w = span(texts, line[0], line[line.length - 1] + 1, c);
+		if (w < lo) lo = w;
+		if (w > hi) hi = w;
+	}
+	return hi - lo;
+}
+
 export function planLayout(build: SegmentBuilder, width: number, options: Partial<LayoutOptions> = {}): Layout {
 	const opts: LayoutOptions = { ...DEFAULT_LAYOUT_OPTIONS, ...options };
 	const measure = opts.measure ?? measureText;
@@ -183,36 +196,41 @@ export function planLayout(build: SegmentBuilder, width: number, options: Partia
 	// Every visible segment is always rendered. Narrow terminals get more lines,
 	// never fewer fields: the line count is naturally capped at one line per
 	// segment, which only happens on terminals too narrow to use anyway.
-	const segs = build(minBar);
-	if (segs.length === 0) return { lines: [], barCells: minBar };
-	const lineCount = flow(segs.map((s) => s.text), c).length;
+	const base = build(minBar);
+	if (base.length === 0) return { lines: [], barCells: minBar };
+	const lineCount = flow(base.map((s) => s.text), c).length;
 
-	// Grow the bar into leftover space, bounded so it never dominates a line.
-	let barCells = minBar;
-	for (let cells = minBar + 1; cells <= maxBar; cells++) {
-		const trial = build(cells);
-		if (trial.length !== segs.length) break;
-		// Never grow a segment past the terminal: on very narrow terminals the
-		// line count is already saturated, so it alone would not stop the loop.
-		if (trial.some((s) => measure(s.text) > c.width)) break;
-		if (flow(trial.map((s) => s.text), c).length > lineCount) break;
-		barCells = cells;
+	// Pick the bar width that wraps best, not simply the widest that fits.
+	//
+	// Growing the bar adds ink without adding information, which mechanically
+	// improves any slack-based score. Judging candidates by line-length spread
+	// instead keeps that thumb off the scale: a wider bar is only taken when it
+	// leaves the block at least as even. Ties favour the wider bar, so on roomy
+	// terminals the bar still expands into space nothing else wants.
+	let best: { cells: number; segs: Segment[]; packed: number[][]; spread: number } | null = null;
+	for (let cells = minBar; cells <= maxBar; cells++) {
+		const segs = build(cells);
+		if (segs.length !== base.length) break;
+		const texts = segs.map((s) => s.text);
+		// On a very narrow terminal the line count is already saturated, so it
+		// alone would not stop the loop once a segment overflows.
+		if (cells > minBar && texts.some((t) => measure(t) > c.width)) break;
+		let packed = flow(texts, c);
+		if (packed.length > lineCount) break;
+		const balanced = balance(texts, packed.length, c, opts.maxGap);
+		if (balanced) packed = balanced;
+		const s = spread(texts, packed, c);
+		if (!best || s <= best.spread) best = { cells, segs, packed, spread: s };
 	}
+	if (!best) return { lines: [], barCells: minBar };
 
-	const final = build(barCells);
-	const texts = final.map((s) => s.text);
-
-	// Even out the wrap so slack is shared rather than stranded on the last line.
-	let packed = flow(texts, c);
-	const balanced = balance(texts, packed.length, c, opts.maxGap);
-	if (balanced) packed = balanced;
-
+	const texts = best.segs.map((s) => s.text);
 	return {
-		lines: packed.map((line) => ({
-			items: line.map((i) => final[i]),
+		lines: best.packed.map((line) => ({
+			items: line.map((i) => best.segs[i]),
 			gap: gapFor(texts, line, c, opts.maxGap),
 		})),
-		barCells,
+		barCells: best.cells,
 	};
 }
 

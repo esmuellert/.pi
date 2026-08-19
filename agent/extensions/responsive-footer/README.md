@@ -14,7 +14,7 @@ abbreviating.
 | Step | Mechanism | Why |
 |---|---|---|
 | 1 | **Wrapping** | Segments flow like words in a paragraph. Rows are cheap on a phone. |
-| 2 | **Context bar** | Grows within a small absolute range (6–14 cells). A bar carries about one digit of information, so letting it scale with width makes it swallow whole lines. |
+| 2 | **Context bar** | Sized within a small absolute range (6–14 cells), chosen for the evenest wrap rather than the widest fit. Growing the bar adds ink without adding information, so a slack-based score would always max it out — and the extra width can push a field onto the next line. Candidates are judged by line-length spread, which ink cannot inflate; ties favour the wider bar. |
 | 3 | **Balanced wrap** | Lines are re-wrapped to even out their lengths, so the block never strands a lone segment on the last line. |
 
 **Nothing is ever dropped.** Every visible field renders at every width. The
@@ -100,7 +100,7 @@ asserting:
 - wording is byte-identical at 20 and 200 columns
 - lines are left aligned by default, and still spread when `maxGap` is raised
 - line count and drop count are monotone in width, changing by at most one per column
-- the context bar stays inside its configured range and never scales with width
+- the context bar stays inside its configured range, never scales with width, and is never widened at the cost of a more ragged block
 - wrapping stays balanced (line-length evenness: min 33%, mean 72%)
 - display order is by stability
 - optional fields appear only when unhidden, and vanish when their value is empty

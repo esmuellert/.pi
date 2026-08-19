@@ -293,6 +293,39 @@ describe("space utilisation", () => {
 		}
 	});
 
+	it("regression: the bar never crowds a field onto the next line", () => {
+		// The bar used to grow to its ceiling whenever the line count held, and
+		// the extra ink flattered the slack score while pushing a field down a
+		// line. At 53 columns that produced 39/42/51 instead of 39/46/39.
+		for (const width of [53, 54, 55, 56]) {
+			const layout = plan(NOMINAL, DEFAULT_CONFIG, width);
+			const lens = layout.lines.map((l) => measureText(lineText(l, DEFAULT_CONFIG.separator)));
+			if (lens.length < 2) continue;
+			assert.ok(Math.max(...lens) - Math.min(...lens) <= 10, `@${width}: lines ${lens.join("/")}`);
+		}
+	});
+
+	it("picks the bar width that wraps most evenly", () => {
+		// A wider bar must never be taken at the cost of a more ragged block.
+		for (const width of WIDTHS.filter((w) => w >= 30)) {
+			const chosen = plan(NOMINAL, DEFAULT_CONFIG, width);
+			const spreadOf = (l: Layout) => {
+				const lens = l.lines.map((x) => measureText(lineText(x, DEFAULT_CONFIG.separator)));
+				return lens.length > 1 ? Math.max(...lens) - Math.min(...lens) : 0;
+			};
+			for (let bar = DEFAULT_CONFIG.minBar; bar <= DEFAULT_CONFIG.maxBar; bar++) {
+				const alt = planLayout(makeBuilder(NOMINAL, DEFAULT_CONFIG), width, {
+					separator: DEFAULT_CONFIG.separator,
+					maxGap: DEFAULT_CONFIG.maxGap,
+					minBar: bar,
+					maxBar: bar,
+				});
+				if (alt.lines.length !== chosen.lines.length) continue;
+				assert.ok(spreadOf(chosen) <= spreadOf(alt), `@${width}: bar ${chosen.barCells} worse than ${bar}`);
+			}
+		}
+	});
+
 	it("balances line lengths instead of stranding a short last line", () => {
 		// Measured where every segment fits (width >= 26): evenness min 33%, mean 72%.
 		// Left alignment leaves trailing space by design; what matters is that the
