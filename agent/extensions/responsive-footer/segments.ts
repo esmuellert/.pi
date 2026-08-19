@@ -86,7 +86,7 @@ export function makeBuilder(state: FooterState, cfg: FooterConfig): SegmentBuild
 		const raw: Segment[] = [
 			{ id: "cwd", text: state.branch ? `${cwdText} (${state.branch})` : cwdText, color: "dim" },
 			{ id: "session", text: state.sessionName ? `session ${state.sessionName}` : "", color: "dim" },
-			{ id: "model", text: `${state.modelId} · think ${state.thinkingLevel}`, color: "accent" },
+			{ id: "model", text: `${state.modelId} · ${state.thinkingLevel}`, color: "accent" },
 			{ id: "provider", text: state.provider ? `via ${state.provider}` : "", color: "dim" },
 			{
 				id: "ctx",

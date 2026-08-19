@@ -57,7 +57,7 @@ fields jump between positions on every resize.
 
 | Field | Meaning |
 |---|---|
-| `model · think` | Current model and reasoning level |
+| `model · level` | Current model and reasoning level |
 | `ctx ▓▓░░ 40% 403.4k/1.0M` | Context usage; bar turns yellow at `ctxWarn`, red at `ctxDanger` |
 | `in` / `out` | Cumulative input / output tokens |
 | `cache r/w` | Cumulative cache reads / writes |

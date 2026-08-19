@@ -204,7 +204,7 @@ describe("labels are never abbreviated", () => {
 		cache: /^cache \S+$/,
 		hit: /^hit \S+$/,
 		ctx: /^ctx /,
-		model: / · think /,
+		model: / · \S+$/,
 	};
 
 	it("keeps full wording at every width", () => {
@@ -293,15 +293,18 @@ describe("space utilisation", () => {
 		}
 	});
 
-	it("regression: the bar never crowds a field onto the next line", () => {
-		// The bar used to grow to its ceiling whenever the line count held, and
-		// the extra ink flattered the slack score while pushing a field down a
-		// line. At 53 columns that produced 39/42/51 instead of 39/46/39.
+	it("regression: the bar backs off when it would crowd a field onto the next line", () => {
+		// The bar used to take its ceiling whenever the line count held, and the
+		// extra ink flattered the slack score while pushing a field down a line.
+		// At 53 columns those cells cost 'out' its place by a single column.
+		// Asserting the bar is off its ceiling encodes the bug itself, rather
+		// than a spread threshold that shifts whenever a label is reworded.
 		for (const width of [53, 54, 55, 56]) {
 			const layout = plan(NOMINAL, DEFAULT_CONFIG, width);
-			const lens = layout.lines.map((l) => measureText(lineText(l, DEFAULT_CONFIG.separator)));
-			if (lens.length < 2) continue;
-			assert.ok(Math.max(...lens) - Math.min(...lens) <= 10, `@${width}: lines ${lens.join("/")}`);
+			assert.ok(
+				layout.barCells < DEFAULT_LAYOUT_OPTIONS.maxBar,
+				`@${width}: bar sat at its ceiling (${layout.barCells})`,
+			);
 		}
 	});
 
