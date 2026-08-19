@@ -1,0 +1,25 @@
+# Whitelist strategy: ignore everything, then explicitly allow.
+# New files (secrets, third-party extensions, caches) default to ignored.
+/*
+!.gitignore
+
+# --- search routing (lives above agent/) ---
+!/web-search.json
+
+# --- agent dir: opt in per file ---
+!/agent/
+/agent/*
+!/agent/settings.json
+
+# --- our own extensions only ---
+!/agent/extensions/
+/agent/extensions/*
+!/agent/extensions/responsive-footer.ts
+
+# --- optional, uncomment when created ---
+# !/agent/AGENTS.md
+# !/agent/keybindings.json
+# !/agent/footer.json
+# !/agent/prompts/
+# !/agent/skills/
+# !/agent/themes/

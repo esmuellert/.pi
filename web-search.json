@@ -1,0 +1,6 @@
+{
+  "searchRouting": {
+    "providers": ["parallel-mcp", "exa", "anysearch", "duckduckgo"],
+    "fallbackOn": ["transient", "quota", "network", "invalid-response"]
+  }
+}
