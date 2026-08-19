@@ -1,0 +1,13 @@
+{
+  "name": "pi-responsive-footer",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Width-adaptive multi-line footer for the pi coding agent",
+  "pi": {
+    "extensions": ["./index.ts"]
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test layout.test.ts"
+  }
+}

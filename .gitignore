@@ -14,7 +14,7 @@
 # --- our own extensions only ---
 !/agent/extensions/
 /agent/extensions/*
-!/agent/extensions/responsive-footer.ts
+!/agent/extensions/responsive-footer/
 
 # --- optional, uncomment when created ---
 # !/agent/AGENTS.md
