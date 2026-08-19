@@ -265,45 +265,56 @@ describe("smooth resizing", () => {
 	});
 });
 
+describe("alignment", () => {
+	it("is left aligned by default", () => {
+		// Justified gaps recompute whenever a value changes, so every field on the
+		// line shifts. Left alignment keeps positions stable and scannable.
+		assert.equal(DEFAULT_CONFIG.maxGap, 0);
+		assert.equal(DEFAULT_LAYOUT_OPTIONS.maxGap, 0);
+		for (const width of WIDTHS) {
+			for (const line of plan(NOMINAL, DEFAULT_CONFIG, width).lines) {
+				assert.equal(line.gap, 0, `@${width}: gap ${line.gap}`);
+			}
+		}
+	});
+
+	it("still spreads when maxGap is opted into", () => {
+		const cfg = { ...DEFAULT_CONFIG, maxGap: 4 };
+		const anySpread = WIDTHS.some((w) => plan(NOMINAL, cfg, w).lines.some((l) => l.gap > 0));
+		assert.ok(anySpread, "maxGap>0 never produced a gap");
+	});
+});
+
 describe("space utilisation", () => {
 	it("keeps the bar from dominating a line", () => {
 		for (const width of WIDTHS) {
 			const layout = plan(NOMINAL, DEFAULT_CONFIG, width);
 			// The bar is the elastic part; it must never scale with the terminal.
-			assert.ok(layout.barCells <= DEFAULT_CONFIG.maxBar, `@${width}: bar ${layout.barCells}`);
+			assert.ok(layout.barCells <= DEFAULT_LAYOUT_OPTIONS.maxBar, `@${width}: bar ${layout.barCells}`);
 			const ceiling = Math.max(DEFAULT_CONFIG.minBar, width * 0.4);
 			assert.ok(layout.barCells <= ceiling, `@${width}: bar ${layout.barCells} exceeds ${ceiling.toFixed(1)}`);
 		}
 	});
 
-	it("regression: a ~110 column terminal fills its lines instead of inflating the bar", () => {
-		// Previously maxBar scaled as width/3, so a 110 column terminal grew a
-		// 36 cell bar that swallowed most of the first line.
+	it("regression: a ~110 column terminal does not inflate the bar", () => {
+		// maxBar used to scale as width/3, so a 110 column terminal grew a 36
+		// cell bar that swallowed most of the first line.
 		for (const width of [100, 110, 120, 140]) {
 			const layout = plan(NOMINAL, DEFAULT_CONFIG, width);
 			assert.ok(layout.barCells <= DEFAULT_LAYOUT_OPTIONS.maxBar, `@${width}: bar ${layout.barCells}`);
-			const ink = layout.lines.reduce((a, l) => {
-				const joiner = DEFAULT_CONFIG.separator + " ".repeat(l.gap);
-				return a + measureText(l.items.map((s) => s.text).join(joiner));
-			}, 0);
-			const fill = ink / (layout.lines.length * width);
-			assert.ok(fill >= 0.75, `@${width}: fill ${(fill * 100).toFixed(0)}%`);
 		}
 	});
 
-	it("fills a healthy share of each line once wrapping starts", () => {
-		// Measured over widths 20-200: min 79%, mean 91%, nothing below 75%.
-		// The remainder is deliberate — gaps stay capped on busy lines because
-		// scattered text reads worse than a little trailing slack.
-		for (const width of WIDTHS.filter((w) => w >= 30)) {
+	it("balances line lengths instead of stranding a short last line", () => {
+		// Measured over widths 20-200: evenness min 46%, mean 77%.
+		// Left alignment leaves trailing space by design; what matters is that
+		// the wrap does not dump a lone segment on the final line.
+		for (const width of WIDTHS.filter((w) => w >= 20)) {
 			const layout = plan(NOMINAL, DEFAULT_CONFIG, width);
 			if (layout.lines.length < 2) continue;
-			const ink = layout.lines.reduce((a, l) => {
-				const joiner = DEFAULT_CONFIG.separator + " ".repeat(l.gap);
-				return a + measureText(l.items.map((s) => s.text).join(joiner));
-			}, 0);
-			const fill = ink / (layout.lines.length * width);
-			assert.ok(fill >= 0.75, `@${width}: fill ${(fill * 100).toFixed(0)}%`);
+			const lens = layout.lines.map((l) => measureText(lineText(l, DEFAULT_CONFIG.separator)));
+			const evenness = Math.min(...lens) / Math.max(...lens);
+			assert.ok(evenness >= 0.45, `@${width}: evenness ${(evenness * 100).toFixed(0)}%`);
 		}
 	});
 });

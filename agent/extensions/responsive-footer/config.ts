@@ -28,7 +28,9 @@ export const DEFAULT_CONFIG: FooterConfig = {
 	ctxWarn: 65,
 	ctxDanger: 85,
 	separator: "  ",
-	maxGap: 4,
+	// Left-aligned by default: justified gaps make every field shift as values
+	// change, which wrecks scanning. Set >0 to opt into spreading.
+	maxGap: 0,
 	minBar: 6,
 	maxBar: 14,
 };

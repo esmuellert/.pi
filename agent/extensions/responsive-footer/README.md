@@ -15,11 +15,22 @@ abbreviating.
 |---|---|---|
 | 1 | **Wrapping** | Segments flow like words in a paragraph. Rows are cheap on a phone. |
 | 2 | **Context bar** | Grows within a small absolute range (6–14 cells). A bar carries about one digit of information, so letting it scale with width makes it swallow whole lines. |
-| 3 | **Justification** | Leftover slack is shared between gaps. Capped on busy lines, unrestricted when a line has ≤2 gaps (spreading two items to the edges reads as deliberate alignment). |
+| 3 | **Balanced wrap** | Lines are re-wrapped to even out their lengths, so the block never strands a lone segment on the last line. |
 | 4 | **Omission** | Past `maxLines`, the lowest-priority segments are dropped entirely. Better to omit a field than to make it cryptic. |
 
 There are no hardcoded width tiers. Because wording is fixed, resizing only
 changes wrapping, so the layout moves in single-line steps.
+
+## Alignment
+
+**Left aligned, always.** Justified spacing was tried and removed: gaps are
+recomputed from the current values, so `in 470` growing to `in 1.2k` shifts
+every field on the line. Uniform two-space separators keep positions stable and
+let the footer read as a list rather than scattered fragments.
+
+Trailing space is therefore expected — measured fill over widths 20–200 is
+mean 79%. Fill is not the goal; scannability is. Set `maxGap > 0` to opt back
+into spreading.
 
 ## Ordering
 
@@ -47,11 +58,11 @@ Default priority: `ctx(10) > model(9) > cost(8) > hit(7) > in/out(6) > cache(5) 
 
 ```
 index.ts        Extension wiring: reads session state, paints the result
-layout.ts       Pure layout engine: flow, balance, justify, plan
+layout.ts       Pure layout engine: flow, balance, plan
 segments.ts     Session snapshot -> ordered segment list
 config.ts       footer.json loading and validation
 format.ts       Counts, progress bar, display width, path shortening
-layout.test.ts  223 assertions
+layout.test.ts  225 assertions
 ```
 
 `index.ts` is the only file that touches pi APIs; everything else is pure and
@@ -70,11 +81,11 @@ asserting:
 - kept + dropped always partitions the full segment set, with no duplicates
 - omission strictly follows priority
 - wording is byte-identical at 20 and 200 columns
+- lines are left aligned by default, and still spread when `maxGap` is raised
 - line count and drop count are monotone in width, changing by at most one per column
 - the context bar stays inside its configured range and never scales with width
+- wrapping stays balanced (line-length evenness: min 46%, mean 77%)
 - garbage configs (`null`, arrays, wrong types, out-of-range numbers) fall back cleanly
-
-Measured fill across widths 20–200: **min 79%, mean 91%**.
 
 ## Config
 
@@ -88,11 +99,13 @@ Measured fill across widths 20–200: **min 79%, mean 91%**.
   "ctxWarn": 65,
   "ctxDanger": 85,
   "separator": "  ",
-  "maxGap": 4,
+  "maxGap": 0,
   "minBar": 6,
   "maxBar": 14
 }
 ```
+
+`maxGap` is the justification cap; `0` (the default) means plain left alignment.
 
 A malformed config degrades to defaults rather than taking the TUI down.
 

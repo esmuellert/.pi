@@ -45,7 +45,7 @@ export interface LayoutOptions {
 export const DEFAULT_LAYOUT_OPTIONS: LayoutOptions = {
 	maxLines: 6,
 	separator: "  ",
-	maxGap: 4,
+	maxGap: 0,
 	minBar: 6,
 	maxBar: 14,
 };
