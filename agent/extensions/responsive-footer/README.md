@@ -34,13 +34,25 @@ into spreading.
 
 ## Ordering
 
-Segment order is fixed. Greedy flow is already line-count optimal for a fixed
-order, and reordering to reclaim a few cells (a bin-packing problem) would make
-fields jump between positions on every resize, destroying muscle memory.
-Priority therefore decides **only what gets dropped**, never what gets
-shortened or reordered.
+**Display order is by stability; priority is by importance.** They are separate.
 
-Default priority: `ctx(10) > model(9) > cost(8) > hit(7) > in/out(6) > cache(5) > cwd(3)`
+Left-aligned text means a field that changes width pushes everything to its
+right. So the fields that rarely change lead, and the per-turn counters trail:
+
+`cwd (branch)` → `model · think` → `ctx` → `in` → `out` → `cache` → `hit` → `cost`
+
+A pleasant side effect is that the wrap tends to fall between the stable fields
+and the counters on its own, without any hardcoded grouping.
+
+Order is otherwise fixed: greedy flow is already line-count optimal for a fixed
+order, and reordering to reclaim a few cells (a bin-packing problem) would make
+fields jump between positions on every resize.
+
+Priority decides **only what gets dropped**, never what gets shortened,
+reordered, or displayed first. `ctx` is displayed third but is the last field
+to be omitted.
+
+Default priority: `ctx(10) > model(9) > cost(8) > hit(7) > in/out(6) > cache(5) > cwd(4) > session(3) > queue(2) > provider(1)`
 
 ## Fields
 
@@ -52,7 +64,13 @@ Default priority: `ctx(10) > model(9) > cost(8) > hit(7) > in/out(6) > cache(5) 
 | `cache r/w` | Cumulative cache reads / writes |
 | `hit` | Latest cache hit rate (cache reads cost ~10% of fresh input, so this is money) |
 | `$` | Cumulative cost, `sub` when a subscription covers it |
-| `cwd (branch)` | Working directory and git branch |
+| `cwd (branch)` | Working directory and git branch (`detached` on a detached HEAD) |
+| `session` | Session name, when set — hidden by default |
+| `via provider` | Model provider — hidden by default |
+| `queued` | Messages waiting to be delivered — hidden by default |
+
+Hidden fields are listed in `hide`. A user config replaces that array wholesale,
+so `"hide": []` shows everything.
 
 ## Layout
 
@@ -62,7 +80,7 @@ layout.ts       Pure layout engine: flow, balance, plan
 segments.ts     Session snapshot -> ordered segment list
 config.ts       footer.json loading and validation
 format.ts       Counts, progress bar, display width, path shortening
-layout.test.ts  225 assertions
+layout.test.ts  312 assertions
 ```
 
 `index.ts` is the only file that touches pi APIs; everything else is pure and
@@ -84,7 +102,9 @@ asserting:
 - lines are left aligned by default, and still spread when `maxGap` is raised
 - line count and drop count are monotone in width, changing by at most one per column
 - the context bar stays inside its configured range and never scales with width
-- wrapping stays balanced (line-length evenness: min 46%, mean 77%)
+- wrapping stays balanced (line-length evenness: min 33%, mean 72%)
+- display order is by stability, and stays independent of omission priority
+- optional fields appear only when unhidden, and vanish when their value is empty
 - garbage configs (`null`, arrays, wrong types, out-of-range numbers) fall back cleanly
 
 ## Config

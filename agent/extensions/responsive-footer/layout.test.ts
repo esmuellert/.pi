@@ -12,7 +12,7 @@ import { describe, it } from "node:test";
 import { DEFAULT_CONFIG, type FooterConfig, normalizeConfig } from "./config.ts";
 import { clamp, formatCount, measureText, progressBar, shortenHome } from "./format.ts";
 import { DEFAULT_LAYOUT_OPTIONS, type Layout, lineText, planLayout, SPREAD_GAP_LIMIT } from "./layout.ts";
-import { DEFAULT_PRIORITY, EMPTY_STATE, type FooterState, makeBuilder } from "./segments.ts";
+import { DEFAULT_HIDDEN, DEFAULT_PRIORITY, EMPTY_STATE, type FooterState, makeBuilder } from "./segments.ts";
 
 const WIDTHS = Array.from({ length: 397 }, (_, i) => i + 4); // 4 .. 400
 
@@ -31,6 +31,9 @@ const NOMINAL: FooterState = {
 	usingSubscription: false,
 	cwd: "/private/tmp",
 	branch: null,
+	sessionName: null,
+	provider: "github-copilot",
+	queued: false,
 	home: "/home/dev",
 };
 
@@ -60,6 +63,11 @@ const STATES: Record<string, FooterState> = {
 	homePath: { ...NOMINAL, cwd: "/home/dev", home: "/home/dev" },
 	negativeCost: { ...NOMINAL, cost: 0 },
 	nanPercent: { ...NOMINAL, contextPercent: Number.NaN },
+	withBranch: { ...NOMINAL, branch: "main" },
+	detachedHead: { ...NOMINAL, branch: "detached" },
+	named: { ...NOMINAL, sessionName: "footer-work" },
+	queued: { ...NOMINAL, queued: true },
+	everything: { ...NOMINAL, branch: "main", sessionName: "footer-work", queued: true, usingSubscription: true },
 };
 
 /** Config permutations, including hostile ones. */
@@ -74,8 +82,9 @@ const CONFIGS: Record<string, FooterConfig> = {
 	bigBar: { ...DEFAULT_CONFIG, minBar: 20, maxBar: 40 },
 	pipeSep: { ...DEFAULT_CONFIG, separator: " | " },
 	hideMost: { ...DEFAULT_CONFIG, hide: ["in", "out", "cache", "hit", "cwd"] },
-	hideAll: { ...DEFAULT_CONFIG, hide: ["model", "ctx", "in", "out", "cache", "hit", "cost", "cwd"] },
+	hideAll: { ...DEFAULT_CONFIG, hide: Object.keys(DEFAULT_PRIORITY) },
 	invertedPriority: { ...DEFAULT_CONFIG, priority: { ctx: 1, model: 1, cwd: 100 } },
+	showAll: { ...DEFAULT_CONFIG, hide: [] },
 };
 
 function plan(state: FooterState, cfg: FooterConfig, width: number): Layout {
@@ -88,7 +97,8 @@ function plan(state: FooterState, cfg: FooterConfig, width: number): Layout {
 	});
 }
 
-const allIds = (cfg: FooterConfig) => Object.keys(DEFAULT_PRIORITY).filter((id) => !cfg.hide.includes(id));
+const allIds = (state: FooterState, cfg: FooterConfig) =>
+	makeBuilder(state, cfg)(cfg.minBar).map((s) => s.id);
 
 describe("format helpers", () => {
 	it("formats counts across magnitudes", () => {
@@ -154,7 +164,7 @@ describe("layout invariants across every width", () => {
 	for (const [stateName, state] of Object.entries(STATES)) {
 		for (const [cfgName, cfg] of Object.entries(CONFIGS)) {
 			it(`${stateName} / ${cfgName}`, () => {
-				const expected = allIds(cfg);
+				const expected = allIds(state, cfg);
 				for (const width of WIDTHS) {
 					const layout = plan(state, cfg, width);
 					const where = `${stateName}/${cfgName}@${width}`;
@@ -306,16 +316,72 @@ describe("space utilisation", () => {
 	});
 
 	it("balances line lengths instead of stranding a short last line", () => {
-		// Measured over widths 20-200: evenness min 46%, mean 77%.
-		// Left alignment leaves trailing space by design; what matters is that
-		// the wrap does not dump a lone segment on the final line.
-		for (const width of WIDTHS.filter((w) => w >= 20)) {
+		// Measured where every segment fits (width >= 26): evenness min 33%, mean 72%.
+		// Left alignment leaves trailing space by design; what matters is that the
+		// wrap does not dump a lone segment on the final line.
+		for (const width of WIDTHS.filter((w) => w >= 30)) {
 			const layout = plan(NOMINAL, DEFAULT_CONFIG, width);
 			if (layout.lines.length < 2) continue;
 			const lens = layout.lines.map((l) => measureText(lineText(l, DEFAULT_CONFIG.separator)));
 			const evenness = Math.min(...lens) / Math.max(...lens);
-			assert.ok(evenness >= 0.45, `@${width}: evenness ${(evenness * 100).toFixed(0)}%`);
+			assert.ok(evenness >= 0.3, `@${width}: evenness ${(evenness * 100).toFixed(0)}%`);
 		}
+	});
+});
+
+describe("field order", () => {
+	it("orders by stability, not importance", () => {
+		// Left-aligned text means a field that changes width pushes everything to
+		// its right, so rarely-changing fields lead and per-turn counters trail.
+		const ids = makeBuilder({ ...NOMINAL, branch: "main" }, { ...DEFAULT_CONFIG, hide: [] })(6).map((s) => s.id);
+		const at = (id: string) => ids.indexOf(id);
+		assert.ok(at("cwd") === 0, "cwd should anchor the line, like a shell prompt");
+		assert.ok(at("model") < at("ctx"), "model changes less often than context");
+		for (const volatile of ["in", "out", "cache", "hit", "cost"]) {
+			assert.ok(at("ctx") < at(volatile), `${volatile} is volatile and must trail ctx`);
+		}
+	});
+
+	it("keeps display order independent of omission priority", () => {
+		// ctx is displayed third but must be the last thing dropped.
+		const cfg = { ...DEFAULT_CONFIG, hide: [] };
+		const ids = makeBuilder(NOMINAL, cfg)(6).map((s) => s.id);
+		assert.ok(ids.indexOf("ctx") > 0, "ctx is not displayed first");
+		assert.equal(Math.max(...Object.values(DEFAULT_PRIORITY)), DEFAULT_PRIORITY.ctx);
+		// Squeeze hard: whatever survives must include the top-priority field.
+		for (const width of [20, 26, 30, 40]) {
+			const layout = plan(NOMINAL, { ...cfg, maxLines: 1 }, width);
+			const kept = layout.lines.flatMap((l) => l.items).map((s) => s.id);
+			if (kept.length > 0) assert.ok(kept.includes("ctx"), `@${width}: ctx was dropped, kept ${kept}`);
+		}
+	});
+
+	it("shows git branch and hides optional fields by default", () => {
+		const withBranch = makeBuilder({ ...NOMINAL, branch: "main" }, DEFAULT_CONFIG)(6);
+		assert.match(withBranch.find((s) => s.id === "cwd")!.text, /\(main\)$/);
+
+		const detached = makeBuilder({ ...NOMINAL, branch: "detached" }, DEFAULT_CONFIG)(6);
+		assert.match(detached.find((s) => s.id === "cwd")!.text, /\(detached\)$/);
+
+		const ids = makeBuilder({ ...NOMINAL, sessionName: "x", queued: true }, DEFAULT_CONFIG)(6).map((s) => s.id);
+		for (const id of DEFAULT_HIDDEN) assert.ok(!ids.includes(id), `${id} should be hidden by default`);
+	});
+
+	it("renders optional fields once unhidden, and omits blank ones", () => {
+		const cfg = { ...DEFAULT_CONFIG, hide: [] };
+		const full = makeBuilder({ ...NOMINAL, sessionName: "work", queued: true }, cfg)(6).map((s) => s.id);
+		for (const id of DEFAULT_HIDDEN) assert.ok(full.includes(id), `${id} should appear when unhidden`);
+
+		// Empty values must not leave an empty slot behind.
+		const blank = makeBuilder({ ...NOMINAL, sessionName: null, queued: false, provider: "" }, cfg)(6).map((s) => s.id);
+		for (const id of DEFAULT_HIDDEN) assert.ok(!blank.includes(id), `${id} should vanish when empty`);
+	});
+
+	it("marks subscription usage on the cost field", () => {
+		const sub = makeBuilder({ ...NOMINAL, usingSubscription: true }, DEFAULT_CONFIG)(6);
+		assert.match(sub.find((s) => s.id === "cost")!.text, / sub$/);
+		const paid = makeBuilder({ ...NOMINAL, usingSubscription: false }, DEFAULT_CONFIG)(6);
+		assert.doesNotMatch(paid.find((s) => s.id === "cost")!.text, / sub$/);
 	});
 });
 

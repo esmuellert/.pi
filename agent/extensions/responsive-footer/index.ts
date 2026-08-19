@@ -25,6 +25,21 @@ interface Usage {
 	cost?: { total?: number };
 }
 
+/** Kimi Coding is subscription-backed despite using API-key auth, like the built-in footer. */
+function detectSubscription(ctx: ExtensionContext, provider: string): boolean {
+	if (!provider) return false;
+	if (provider === "kimi-coding") return true;
+	try {
+		// isUsingSubscription lives on ModelRuntime, which extensions do not get
+		// directly. Reaching through the registry is private API, so treat any
+		// failure as "not a subscription" rather than breaking the footer.
+		const runtime = (ctx.modelRegistry as any)?.runtime;
+		return runtime?.isUsingSubscription?.(provider) === true;
+	} catch {
+		return false;
+	}
+}
+
 /** Sum usage across the active branch, mirroring the built-in footer's totals. */
 function readState(ctx: ExtensionContext): FooterState {
 	let input = 0;
@@ -52,8 +67,10 @@ function readState(ctx: ExtensionContext): FooterState {
 	}
 
 	const usage = ctx.getContextUsage();
+	const provider = (ctx.model as any)?.provider ?? "";
 	return {
 		modelId: ctx.model?.id ?? "no-model",
+		provider,
 		thinkingLevel: ctx.thinkingLevel ?? "off",
 		contextPercent: usage?.percent ?? null,
 		contextTokens: usage?.tokens ?? null,
@@ -64,9 +81,11 @@ function readState(ctx: ExtensionContext): FooterState {
 		cacheWrite,
 		cost,
 		hitRate,
-		usingSubscription: false,
-		cwd: process.cwd(),
+		usingSubscription: detectSubscription(ctx, provider),
+		cwd: ctx.cwd,
 		branch: null,
+		sessionName: ctx.sessionManager.getSessionName() ?? null,
+		queued: ctx.hasPendingMessages(),
 		home: homedir(),
 	};
 }
@@ -104,8 +123,10 @@ export default function (pi: ExtensionAPI) {
 					return visibleWidth(lineText(line, cfg.separator)) > width ? truncateToWidth(painted, width) : painted;
 				});
 
-				const statuses: string[] = footerData.getExtensionStatuses?.() ?? [];
-				if (statuses.length > 0) out.push(truncateToWidth(statuses.join(cfg.separator), width));
+				// getExtensionStatuses returns a Map, not an array.
+				const statuses = footerData.getExtensionStatuses?.();
+				const texts = statuses ? [...statuses.values()].filter((t) => typeof t === "string" && t.length > 0) : [];
+				if (texts.length > 0) out.push(truncateToWidth(texts.join(cfg.separator), width));
 				return out;
 			},
 		};

@@ -8,6 +8,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { DEFAULT_HIDDEN } from "./segments.ts";
 
 export interface FooterConfig {
 	maxLines: number;
@@ -23,7 +24,8 @@ export interface FooterConfig {
 
 export const DEFAULT_CONFIG: FooterConfig = {
 	maxLines: 6,
-	hide: [],
+	// Replaced wholesale by a user config, so `"hide": []` shows everything.
+	hide: DEFAULT_HIDDEN,
 	priority: {},
 	ctxWarn: 65,
 	ctxDanger: 85,

@@ -14,6 +14,7 @@ import type { Segment, SegmentBuilder } from "./layout.ts";
 
 export interface FooterState {
 	modelId: string;
+	provider: string;
 	thinkingLevel: string;
 	contextPercent: number | null;
 	contextTokens: number | null;
@@ -27,11 +28,14 @@ export interface FooterState {
 	usingSubscription: boolean;
 	cwd: string;
 	branch: string | null;
+	sessionName: string | null;
+	queued: boolean;
 	home: string;
 }
 
 export const EMPTY_STATE: FooterState = {
 	modelId: "no-model",
+	provider: "",
 	thinkingLevel: "off",
 	contextPercent: null,
 	contextTokens: null,
@@ -45,10 +49,15 @@ export const EMPTY_STATE: FooterState = {
 	usingSubscription: false,
 	cwd: "/",
 	branch: null,
+	sessionName: null,
+	queued: false,
 	home: "",
 };
 
-/** Default relative importance. Higher survives longer when space runs out. */
+/**
+ * Relative importance, used only to decide what gets omitted when the line
+ * budget runs out. Display order is separate (see `makeBuilder`).
+ */
 export const DEFAULT_PRIORITY: Record<string, number> = {
 	ctx: 10,
 	model: 9,
@@ -57,8 +66,14 @@ export const DEFAULT_PRIORITY: Record<string, number> = {
 	in: 6,
 	out: 6,
 	cache: 5,
-	cwd: 3,
+	cwd: 4,
+	session: 3,
+	queue: 2,
+	provider: 1,
 };
+
+/** Extra context that most sessions do not need on screen. */
+export const DEFAULT_HIDDEN = ["session", "provider", "queue"];
 
 export function contextColor(percent: number | null, cfg: FooterConfig): string {
 	if (percent === null) return "muted";
@@ -83,14 +98,22 @@ export function makeBuilder(state: FooterState, cfg: FooterConfig): SegmentBuild
 	const ctxColor = contextColor(state.contextPercent, cfg);
 
 	return (barCells: number): Segment[] => {
+		// Display order is by stability, not importance: left-aligned text means a
+		// field that changes width pushes everything to its right, so the fields
+		// that rarely change lead and the per-turn counters trail. Importance is
+		// expressed through priority (omission order) instead.
 		const raw: Segment[] = [
+			{ id: "cwd", text: state.branch ? `${cwdText} (${state.branch})` : cwdText, color: "dim", priority: 0 },
+			{ id: "session", text: state.sessionName ? `session ${state.sessionName}` : "", color: "dim", priority: 0 },
 			{ id: "model", text: `${state.modelId} · think ${state.thinkingLevel}`, color: "accent", priority: 0 },
+			{ id: "provider", text: state.provider ? `via ${state.provider}` : "", color: "dim", priority: 0 },
 			{
 				id: "ctx",
 				text: `ctx ${progressBar(state.contextPercent ?? 0, barCells)} ${pctText} ${ctxNums}`,
 				color: ctxColor,
 				priority: 0,
 			},
+			{ id: "queue", text: state.queued ? "queued" : "", color: "warning", priority: 0 },
 			{ id: "in", text: `in ${formatCount(state.input)}`, color: "muted", priority: 0 },
 			{ id: "out", text: `out ${formatCount(state.output)}`, color: "muted", priority: 0 },
 			{
@@ -101,7 +124,6 @@ export function makeBuilder(state: FooterState, cfg: FooterConfig): SegmentBuild
 			},
 			{ id: "hit", text: `hit ${hitText}`, color: "muted", priority: 0 },
 			{ id: "cost", text: costText, color: "dim", priority: 0 },
-			{ id: "cwd", text: state.branch ? `${cwdText} (${state.branch})` : cwdText, color: "dim", priority: 0 },
 		];
 
 		return raw
