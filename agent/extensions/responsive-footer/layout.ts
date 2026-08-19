@@ -1,16 +1,18 @@
 /**
  * Pure layout engine.
  *
- * Contract: wording is never abbreviated. A narrow terminal is short on
- * columns but rich on rows, so the layout degrades by wrapping and — only
- * when the line budget is exhausted — by omitting the lowest-priority
- * segments entirely.
+ * Two contracts:
+ *   - wording is never abbreviated, at any width
+ *   - every visible field is always rendered, at any width
+ *
+ * A narrow terminal is short on columns but rich on rows, so the only thing
+ * that gives is the wrap. The line count is self-limiting: in the worst case
+ * each segment takes its own line, which needs a terminal too narrow to use.
  *
  * Elasticity is applied in this order:
  *   1. wrapping        segments flow like words in a paragraph
  *   2. context bar     grows within a small absolute range, never dominates
- *   3. justification   leftover slack is shared between gaps, capped
- *   4. omission        lowest priority first, only past `maxLines`
+ *   3. justification   leftover slack shared between gaps (off by default)
  *
  * Everything here is deterministic and side-effect free so it can be tested
  * exhaustively across widths and configurations.
@@ -22,14 +24,12 @@ export interface Segment {
 	id: string;
 	text: string;
 	color: string;
-	priority: number;
 }
 
 /** Rebuilds the segment list for a given context-bar width. */
 export type SegmentBuilder = (barCells: number) => Segment[];
 
 export interface LayoutOptions {
-	maxLines: number;
 	separator: string;
 	maxGap: number;
 	minBar: number;
@@ -43,7 +43,6 @@ export interface LayoutOptions {
 }
 
 export const DEFAULT_LAYOUT_OPTIONS: LayoutOptions = {
-	maxLines: 6,
 	separator: "  ",
 	maxGap: 0,
 	minBar: 6,
@@ -58,7 +57,6 @@ export interface LayoutLine {
 
 export interface Layout {
 	lines: LayoutLine[];
-	dropped: string[];
 	barCells: number;
 }
 
@@ -178,29 +176,21 @@ export function gapFor(texts: string[], line: number[], c: Ctx, maxGap: number):
 export function planLayout(build: SegmentBuilder, width: number, options: Partial<LayoutOptions> = {}): Layout {
 	const opts: LayoutOptions = { ...DEFAULT_LAYOUT_OPTIONS, ...options };
 	const measure = opts.measure ?? measureText;
-	const maxLines = Math.max(1, Math.floor(opts.maxLines));
 	const minBar = Math.max(0, Math.floor(opts.minBar));
 	const maxBar = Math.max(minBar, Math.floor(opts.maxBar));
 	const c: Ctx = { measure, sep: measure(opts.separator), width: Math.max(1, Math.floor(width)) };
 
-	// 1. Drop the least important fields, but only once the budget is blown.
-	let segs = build(minBar);
-	const dropped: string[] = [];
-	while (segs.length > 1 && flow(segs.map((s) => s.text), c).length > maxLines) {
-		let worst = 0;
-		for (let i = 1; i < segs.length; i++) if (segs[i].priority < segs[worst].priority) worst = i;
-		dropped.push(segs[worst].id);
-		segs = segs.filter((_, i) => i !== worst);
-	}
-	if (segs.length === 0) return { lines: [], dropped, barCells: minBar };
-
-	const keep = new Set(segs.map((s) => s.id));
+	// Every visible segment is always rendered. Narrow terminals get more lines,
+	// never fewer fields: the line count is naturally capped at one line per
+	// segment, which only happens on terminals too narrow to use anyway.
+	const segs = build(minBar);
+	if (segs.length === 0) return { lines: [], barCells: minBar };
 	const lineCount = flow(segs.map((s) => s.text), c).length;
 
-	// 2. Grow the bar into leftover space, bounded so it never dominates a line.
+	// Grow the bar into leftover space, bounded so it never dominates a line.
 	let barCells = minBar;
 	for (let cells = minBar + 1; cells <= maxBar; cells++) {
-		const trial = build(cells).filter((s) => keep.has(s.id));
+		const trial = build(cells);
 		if (trial.length !== segs.length) break;
 		// Never grow a segment past the terminal: on very narrow terminals the
 		// line count is already saturated, so it alone would not stop the loop.
@@ -209,10 +199,10 @@ export function planLayout(build: SegmentBuilder, width: number, options: Partia
 		barCells = cells;
 	}
 
-	const final = build(barCells).filter((s) => keep.has(s.id));
+	const final = build(barCells);
 	const texts = final.map((s) => s.text);
 
-	// 3. Even out the wrap, then hand remaining slack to justification.
+	// Even out the wrap so slack is shared rather than stranded on the last line.
 	let packed = flow(texts, c);
 	const balanced = balance(texts, packed.length, c, opts.maxGap);
 	if (balanced) packed = balanced;
@@ -222,7 +212,6 @@ export function planLayout(build: SegmentBuilder, width: number, options: Partia
 			items: line.map((i) => final[i]),
 			gap: gapFor(texts, line, c, opts.maxGap),
 		})),
-		dropped,
 		barCells,
 	};
 }

@@ -12,7 +12,7 @@ import { describe, it } from "node:test";
 import { DEFAULT_CONFIG, type FooterConfig, normalizeConfig } from "./config.ts";
 import { clamp, formatCount, measureText, progressBar, shortenHome } from "./format.ts";
 import { DEFAULT_LAYOUT_OPTIONS, type Layout, lineText, planLayout, SPREAD_GAP_LIMIT } from "./layout.ts";
-import { DEFAULT_HIDDEN, DEFAULT_PRIORITY, EMPTY_STATE, type FooterState, makeBuilder } from "./segments.ts";
+import { DEFAULT_HIDDEN, EMPTY_STATE, type FooterState, makeBuilder } from "./segments.ts";
 
 const WIDTHS = Array.from({ length: 397 }, (_, i) => i + 4); // 4 .. 400
 
@@ -70,26 +70,23 @@ const STATES: Record<string, FooterState> = {
 	everything: { ...NOMINAL, branch: "main", sessionName: "footer-work", queued: true, usingSubscription: true },
 };
 
+const ALL_IDS = ["cwd", "session", "model", "provider", "ctx", "queue", "in", "out", "cache", "hit", "cost"];
+
 /** Config permutations, including hostile ones. */
 const CONFIGS: Record<string, FooterConfig> = {
 	default: DEFAULT_CONFIG,
-	oneLine: { ...DEFAULT_CONFIG, maxLines: 1 },
-	twoLines: { ...DEFAULT_CONFIG, maxLines: 2 },
-	manyLines: { ...DEFAULT_CONFIG, maxLines: 20 },
 	noGap: { ...DEFAULT_CONFIG, maxGap: 0 },
 	wideGap: { ...DEFAULT_CONFIG, maxGap: 20 },
 	noBar: { ...DEFAULT_CONFIG, minBar: 0, maxBar: 0 },
 	bigBar: { ...DEFAULT_CONFIG, minBar: 20, maxBar: 40 },
 	pipeSep: { ...DEFAULT_CONFIG, separator: " | " },
 	hideMost: { ...DEFAULT_CONFIG, hide: ["in", "out", "cache", "hit", "cwd"] },
-	hideAll: { ...DEFAULT_CONFIG, hide: Object.keys(DEFAULT_PRIORITY) },
-	invertedPriority: { ...DEFAULT_CONFIG, priority: { ctx: 1, model: 1, cwd: 100 } },
+	hideAll: { ...DEFAULT_CONFIG, hide: ALL_IDS },
 	showAll: { ...DEFAULT_CONFIG, hide: [] },
 };
 
 function plan(state: FooterState, cfg: FooterConfig, width: number): Layout {
 	return planLayout(makeBuilder(state, cfg), width, {
-		maxLines: cfg.maxLines,
 		separator: cfg.separator,
 		maxGap: cfg.maxGap,
 		minBar: cfg.minBar,
@@ -140,23 +137,22 @@ describe("config validation", () => {
 	it("falls back on garbage", () => {
 		for (const bad of [null, undefined, 42, "str", [], { maxLines: "x" }, { hide: "no" }, { priority: [1, 2] }]) {
 			const c = normalizeConfig(bad);
-			assert.equal(typeof c.maxLines, "number");
 			assert.ok(Array.isArray(c.hide));
+			assert.equal(typeof c.maxGap, "number");
 			assert.ok(c.separator.length > 0);
 		}
 	});
 
 	it("clamps out-of-range values and keeps maxBar >= minBar", () => {
-		const c = normalizeConfig({ maxLines: 999, maxGap: -5, minBar: 30, maxBar: 2, ctxWarn: 500 });
-		assert.ok(c.maxLines <= 20);
+		const c = normalizeConfig({ maxGap: -5, minBar: 30, maxBar: 2, ctxWarn: 500 });
 		assert.equal(c.maxGap, 0);
 		assert.ok(c.maxBar >= c.minBar);
 		assert.ok(c.ctxWarn <= 100);
 	});
 
-	it("drops non-numeric priority entries", () => {
-		const c = normalizeConfig({ priority: { ctx: 5, bad: "x", nope: null } });
-		assert.deepEqual(c.priority, { ctx: 5 });
+	it("keeps hide as a string array", () => {
+		const c = normalizeConfig({ hide: ["cwd", 42, null, "cost"] });
+		assert.deepEqual(c.hide, ["cwd", "cost"]);
 	});
 });
 
@@ -169,8 +165,8 @@ describe("layout invariants across every width", () => {
 					const layout = plan(state, cfg, width);
 					const where = `${stateName}/${cfgName}@${width}`;
 
-					// Line budget is respected.
-					assert.ok(layout.lines.length <= cfg.maxLines, `${where}: ${layout.lines.length} > ${cfg.maxLines}`);
+					// Line count is naturally capped at one line per segment.
+					assert.ok(layout.lines.length <= expected.length + 1, `${where}: ${layout.lines.length} lines`);
 
 					// Bar stays inside its configured range.
 					assert.ok(layout.barCells >= cfg.minBar && layout.barCells <= cfg.maxBar, `${where}: bar ${layout.barCells}`);
@@ -192,18 +188,9 @@ describe("layout invariants across every width", () => {
 						}
 					}
 
-					// No duplicates, and kept + dropped partitions the full set.
+					// Nothing is ever dropped or duplicated: every visible field renders.
 					assert.equal(new Set(seen).size, seen.length, `${where}: duplicate segment`);
-					const union = [...seen, ...layout.dropped].sort();
-					assert.deepEqual(union, [...expected].sort(), `${where}: partition mismatch`);
-
-					// Omission follows priority: nothing dropped outranks anything kept.
-					const build = makeBuilder(state, cfg)(cfg.minBar);
-					const prioOf = (id: string) => build.find((s) => s.id === id)?.priority ?? 0;
-					const minKept = seen.length > 0 ? Math.min(...seen.map(prioOf)) : Number.POSITIVE_INFINITY;
-					for (const id of layout.dropped) {
-						assert.ok(prioOf(id) <= minKept, `${where}: dropped ${id} outranks a kept segment`);
-					}
+					assert.deepEqual([...seen].sort(), [...expected].sort(), `${where}: missing or extra segment`);
 				}
 			});
 		}
@@ -253,14 +240,6 @@ describe("smooth resizing", () => {
 		}
 	});
 
-	it("dropped segment count is non-increasing as width grows", () => {
-		let prev = Number.POSITIVE_INFINITY;
-		for (const width of WIDTHS) {
-			const d = plan(NOMINAL, DEFAULT_CONFIG, width).dropped.length;
-			assert.ok(d <= prev, `dropped rose from ${prev} to ${d} at width ${width}`);
-			prev = d;
-		}
-	});
 
 	it("never changes by more than one line per column", () => {
 		let prev: Layout | null = null;
@@ -268,7 +247,6 @@ describe("smooth resizing", () => {
 			const cur = plan(NOMINAL, DEFAULT_CONFIG, width);
 			if (prev) {
 				assert.ok(Math.abs(cur.lines.length - prev.lines.length) <= 1, `jump at width ${width}`);
-				assert.ok(Math.abs(cur.dropped.length - prev.dropped.length) <= 1, `drop jump at width ${width}`);
 			}
 			prev = cur;
 		}
@@ -342,17 +320,12 @@ describe("field order", () => {
 		}
 	});
 
-	it("keeps display order independent of omission priority", () => {
-		// ctx is displayed third but must be the last thing dropped.
+	it("never drops a field, however narrow the terminal", () => {
 		const cfg = { ...DEFAULT_CONFIG, hide: [] };
-		const ids = makeBuilder(NOMINAL, cfg)(6).map((s) => s.id);
-		assert.ok(ids.indexOf("ctx") > 0, "ctx is not displayed first");
-		assert.equal(Math.max(...Object.values(DEFAULT_PRIORITY)), DEFAULT_PRIORITY.ctx);
-		// Squeeze hard: whatever survives must include the top-priority field.
-		for (const width of [20, 26, 30, 40]) {
-			const layout = plan(NOMINAL, { ...cfg, maxLines: 1 }, width);
-			const kept = layout.lines.flatMap((l) => l.items).map((s) => s.id);
-			if (kept.length > 0) assert.ok(kept.includes("ctx"), `@${width}: ctx was dropped, kept ${kept}`);
+		const expected = makeBuilder(NOMINAL, cfg)(cfg.minBar).length;
+		for (const width of WIDTHS) {
+			const kept = plan(NOMINAL, cfg, width).lines.flatMap((l) => l.items).length;
+			assert.equal(kept, expected, `@${width}: rendered ${kept} of ${expected}`);
 		}
 	});
 
@@ -390,7 +363,6 @@ describe("degenerate inputs", () => {
 		for (const w of [-100, 0, 1, 2, 3, 4, 5, 1000, 100_000]) {
 			const layout = plan(NOMINAL, DEFAULT_CONFIG, w);
 			assert.ok(Array.isArray(layout.lines));
-			assert.ok(layout.lines.length <= DEFAULT_CONFIG.maxLines);
 		}
 	});
 
@@ -399,17 +371,5 @@ describe("degenerate inputs", () => {
 		assert.equal(layout.lines.length, 0);
 	});
 
-	it("honours a single-line budget by dropping, never by wrapping", () => {
-		for (const width of WIDTHS) {
-			const layout = plan(NOMINAL, CONFIGS.oneLine, width);
-			assert.ok(layout.lines.length <= 1, `@${width}: ${layout.lines.length} lines`);
-		}
-	});
 
-	it("respects inverted priority when dropping", () => {
-		const layout = plan(NOMINAL, CONFIGS.invertedPriority, 12);
-		if (layout.dropped.length > 0) {
-			assert.ok(!layout.dropped.includes("cwd"), "cwd was boosted to top priority but got dropped");
-		}
-	});
 });

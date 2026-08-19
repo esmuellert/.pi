@@ -11,9 +11,7 @@ import { join } from "node:path";
 import { DEFAULT_HIDDEN } from "./segments.ts";
 
 export interface FooterConfig {
-	maxLines: number;
 	hide: string[];
-	priority: Record<string, number>;
 	ctxWarn: number;
 	ctxDanger: number;
 	separator: string;
@@ -23,10 +21,8 @@ export interface FooterConfig {
 }
 
 export const DEFAULT_CONFIG: FooterConfig = {
-	maxLines: 6,
 	// Replaced wholesale by a user config, so `"hide": []` shows everything.
 	hide: DEFAULT_HIDDEN,
-	priority: {},
 	ctxWarn: 65,
 	ctxDanger: 85,
 	separator: "  ",
@@ -47,18 +43,10 @@ export function normalizeConfig(raw: unknown): FooterConfig {
 
 	const hide = Array.isArray(r.hide) ? r.hide.filter((x): x is string => typeof x === "string") : DEFAULT_CONFIG.hide;
 
-	const priority: Record<string, number> = {};
-	if (r.priority && typeof r.priority === "object" && !Array.isArray(r.priority)) {
-		for (const [k, v] of Object.entries(r.priority as Record<string, unknown>)) {
-			if (typeof v === "number" && Number.isFinite(v)) priority[k] = v;
-		}
-	}
 
 	const minBar = num(r.minBar, DEFAULT_CONFIG.minBar, 0, 40);
 	return {
-		maxLines: Math.floor(num(r.maxLines, DEFAULT_CONFIG.maxLines, 1, 20)),
 		hide,
-		priority,
 		ctxWarn: num(r.ctxWarn, DEFAULT_CONFIG.ctxWarn, 0, 100),
 		ctxDanger: num(r.ctxDanger, DEFAULT_CONFIG.ctxDanger, 0, 100),
 		separator: typeof r.separator === "string" && r.separator.length > 0 ? r.separator : DEFAULT_CONFIG.separator,

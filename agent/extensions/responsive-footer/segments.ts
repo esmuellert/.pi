@@ -54,24 +54,6 @@ export const EMPTY_STATE: FooterState = {
 	home: "",
 };
 
-/**
- * Relative importance, used only to decide what gets omitted when the line
- * budget runs out. Display order is separate (see `makeBuilder`).
- */
-export const DEFAULT_PRIORITY: Record<string, number> = {
-	ctx: 10,
-	model: 9,
-	cost: 8,
-	hit: 7,
-	in: 6,
-	out: 6,
-	cache: 5,
-	cwd: 4,
-	session: 3,
-	queue: 2,
-	provider: 1,
-};
-
 /** Extra context that most sessions do not need on screen. */
 export const DEFAULT_HIDDEN = ["session", "provider", "queue"];
 
@@ -98,36 +80,31 @@ export function makeBuilder(state: FooterState, cfg: FooterConfig): SegmentBuild
 	const ctxColor = contextColor(state.contextPercent, cfg);
 
 	return (barCells: number): Segment[] => {
-		// Display order is by stability, not importance: left-aligned text means a
-		// field that changes width pushes everything to its right, so the fields
-		// that rarely change lead and the per-turn counters trail. Importance is
-		// expressed through priority (omission order) instead.
+		// Display order is by stability: left-aligned text means a field that
+		// changes width pushes everything to its right, so the fields that rarely
+		// change lead and the per-turn counters trail.
 		const raw: Segment[] = [
-			{ id: "cwd", text: state.branch ? `${cwdText} (${state.branch})` : cwdText, color: "dim", priority: 0 },
-			{ id: "session", text: state.sessionName ? `session ${state.sessionName}` : "", color: "dim", priority: 0 },
-			{ id: "model", text: `${state.modelId} · think ${state.thinkingLevel}`, color: "accent", priority: 0 },
-			{ id: "provider", text: state.provider ? `via ${state.provider}` : "", color: "dim", priority: 0 },
+			{ id: "cwd", text: state.branch ? `${cwdText} (${state.branch})` : cwdText, color: "dim" },
+			{ id: "session", text: state.sessionName ? `session ${state.sessionName}` : "", color: "dim" },
+			{ id: "model", text: `${state.modelId} · think ${state.thinkingLevel}`, color: "accent" },
+			{ id: "provider", text: state.provider ? `via ${state.provider}` : "", color: "dim" },
 			{
 				id: "ctx",
 				text: `ctx ${progressBar(state.contextPercent ?? 0, barCells)} ${pctText} ${ctxNums}`,
-				color: ctxColor,
-				priority: 0,
+				color: ctxColor
 			},
-			{ id: "queue", text: state.queued ? "queued" : "", color: "warning", priority: 0 },
-			{ id: "in", text: `in ${formatCount(state.input)}`, color: "muted", priority: 0 },
-			{ id: "out", text: `out ${formatCount(state.output)}`, color: "muted", priority: 0 },
+			{ id: "queue", text: state.queued ? "queued" : "", color: "warning" },
+			{ id: "in", text: `in ${formatCount(state.input)}`, color: "muted" },
+			{ id: "out", text: `out ${formatCount(state.output)}`, color: "muted" },
 			{
 				id: "cache",
 				text: `cache ${formatCount(state.cacheRead)}/${formatCount(state.cacheWrite)}`,
-				color: "muted",
-				priority: 0,
+				color: "muted"
 			},
-			{ id: "hit", text: `hit ${hitText}`, color: "muted", priority: 0 },
-			{ id: "cost", text: costText, color: "dim", priority: 0 },
+			{ id: "hit", text: `hit ${hitText}`, color: "muted" },
+			{ id: "cost", text: costText, color: "dim" },
 		];
 
-		return raw
-			.filter((s) => !cfg.hide.includes(s.id) && s.text.trim().length > 0)
-			.map((s) => ({ ...s, priority: cfg.priority[s.id] ?? DEFAULT_PRIORITY[s.id] ?? 0 }));
+		return raw.filter((s) => !cfg.hide.includes(s.id) && s.text.trim().length > 0);
 	};
 }

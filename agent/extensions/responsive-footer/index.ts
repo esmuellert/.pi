@@ -107,7 +107,6 @@ export default function (pi: ExtensionAPI) {
 				state.branch = footerData.getGitBranch() ?? null;
 
 				const layout = planLayout(makeBuilder(state, cfg), width, {
-					maxLines: cfg.maxLines,
 					separator: cfg.separator,
 					maxGap: cfg.maxGap,
 					minBar: cfg.minBar,
