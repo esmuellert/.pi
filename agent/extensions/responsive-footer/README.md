@@ -53,6 +53,22 @@ order, and reordering to reclaim a few cells (a bin-packing problem) would make
 fields jump between positions on every resize.
 
 
+## Icons
+
+Folder, git branch and cache use Nerd Font glyphs. Everything else keeps its
+written label: there is no shared visual vocabulary for "input tokens", so an
+icon there would be guesswork rather than shorthand.
+
+**Nerd Font support cannot be detected.** The font is a terminal UI setting the
+process cannot read, and a missing glyph renders as a box that still measures
+one cell — so a cursor-position probe cannot tell a missing glyph from a present
+one. Starship ships a separate `plain-text-symbols` preset for this reason, and
+Oh My Posh documents the same limitation.
+
+So `/footer-icons` asks once and remembers: it prints the three glyphs, you say
+whether they rendered, and the answer is saved to `footer.json`. Set
+`"icons": false` by hand for the same effect.
+
 ## Fields
 
 | Field | Meaning |
@@ -118,7 +134,8 @@ asserting:
   "separator": "  ",
   "maxGap": 0,
   "minBar": 6,
-  "maxBar": 14
+  "maxBar": 14,
+  "icons": true
 }
 ```
 
@@ -129,6 +146,7 @@ A malformed config degrades to defaults rather than taking the TUI down.
 ## Commands
 
 - `/footer` — toggle between this footer and the built-in one
+- `/footer-icons` — check Nerd Font glyphs and save the answer
 - `/reload` — re-read `footer.json` and reinstall
 
 ## Adding a field

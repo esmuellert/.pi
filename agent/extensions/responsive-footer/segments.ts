@@ -12,6 +12,21 @@ import { formatCount, progressBar, shortenHome } from "./format.ts";
 import type { FooterConfig } from "./config.ts";
 import type { Segment, SegmentBuilder } from "./layout.ts";
 
+/**
+ * Nerd Font glyphs. Only used where the icon is unambiguous by convention:
+ * a folder, a git branch, a database. Metric fields keep their written labels,
+ * because there is no shared visual vocabulary for "input tokens" and an icon
+ * there would be guesswork.
+ *
+ * pi-tui measures these as one column. Set `icons: false` if your font lacks
+ * them or your terminal renders them double-width.
+ */
+export const ICON = {
+	folder: "\uF07B",
+	branch: "\uE0A0",
+	cache: "\uF1C0",
+} as const;
+
 export interface FooterState {
 	modelId: string;
 	provider: string;
@@ -78,13 +93,21 @@ export function makeBuilder(state: FooterState, cfg: FooterConfig): SegmentBuild
 	const costText = `$${state.cost.toFixed(3)}${state.usingSubscription ? " sub" : ""}`;
 	const cwdText = shortenHome(state.cwd, state.home);
 	const ctxColor = contextColor(state.contextPercent, cfg);
+	const folder = cfg.icons ? `${ICON.folder} ${cwdText}` : cwdText;
+	const place = state.branch
+		? cfg.icons
+			? `${folder}  ${ICON.branch} ${state.branch}`
+			: `${cwdText} (${state.branch})`
+		: folder;
+	const cacheText = `${formatCount(state.cacheRead)}/${formatCount(state.cacheWrite)}`;
+	const cache = cfg.icons ? `${ICON.cache} ${cacheText}` : `cache ${cacheText}`;
 
 	return (barCells: number): Segment[] => {
 		// Display order is by stability: left-aligned text means a field that
 		// changes width pushes everything to its right, so the fields that rarely
 		// change lead and the per-turn counters trail.
 		const raw: Segment[] = [
-			{ id: "cwd", text: state.branch ? `${cwdText} (${state.branch})` : cwdText, color: "dim" },
+			{ id: "cwd", text: place, color: "dim" },
 			{ id: "session", text: state.sessionName ? `session ${state.sessionName}` : "", color: "dim" },
 			{ id: "model", text: `${state.modelId} · ${state.thinkingLevel}`, color: "accent" },
 			{ id: "provider", text: state.provider ? `via ${state.provider}` : "", color: "dim" },
@@ -98,7 +121,7 @@ export function makeBuilder(state: FooterState, cfg: FooterConfig): SegmentBuild
 			{ id: "out", text: `out ${formatCount(state.output)}`, color: "muted" },
 			{
 				id: "cache",
-				text: `cache ${formatCount(state.cacheRead)}/${formatCount(state.cacheWrite)}`,
+				text: cache,
 				color: "muted"
 			},
 			{ id: "hit", text: `hit ${hitText}`, color: "muted" },

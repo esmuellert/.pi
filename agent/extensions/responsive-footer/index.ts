@@ -13,9 +13,9 @@ import { homedir } from "node:os";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import { loadConfig } from "./config.ts";
+import { loadConfig, saveConfigKey } from "./config.ts";
 import { lineText, planLayout } from "./layout.ts";
-import { type FooterState, makeBuilder } from "./segments.ts";
+import { type FooterState, ICON, makeBuilder } from "./segments.ts";
 
 interface Usage {
 	input?: number;
@@ -139,6 +139,24 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("session_start", async (_e, ctx) => apply(ctx));
 	pi.on("reload", async (_e, ctx) => apply(ctx));
+
+	pi.registerCommand("footer-icons", {
+		description: "Check Nerd Font glyphs and remember whether to use them",
+		handler: async (_args, ctx) => {
+			// Terminals do not expose their font, and a missing glyph renders as a
+			// box that still measures one cell — so no probe can tell. The user can
+			// see the answer; we just record it.
+			const probe = `${ICON.folder}  ${ICON.branch}  ${ICON.cache}`;
+			const ok = await ctx.ui.confirm(
+				"Nerd Font check",
+				`Do these render as a folder, a branch and a database?\n\n    ${probe}\n\n` +
+					"Yes keeps the icons. No falls back to the words 'cache' and '(branch)'.",
+			);
+			saveConfigKey("icons", ok);
+			apply(ctx);
+			ctx.ui.notify(ok ? "Icons enabled and saved" : "Icons off, words restored", "info");
+		},
+	});
 
 	pi.registerCommand("footer", {
 		description: "Toggle responsive footer / built-in footer",

@@ -8,11 +8,14 @@
  */
 
 import assert from "node:assert/strict";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, it } from "node:test";
-import { DEFAULT_CONFIG, type FooterConfig, normalizeConfig } from "./config.ts";
+import { DEFAULT_CONFIG, type FooterConfig, normalizeConfig, saveConfigKey } from "./config.ts";
 import { clamp, formatCount, measureText, progressBar, shortenHome } from "./format.ts";
 import { DEFAULT_LAYOUT_OPTIONS, type Layout, lineText, planLayout, SPREAD_GAP_LIMIT } from "./layout.ts";
-import { DEFAULT_HIDDEN, EMPTY_STATE, type FooterState, makeBuilder } from "./segments.ts";
+import { DEFAULT_HIDDEN, EMPTY_STATE, type FooterState, ICON, makeBuilder } from "./segments.ts";
 
 const WIDTHS = Array.from({ length: 397 }, (_, i) => i + 4); // 4 .. 400
 
@@ -83,6 +86,7 @@ const CONFIGS: Record<string, FooterConfig> = {
 	hideMost: { ...DEFAULT_CONFIG, hide: ["in", "out", "cache", "hit", "cwd"] },
 	hideAll: { ...DEFAULT_CONFIG, hide: ALL_IDS },
 	showAll: { ...DEFAULT_CONFIG, hide: [] },
+	noIcons: { ...DEFAULT_CONFIG, icons: false },
 };
 
 function plan(state: FooterState, cfg: FooterConfig, width: number): Layout {
@@ -150,6 +154,31 @@ describe("config validation", () => {
 		assert.ok(c.ctxWarn <= 100);
 	});
 
+	it("round-trips a saved key without losing the rest of the file", () => {
+		const tmp = join(tmpdir(), `footer-test-${process.pid}.json`);
+		try {
+			writeFileSync(tmp, JSON.stringify({ hide: ["cwd"], maxGap: 3 }));
+			saveConfigKey("icons", false, tmp);
+			const c = normalizeConfig(JSON.parse(readFileSync(tmp, "utf-8")));
+			assert.equal(c.icons, false);
+			assert.deepEqual(c.hide, ["cwd"], "unrelated keys must survive");
+			assert.equal(c.maxGap, 3);
+		} finally {
+			rmSync(tmp, { force: true });
+		}
+	});
+
+	it("saves over an unreadable config rather than refusing", () => {
+		const tmp = join(tmpdir(), `footer-bad-${process.pid}.json`);
+		try {
+			writeFileSync(tmp, "{not json");
+			saveConfigKey("icons", true, tmp);
+			assert.equal(normalizeConfig(JSON.parse(readFileSync(tmp, "utf-8"))).icons, true);
+		} finally {
+			rmSync(tmp, { force: true });
+		}
+	});
+
 	it("keeps hide as a string array", () => {
 		const c = normalizeConfig({ hide: ["cwd", 42, null, "cost"] });
 		assert.deepEqual(c.hide, ["cwd", "cost"]);
@@ -201,7 +230,7 @@ describe("labels are never abbreviated", () => {
 	const LABELS: Record<string, RegExp> = {
 		in: /^in \S+$/,
 		out: /^out \S+$/,
-		cache: /^cache \S+$/,
+		cache: new RegExp(`^(cache|${ICON.cache}) \\S+$`),
 		hit: /^hit \S+$/,
 		ctx: /^ctx /,
 		model: / · \S+$/,
@@ -293,23 +322,13 @@ describe("space utilisation", () => {
 		}
 	});
 
-	it("regression: the bar backs off when it would crowd a field onto the next line", () => {
-		// The bar used to take its ceiling whenever the line count held, and the
-		// extra ink flattered the slack score while pushing a field down a line.
-		// At 53 columns those cells cost 'out' its place by a single column.
-		// Asserting the bar is off its ceiling encodes the bug itself, rather
-		// than a spread threshold that shifts whenever a label is reworded.
-		for (const width of [53, 54, 55, 56]) {
-			const layout = plan(NOMINAL, DEFAULT_CONFIG, width);
-			assert.ok(
-				layout.barCells < DEFAULT_LAYOUT_OPTIONS.maxBar,
-				`@${width}: bar sat at its ceiling (${layout.barCells})`,
-			);
-		}
-	});
 
 	it("picks the bar width that wraps most evenly", () => {
-		// A wider bar must never be taken at the cost of a more ragged block.
+		// Regression: the bar used to take its ceiling whenever the line count
+		// held. Extra bar ink flattered the slack score while pushing a field
+		// onto the next line — at 53 columns it cost 'out' its place by one
+		// column. This sweep is the general form of that check: for every width,
+		// no other bar width may wrap more evenly than the one chosen.
 		for (const width of WIDTHS.filter((w) => w >= 30)) {
 			const chosen = plan(NOMINAL, DEFAULT_CONFIG, width);
 			const spreadOf = (l: Layout) => {
@@ -343,6 +362,27 @@ describe("space utilisation", () => {
 	});
 });
 
+describe("icons", () => {
+	it("uses glyphs only where the meaning is conventional", () => {
+		const withIcons = makeBuilder({ ...NOMINAL, branch: "main" }, DEFAULT_CONFIG)(6);
+		const text = (id: string) => withIcons.find((s) => s.id === id)!.text;
+		assert.ok(text("cwd").startsWith(ICON.folder), "cwd should lead with a folder glyph");
+		assert.ok(text("cwd").includes(ICON.branch), "branch should use its glyph");
+		assert.ok(text("cache").startsWith(ICON.cache), "cache should lead with a database glyph");
+		// Metrics keep written labels: no shared icon vocabulary exists for them.
+		for (const id of ["in", "out", "hit"]) {
+			assert.match(text(id), /^[a-z]+ /, `${id} should keep its written label`);
+		}
+	});
+
+	it("falls back to words when icons are off", () => {
+		const plain = makeBuilder({ ...NOMINAL, branch: "main" }, { ...DEFAULT_CONFIG, icons: false })(6);
+		const all = plain.map((s) => s.text).join(" ");
+		for (const glyph of Object.values(ICON)) assert.ok(!all.includes(glyph), `${glyph} leaked with icons off`);
+		assert.ok(plain.find((s) => s.id === "cache")!.text.startsWith("cache "));
+	});
+});
+
 describe("field order", () => {
 	it("orders by stability, not importance", () => {
 		// Left-aligned text means a field that changes width pushes everything to
@@ -366,11 +406,15 @@ describe("field order", () => {
 	});
 
 	it("shows git branch and hides optional fields by default", () => {
-		const withBranch = makeBuilder({ ...NOMINAL, branch: "main" }, DEFAULT_CONFIG)(6);
-		assert.match(withBranch.find((s) => s.id === "cwd")!.text, /\(main\)$/);
+		const cwdOf = (state: FooterState, cfg = DEFAULT_CONFIG) =>
+			makeBuilder(state, cfg)(6).find((s) => s.id === "cwd")!.text;
 
-		const detached = makeBuilder({ ...NOMINAL, branch: "detached" }, DEFAULT_CONFIG)(6);
-		assert.match(detached.find((s) => s.id === "cwd")!.text, /\(detached\)$/);
+		assert.match(cwdOf({ ...NOMINAL, branch: "main" }), new RegExp(`${ICON.branch} main$`));
+		assert.match(cwdOf({ ...NOMINAL, branch: "detached" }), new RegExp(`${ICON.branch} detached$`));
+		// Without icons the branch falls back to parentheses.
+		const plain = { ...DEFAULT_CONFIG, icons: false };
+		assert.match(cwdOf({ ...NOMINAL, branch: "main" }, plain), /\(main\)$/);
+		assert.equal(cwdOf({ ...NOMINAL, branch: null }, plain), "/private/tmp");
 
 		const ids = makeBuilder({ ...NOMINAL, sessionName: "x", queued: true }, DEFAULT_CONFIG)(6).map((s) => s.id);
 		for (const id of DEFAULT_HIDDEN) assert.ok(!ids.includes(id), `${id} should be hidden by default`);
