@@ -21,22 +21,63 @@ installs some) and are deliberately outside the workspace.
 ## Commands
 
 ```bash
-pnpm verify            # everything below
-pnpm check:pi-version  # catalog pin vs installed pi
-pnpm test              # unit + contract tests
-pnpm typecheck         # tsc across the workspace
-pnpm smoke             # each extension actually loads in pi
+pnpm check       # does this machine match the repo? changes nothing
+pnpm bootstrap   # make it match: install the pinned pi, deps, then verify
+pnpm upgrade-pi  # move the repo to a new pi and verify against it
+pnpm verify      # test + typecheck + smoke
 ```
 
-After upgrading pi:
+Everything in `setup.mjs` is idempotent: it reports what it found and only acts
+when the machine does not already match.
+
+```
+$ pnpm bootstrap
+bootstrap to pi 0.84.2
+  skip  install pi globally (already 0.84.2)
+  skip  install workspace deps (already in step with the catalog)
+verify
+  ...
+This machine matches the repo.
+```
+
+## The repo controls pi
+
+The catalog is the source of truth for which pi these extensions target, so pi
+is upgraded through the repo rather than around it:
 
 ```bash
-pi update
-cd ~/.pi/agent/extensions
-pnpm check:pi-version               # fails, naming the new version
-# bump the pi versions in the catalog
-pnpm install && pnpm verify
+pnpm upgrade-pi            # latest
+pnpm upgrade-pi 0.85.0     # a specific version
 ```
+
+That rewrites the catalog, reinstalls, installs pi globally at that version, and
+runs the full verification — so a pi that breaks an extension fails the upgrade
+rather than being discovered later. Commit `pnpm-workspace.yaml` and
+`pnpm-lock.yaml` afterwards.
+
+Running `pi update` directly is what this replaces: it moves pi out from under
+the repo, and `pnpm check` will say so.
+
+## Setting up a new machine
+
+```bash
+git clone <this repo> ~/.pi
+cd ~/.pi/agent/extensions
+pnpm bootstrap             # installs pi at the pinned version, then verifies
+pi                         # /login, since auth.json is not in the repo
+```
+
+If `~/.pi` already exists because pi has run there, adopt it instead of cloning
+over it. `auth.json` and `sessions/` are ignored, so they survive:
+
+```bash
+cd ~/.pi
+git init && git remote add origin <this repo>
+git fetch && git checkout -f main
+cd agent/extensions && pnpm bootstrap
+```
+
+Node is the only prerequisite: pnpm comes from corepack, which ships with it.
 
 ## Dependencies
 
