@@ -21,43 +21,44 @@ installs some) and are deliberately outside the workspace.
 ## Commands
 
 ```bash
-pnpm verify      # link-pi + test + typecheck + contract check
+pnpm verify      # test + typecheck + contract check
 pnpm test        # turbo test
 pnpm typecheck   # turbo typecheck
 pnpm contract    # runtime contracts against the installed pi
-pnpm link-pi     # re-point node_modules at the installed pi
 ```
 
 After upgrading pi:
 
 ```bash
-pi update && cd ~/.pi/agent/extensions && pnpm install && pnpm verify
+pi update
+cd ~/.pi/agent/extensions
+pnpm contract                       # fails, naming the new version
+# bump the pi versions in the catalog
+pnpm install && pnpm verify
 ```
-
-`pnpm install` runs `link-pi` as a postinstall hook, so the symlinks follow pi to
-its new store path.
 
 ## Dependencies
 
-Tooling versions live in a single `catalog:` block in `pnpm-workspace.yaml`, so
-every package references `"catalog:"` and cannot drift.
+All versions live in one `catalog:` block in `pnpm-workspace.yaml`; packages
+reference `"catalog:"` and cannot drift from each other.
 
-The pi packages are declared as `peerDependencies` with a `"*"` range, which is
-what pi's own docs prescribe for anything it provides at runtime. `.npmrc` turns
-off `auto-install-peers`: letting pnpm satisfy them pulls a second 200 MB copy of
-pi into the workspace and puts a `pi` shim on PATH that shadows the real one.
+The pi packages appear twice, deliberately:
 
-## Why pi is symlinked rather than depended on
+- **`peerDependencies: "*"`** — what pi's docs prescribe, declaring that pi
+  supplies these at runtime and they must not be bundled.
+- **`devDependencies: "catalog:"`** — pinned to an exact version so TypeScript
+  has types to check against. pi is a global install and is not otherwise
+  resolvable from here.
 
-pi is installed globally, so it is not resolvable from this workspace and
-TypeScript cannot see the types the extensions import. Adding it as a normal
-devDependency would install a second copy that could drift from the one that
-actually runs. `scripts/link-pi.mjs` instead reads pi's launcher shim to find the
-real package and symlinks `@earendil-works/{pi-coding-agent,pi-tui,pi-ai}` into
-`node_modules`, so type checking always targets the running version.
+The pin is the point. When pi is upgraded the pin goes stale, `pnpm contract`
+fails and names the new version, and you update the catalog and re-verify. A
+symlink to whichever pi happens to be installed would keep type checking green
+while silently following a version nobody had verified against — it would erase
+exactly the signal that says "go check your extensions".
 
-The links have to be rebuilt after every install, because pnpm prunes anything in
-`node_modules` that no manifest mentions.
+The second copy costs nothing: pnpm shares content with its store, so installing
+pi again changed free disk by 1 MB (`du` reports 132 MB, which is copy-on-write
+accounting).
 
 ## Three layers of checking
 

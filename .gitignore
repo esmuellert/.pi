@@ -19,7 +19,6 @@
 !/agent/extensions/pnpm-workspace.yaml
 !/agent/extensions/pnpm-lock.yaml
 !/agent/extensions/turbo.json
-!/agent/extensions/.npmrc
 !/agent/extensions/README.md
 !/agent/extensions/tsconfig.json
 !/agent/extensions/tsconfig.base.json

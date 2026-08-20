@@ -20,6 +20,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+const extRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const results = [];
 let failed = 0;
 
@@ -79,12 +80,29 @@ function findPiRoot() {
 let piPath;
 let piDist;
 let tuiDist;
+let installedVersion;
 
 check("pi package resolves", () => {
 	piPath = findPiRoot();
 	piDist = join(piPath, "dist", "index.js");
 	assert(existsSync(piDist), `missing ${piDist}`);
-	return JSON.parse(readFileSync(join(piPath, "package.json"), "utf-8")).version;
+	installedVersion = JSON.parse(readFileSync(join(piPath, "package.json"), "utf-8")).version;
+	return installedVersion;
+});
+
+check("workspace is pinned to the installed pi", () => {
+	// The whole point of pinning rather than symlinking: when pi is upgraded the
+	// pin goes stale, and that mismatch is the signal to update and re-verify.
+	// Type checking would otherwise keep validating against types nobody runs.
+	const workspace = readFileSync(join(extRoot, "pnpm-workspace.yaml"), "utf-8");
+	const pinned = /"@earendil-works\/pi-coding-agent":\s*(\S+)/.exec(workspace)?.[1];
+	assert(pinned, "no pi version in the pnpm catalog");
+	assert(
+		pinned === installedVersion,
+		`catalog pins pi ${pinned} but ${installedVersion} is installed — ` +
+			`update the catalog in pnpm-workspace.yaml, run 'pnpm install', then 'pnpm verify'`,
+	);
+	return `pinned ${pinned}`;
 });
 
 check("pi-tui package resolves", () => {
@@ -101,9 +119,6 @@ check("pi-tui package resolves", () => {
 // reports as one failed contract rather than crashing the whole run.
 const pi = piDist && existsSync(piDist) ? await import(piDist) : {};
 const tui = tuiDist && existsSync(tuiDist) ? await import(tuiDist) : {};
-
-// scripts/ lives inside the workspace; packages are its siblings.
-const extRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 
 // -------------------------------------------------------------- cd extension
 

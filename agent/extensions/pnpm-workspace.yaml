@@ -6,6 +6,11 @@ packages:
 
 # Single source of truth for tooling versions. Packages reference "catalog:".
 catalog:
+  # Pinned to the pi we build against. When `pnpm contract` reports that the
+  # installed pi differs, bump this, reinstall, and re-run `pnpm verify`.
+  "@earendil-works/pi-ai": 0.84.2
+  "@earendil-works/pi-coding-agent": 0.84.2
+  "@earendil-works/pi-tui": 0.84.2
   "@types/node": ^26.2.0
   turbo: ^2.10.11
   typescript: ^7.0.2

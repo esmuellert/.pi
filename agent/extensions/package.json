@@ -5,12 +5,10 @@
   "type": "module",
   "description": "Personal pi coding agent extensions",
   "scripts": {
-    "postinstall": "node scripts/link-pi.mjs",
-    "link-pi": "node scripts/link-pi.mjs",
     "test": "turbo test",
     "typecheck": "turbo typecheck",
     "contract": "node scripts/check-contract.mjs",
-    "verify": "pnpm link-pi && turbo run test typecheck && pnpm contract"
+    "verify": "turbo run test typecheck && pnpm contract"
   },
   "devDependencies": {
     "@types/node": "catalog:",
