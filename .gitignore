@@ -10,6 +10,7 @@
 !/agent/
 /agent/*
 !/agent/settings.json
+!/agent/check-contract.mjs
 
 # --- our own extensions only ---
 !/agent/extensions/
