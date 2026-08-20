@@ -40,60 +40,77 @@ python3 ~/.pi/agent/themes/preview.py rose      # just the rose-pine pair
 python3 ~/.pi/agent/themes/preview.py --width 55
 ```
 
-## Why generate rather than hand-write
+## How a palette becomes a theme
 
 A theme is 55 colours. Written by hand, "it uses the official palette" is a
-claim nobody can check, and the colours that get invented are the ones no
-palette publishes — which for a coding agent are the tool block backgrounds,
-the largest areas of colour on the screen.
+claim nobody can check, and the values that get invented are the ones no palette
+publishes — for a coding agent, the tool block backgrounds, which are the
+largest areas of colour on the screen.
 
-So the palettes are npm dependencies, not copied values:
+So the palettes are npm dependencies rather than copied values:
 
 ```ts
 import { flavors } from "@catppuccin/palette";
 import { variants } from "@rose-pine/palette";
 ```
 
-and a token never names a colour, only a role:
+and nothing in the pipeline can name a colour. A palette is described once, in
+its own vocabulary, and rules do the rest.
+
+### 1. Semantics: what a palette means
+
+`semantics.ts` says which of a palette's roles play which idea. Two ladders and
+a dozen accents, quoting upstream wherever upstream states it:
 
 ```ts
-mdLink: role("iris"),                    // the palette supplies the value
-toolSuccessBg: tinted("surface", "foam"), // and both halves of a tint
+surfaces: ["base", "surface", "overlay", "highlightMed", "highlightHigh"],
+neutrals: ["muted", "subtle", "text"],
+signature: "iris",       // "links, hints"; the colour the palette is known by
+error:     "love",       // "errors, git delete"
+comment:   "muted",      // "comments"
 ```
 
-There is no way to express an off-palette colour, so `mapping.test.ts` can
-*prove* every emitted colour came from upstream rather than assert it.
+A new palette is fourteen declarations, not fifty-five decisions.
+
+### 2. Rules: how meaning becomes tokens
+
+`derive.ts` turns that into all 55 tokens without naming a colour, a role, or a
+palette. It reads ladder positions and named accents, and measures:
+
+- **Foreground tiers are chosen by target contrast, not by index.** rose-pine
+  names three foreground greys and catppuccin six, so `neutrals[1]` is a
+  different kind of grey in each. Picking the rung nearest a target makes `dim`
+  equally dim on both. The targets are pi's own dark theme, so "as readable as
+  what pi ships" is true by construction.
+- **Text on a panel is measured against the panel**, including what state
+  tinting does to it. A grey that is 4.5:1 against the page is 2.3:1 against a
+  tinted tool block, which is where it stops being readable.
+- **The thinking border climbs and lands on the signature.** pi paints the
+  editor border with the thinking level, so the level you run at is on screen
+  all session. The ramp rises by measured contrast and ends on the palette's
+  identity, rather than on whatever is loudest — an earlier version ended on
+  gold, which is the highest-contrast colour rose-pine has. Steps come from the
+  neutrals where there are enough of them, since a border is chrome; accents
+  are pulled in nearest the signature first only to make up the numbers.
+
+`derive.test.ts` checks that this is really structural by deriving a theme from
+a synthetic palette whose roles are named after floors, weather and fruit. If a
+rule had a colour name in it, that palette would fail.
 
 ### The one derived value
 
-pi's TUI has no alpha, so a tool block tinted by its state has to be composited
-down to an opaque colour. The alpha is not invented — both projects publish the
-same figure for this exact use in their own editor ports:
+pi's TUI has no alpha, so a tool block tinted by its state is composited down.
+The alpha is not invented — both projects publish the same figure for this exact
+use in their own editor ports:
 
 ```
 rose-pine   diffEditor.insertedLineBackground = #9ccfd826    (0x26/255 = 0.149)
 catppuccin  diffEditor.insertedLineBackground = opacity(green, 0.15)
 ```
 
-The tint goes over the block's own surface, not over the page. Tinting the page
-leaves the tinted and untinted blocks only ~20 apart on catppuccin, because the
-surface is lighter than the base and the two moves cancel. Over the surface they
-stay 43+ apart.
-
-### Which role plays which token
-
-Where upstream states it, the mapping follows and the comment quotes it:
-
-```ts
-error: role("love"),           // "errors, git delete"
-syntaxString: role("gold"),    // "strings"
-syntaxKeyword: role("mauve"),  // "Keyword"
-```
-
-Sources: [rose-pine roles](https://github.com/rose-pine/palette#roles),
-[catppuccin style guide](https://github.com/catppuccin/catppuccin/blob/main/docs/style-guide.md).
-Choices with no upstream counterpart — pi's thinking levels, mostly — are marked
-as choices.
+The tint goes over the block's own surface rather than the page. Tinting the
+page leaves tinted and untinted blocks only ~20 apart on catppuccin, where the
+surface is lighter than the base and the two moves cancel.
 
 ## Files
 
@@ -101,7 +118,8 @@ as choices.
 |---|---|
 | `palettes.ts` | adapter over the two upstream packages; normalises their shapes |
 | `color.ts` | hex, compositing, contrast, perceptual difference |
-| `mapping.ts` | role per token, per project |
+| `semantics.ts` | what each palette's roles mean; the only per-palette file |
+| `derive.ts` | the rules; names no colour, role or palette |
 | `build.ts` | writes the JSON; `--check` verifies it is current |
 
 ## Tests
@@ -114,25 +132,11 @@ pnpm --filter pi-themes test
 |---|---|
 | `palettes.test.ts` | the seam with upstream: rose-pine publishes hex without `#`, catppuccin with it |
 | `color.test.ts` | compositing, and that 0.15 matches the published `0x26` |
-| `mapping.test.ts` | the strictness proof: every colour traces to a role |
-| `contract.test.ts` | pi's schema, read from the installed pi, plus readability |
+| `semantics.test.ts` | the ladders are ordered and long enough for the rules to read |
+| `derive.test.ts` | the rules are structural, proved on a synthetic palette |
+| `contract.test.ts` | pi's schema and pi's own numbers, read from the installed pi |
 
-Two of these are worth knowing about.
-
-**Completeness is a compile error, not a test.** pi exports its `ThemeColor`
-union, and the mapping is typed as a total `Record` over it, so a missing token
-fails `tsc`:
-
-```
-mapping.ts(75,14): error TS2741: Property 'bashMode' is missing in type
-'{ accent: Ref; ... }' but required in type 'Readonly<Record<Token, Ref>>'.
-```
-
-pi does not export the *background* half of that union, so those names are
-repeated in `mapping.ts` and checked against pi's schema at test time. That is
-the half that can drift.
-
-**The legibility bar is pi's own theme, not a number.** Whether two tool
+**Nothing here is a number someone picked.** Whether two tool
 backgrounds are far enough apart is measured against what pi's built-in `dark`
 manages, read from the installed pi:
 
@@ -141,7 +145,8 @@ pi's dark theme: success/error 35.8, success/pending 26.2, error/pending 34.0
 ```
 
 so the bar is "at least as legible as what pi ships" rather than a threshold
-someone picked. It also moves if pi retunes its theme.
+someone picked. The foreground tiers and the border visibility floor are read
+from pi the same way. All of them move if pi retunes its theme.
 
 Contrast ratio cannot do this job: it only compares luminance, so a red-tinted
 and a blue-tinted surface of the same lightness score 1.0 while looking nothing

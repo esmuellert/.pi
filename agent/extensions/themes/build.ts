@@ -11,9 +11,9 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import { composite } from "./color.ts";
-import { mappingFor, STATE_TINT, type Ref, type ThemeMapping } from "./mapping.ts";
+import { derive, resolve, varName } from "./derive.ts";
 import { PALETTES, type Palette } from "./palettes.ts";
+import { semanticsFor, type Semantics } from "./semantics.ts";
 
 export const DEFAULT_OUT = join(homedir(), ".pi", "agent", "themes");
 
@@ -28,34 +28,18 @@ export type Theme = {
 const SCHEMA =
 	"https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/src/modes/interactive/theme/theme-schema.json";
 
-/** Look up a role, failing loudly rather than emitting `undefined`. */
-function roleValue(palette: Palette, name: string): string {
-	const value = palette.roles[name];
-	if (!value) throw new Error(`${palette.name} has no role "${name}"`);
-	return value;
-}
-
-/** The variable name a ref is stored under in the theme's `vars` block. */
-export function varName(ref: Ref): string {
-	return "role" in ref ? ref.role : `${ref.tint}On${ref.over[0]!.toUpperCase()}${ref.over.slice(1)}`;
-}
-
-export function resolve(palette: Palette, ref: Ref): string {
-	if ("role" in ref) return roleValue(palette, ref.role);
-	return composite(roleValue(palette, ref.over), roleValue(palette, ref.tint), STATE_TINT);
-}
-
-export function buildTheme(palette: Palette, mapping: ThemeMapping = mappingFor(palette.name)): Theme {
+export function buildTheme(palette: Palette, semantics: Semantics = semanticsFor(palette)): Theme {
+	const derived = derive(palette, semantics);
 	const vars: Record<string, string> = {};
 	const colors: Record<string, string> = {};
-	for (const [token, ref] of Object.entries(mapping.colors)) {
+	for (const [token, ref] of Object.entries(derived.colors)) {
 		const name = varName(ref);
 		vars[name] = resolve(palette, ref);
 		colors[token] = name;
 	}
 	// The export block takes hex directly: pi resolves vars for colors only.
 	const exported: Record<string, string> = {};
-	for (const [token, ref] of Object.entries(mapping.export)) {
+	for (const [token, ref] of Object.entries(derived.export)) {
 		exported[token] = resolve(palette, ref);
 	}
 	return { $schema: SCHEMA, name: palette.name, vars, colors, export: exported };

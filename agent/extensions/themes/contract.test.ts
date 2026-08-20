@@ -16,8 +16,10 @@ import { describe, it } from "node:test";
 import { getPackageDir } from "@earendil-works/pi-coding-agent";
 
 import { buildTheme, render } from "./build.ts";
-import { mappingFor } from "./mapping.ts";
+import { derive } from "./derive.ts";
+import { semanticsFor } from "./semantics.ts";
 import { contrast, difference } from "./color.ts";
+import { BORDER_FLOOR, FOREGROUND_TIERS } from "./derive.ts";
 import { PALETTES } from "./palettes.ts";
 
 type Schema = {
@@ -72,10 +74,9 @@ describe("pi's theme schema", () => {
 	});
 
 	it("agrees with the token union the mapping is typed against", () => {
-		// tsc already proves the mapping covers every ThemeColor pi exports, but pi
-		// does not export ThemeBg, so the background half is only as right as the
-		// hand-written union in mapping.ts. This is the half that can drift.
-		const mapped = Object.keys(mappingFor("rose-pine").colors).sort();
+		// The rules in derive.ts emit a fixed set of tokens; pi's schema is the only
+		// thing that says whether that set is still the right one.
+		const mapped = Object.keys(derive(PALETTES[0]!, semanticsFor(PALETTES[0]!)).colors).sort();
 		const known = Object.keys(colors.properties).sort();
 		assert.deepEqual(mapped, known, "the mapping and pi's schema list different tokens");
 	});
@@ -119,6 +120,45 @@ describe("generated themes", () => {
 			});
 		});
 	}
+});
+
+describe("pi's own dark theme", () => {
+	// The two numbers the rules lean on are checked against pi rather than
+	// asserted, so "as legible as what pi ships" stays true if pi retunes.
+	const dark = JSON.parse(readFileSync(join(THEME_DIR, "dark.json"), "utf-8")) as {
+		vars: Record<string, string>;
+		colors: Record<string, string>;
+		export?: Record<string, string>;
+	};
+	const value = (token: string) => {
+		const ref = dark.colors[token]!;
+		return dark.vars[ref] ?? ref;
+	};
+
+	it("agrees with the foreground tiers the rules aim at", () => {
+		const page = dark.export?.pageBg ?? "#000000";
+		for (const [tier, token] of [
+			["body", "text"],
+			["secondary", "muted"],
+			["tertiary", "dim"],
+		] as const) {
+			const theirs = contrast(value(token), page);
+			const ours = FOREGROUND_TIERS[tier];
+			assert.ok(
+				Math.abs(theirs - ours) < 0.5,
+				`pi puts ${token} at ${theirs.toFixed(2)}:1, we aim at ${ours}:1`,
+			);
+		}
+	});
+
+	it("puts its dimmest thinking level no lower than our floor", () => {
+		const page = dark.export?.pageBg ?? "#000000";
+		const dimmest = contrast(value("thinkingOff"), page);
+		assert.ok(
+			dimmest >= BORDER_FLOOR,
+			`pi's own thinkingOff is ${dimmest.toFixed(2)}:1, below the ${BORDER_FLOOR} floor we enforce`,
+		);
+	});
 });
 
 describe("readability", () => {
