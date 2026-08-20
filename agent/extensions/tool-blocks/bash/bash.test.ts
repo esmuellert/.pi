@@ -15,7 +15,9 @@ import { join } from "node:path";
 import { before, describe, it } from "node:test";
 
 import { prepare, ready, tokenize } from "./engine.ts";
-import { paint, title } from "./title.ts";
+import { wrapTextWithAnsi } from "@earendil-works/pi-tui";
+
+import { paint, retitling, title } from "./title.ts";
 import { tokenForScope, tokenForStack, SCOPE_TOKENS } from "./scopes.ts";
 
 const COMMANDS: string[] = JSON.parse(
@@ -137,6 +139,63 @@ describe("title", () => {
 
 	it("declines rather than guess", () => {
 		assert.equal(title("", probe), undefined);
+	});
+});
+
+describe("pi-tui's wrapping", () => {
+	it("breaks styled text differently from the same text unstyled", () => {
+		// The reason retitling has to drop blank lines. If this ever fails,
+		// pi-tui has been fixed and unpad() can go.
+		const text = "$ cd /home/dev/repos/scratchpad && sed -n '1,120p' scratchpad.xcodeproj/project.pbxproj";
+		const styled = text.split(" ").map((word) => (word ? `\u001b[38;2;1;2;3m${word}\u001b[39m` : word)).join(" ");
+		const bare = wrapTextWithAnsi(text, 24);
+		const coloured = wrapTextWithAnsi(styled, 24).map(plain);
+		assert.notDeepEqual(coloured, bare, "pi-tui now wraps styled and unstyled text alike");
+		assert.ok(coloured.includes(""), "the difference used to be an invented blank line");
+	});
+});
+
+describe("retitling at a width", () => {
+	before(async () => {
+		await prepare();
+	});
+
+	const retitle = retitling();
+	/** What pi would have handed over: the command, wrapped to `width`. */
+	const asPiWould = (command: string, width: number) =>
+		command.split("\n").flatMap((line) => wrapTextWithAnsi(`$ ${line}`, width));
+
+	it("highlights at every width, not only where the command fits", () => {
+		// The first version compared line counts and gave up when they differed,
+		// so highlighting vanished the moment a pane was too narrow for the
+		// command — on a phone always, and on a desktop as soon as it narrowed.
+		for (const command of COMMANDS.slice(0, 12)) {
+			for (const width of [120, 80, 60, 40, 30, 24, 16]) {
+				const lines = asPiWould(command, width);
+				const out = retitle(lines, { command } as never, probe, {} as never);
+				assert.ok(out, `no title at width ${width} for ${JSON.stringify(command.slice(0, 40))}`);
+			}
+		}
+	});
+
+	it("breaks where pi would have broken it", () => {
+		for (const command of COMMANDS.slice(0, 12)) {
+			for (const width of [80, 40, 24]) {
+				const lines = asPiWould(command, width);
+				const out = retitle(lines, { command } as never, probe, {} as never)!;
+				assert.deepEqual(out.map(plain), lines.map(plain), `width ${width}`);
+			}
+		}
+	});
+
+	it("never overflows the width it was given", () => {
+		for (const command of COMMANDS.slice(0, 12)) {
+			for (const width of [60, 30, 20]) {
+				for (const line of retitle(asPiWould(command, width), { command } as never, probe, {} as never)!) {
+					assert.ok(plain(line).length <= width, `${plain(line).length} > ${width}`);
+				}
+			}
+		}
 	});
 
 	it("leaves untokenised runs unpainted rather than dropping them", () => {

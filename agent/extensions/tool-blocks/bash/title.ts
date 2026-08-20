@@ -9,6 +9,7 @@
  */
 
 import type { Theme } from "@earendil-works/pi-coding-agent";
+import { visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 
 import type { RenderArgs, RenderContext } from "../tools/builtins.ts";
 import { tokenize, type Piece } from "./engine.ts";
@@ -16,10 +17,30 @@ import { tokenize, type Piece } from "./engine.ts";
 /** Strip SGR sequences, to compare what will be shown against what will run. */
 const plain = (text: string) => text.replace(/\u001b\[[0-9;]*m/g, "");
 
-/** Paint pieces with the active theme. Untokenised runs keep the title colour. */
+/**
+ * Paint pieces with the active theme, one escape sequence per run of colour.
+ *
+ * The grammar splits finely — a quoted argument arrives as quote, body, quote —
+ * and painting each piece separately puts three identical colour changes where
+ * one would do. A command line came out with forty escape sequences against the
+ * four pi uses for the same title, which some terminals render and some do not.
+ * Merging neighbours that share a token is both smaller and closer to what pi
+ * itself emits.
+ *
+ * Whitespace never carries colour of its own, so it joins whichever run it sits
+ * in rather than breaking it.
+ */
 export function paint(pieces: readonly Piece[], theme: Theme): string {
-	return pieces
-		.map(({ text, token }) => (token && text.trim() ? theme.fg(token as never, text) : text))
+	const runs: { token: string | undefined; text: string }[] = [];
+	for (const { text, token } of pieces) {
+		// A blank piece extends the run it follows, whatever that run is.
+		const carried = text.trim() ? token : runs.at(-1)?.token;
+		const open = runs.at(-1);
+		if (open && open.token === carried) open.text += text;
+		else runs.push({ token: carried, text });
+	}
+	return runs
+		.map(({ token, text }) => (token && text.trim() ? theme.fg(token as never, text) : text))
 		.join("");
 }
 
@@ -46,8 +67,16 @@ export function title(command: string, theme: Theme): string | undefined {
 /**
  * A Presentation.retitle for bash.
  *
- * pi renders the command across as many lines as it has; this replaces the
- * whole run, so the caller must hand over every line the built-in produced.
+ * The width has to be honoured here rather than deferred to pi. pi's Text
+ * wraps the title to the pane, so at any width where the command does not fit
+ * it hands over more lines than the command has, and a replacement that has
+ * not wrapped cannot stand in for them. Comparing the counts and giving up was
+ * the first attempt, and it meant the highlighting simply vanished on a narrow
+ * pane — visible on a phone, and on a desktop as soon as the window narrowed.
+ *
+ * `wrapTextWithAnsi` is the function pi's own Text wraps with, so the result
+ * breaks in the same places pi would have broken it, and reopens the colour on
+ * the far side of a break.
  */
 export function retitling() {
 	return (lines: string[], args: RenderArgs, theme: Theme, _context: RenderContext): string[] | undefined => {
@@ -55,9 +84,37 @@ export function retitling() {
 		if (typeof command !== "string") return undefined;
 		const styled = title(command, theme);
 		if (styled === undefined) return undefined;
-		const replacement = styled.split("\n");
-		// pi wraps long lines; if it produced more lines than the command has,
-		// its wrapping is doing work this cannot reproduce, so leave it alone.
-		return replacement.length === lines.length ? replacement : undefined;
+
+		const width = widthOf(lines);
+		const wrapped = styled
+			.split("\n")
+			.flatMap((line) => (width > 0 ? unpad(wrapTextWithAnsi(line, width)) : [line]));
+		return wrapped.length > 0 ? wrapped : undefined;
 	};
+}
+
+/**
+ * Drop the blank lines wrapping invents around a colour change.
+ *
+ * pi-tui's wrapTextWithAnsi breaks the same visible text differently depending
+ * on whether it carries SGR: where a styled word lands on the boundary it
+ * emits an empty line that the unstyled text does not get. Nothing else here
+ * produces a blank line — the command's own blank lines arrive as separate
+ * segments — so dropping them is safe and keeps the break points matching what
+ * pi would have shown.
+ */
+function unpad(lines: readonly string[]): string[] {
+	return lines.filter((line, index) => index === 0 || line.replace(/\u001b\[[0-9;]*m/g, "") !== "");
+}
+
+/**
+ * The width pi wrapped to, recovered from what it produced.
+ *
+ * retitle is not given the width, so it is read back off the longest line pi
+ * rendered. A single short line means nothing was wrapped and any width will
+ * do, which is why the fallback leaves the text alone rather than guessing.
+ */
+function widthOf(lines: readonly string[]): number {
+	if (lines.length < 2) return 0;
+	return Math.max(...lines.map((line) => visibleWidth(line)));
 }
