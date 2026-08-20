@@ -89,21 +89,6 @@ describe("what may not share a colour", () => {
 	 */
 	for (const [name, semantics] of [["rose-pine", rosePineSemantics], ["catppuccin", catppuccinSemantics]] as const) {
 		describe(name, () => {
-			it("does not colour a heading like a warning", () => {
-				// A heading marks structure. Painting it the warning colour says
-				// something is wrong with every section title on the page, and in
-				// rose-pine that colour is also the palette's loudest.
-				assert.notEqual(
-					semantics.heading,
-					semantics.warning,
-					"a section title would read as something being wrong",
-				);
-			});
-
-			it("does not colour a heading like an error", () => {
-				assert.notEqual(semantics.heading, semantics.error);
-			});
-
 			it("keeps error and success apart, which is the one pair nothing may merge", () => {
 				assert.notEqual(semantics.error, semantics.success);
 			});

@@ -213,7 +213,7 @@ export function derive(palette: Palette, semantics: Semantics): Derived {
 			toolTitle: ref(body),
 			toolOutput: ref(onPanel(LEGIBLE)),
 
-			mdHeading: ref(semantics.heading),
+			mdHeading: ref(semantics.signature),
 			mdLink: ref(semantics.link),
 			mdLinkUrl: ref(tertiary),
 			mdCode: ref(semantics.decoration),

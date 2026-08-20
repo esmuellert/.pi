@@ -160,23 +160,29 @@ and `build.ts --check` reports the generated files as stale until you rebuild.
 
 ## Where the semantics come from
 
-Eleven of the thirteen accent declarations cite what the palette itself says
-the colour is for — rose-pine's `gold` is "warnings", catppuccin's `green` is
+Eleven of the twelve accent declarations cite what the palette itself says the
+colour is for — rose-pine's `gold` is "warnings", catppuccin's `green` is
 "Strings". Those are transcribed, not chosen.
 
-Two have nothing to cite, because a palette describes code and these are not
-code: `heading` and `decoration`. Both name that in place, and `heading` uses
-pi's own dark theme as the reference — there, a heading gets a warm colour of
-its own and warning is reserved for pure yellow.
+There used to be thirteen, and two of those had nothing to cite: a palette
+describes code, and `heading` and `decoration` are not code. `heading` is gone
+now — not replaced with a better choice, but removed. Headings are a document's
+own furniture, along with list bullets, and furniture is drawn in the colour
+the palette is known by. There was nothing left to choose.
 
-That distinction was lost once. rose-pine's `heading` had been `gold`, which is
-also `warning` and the palette's loudest colour at 88% saturation, so every
-markdown heading in a reply read as loudly as an error. `rose` is the only
-other warm role and is softer at 55%, which is the same relation pi draws.
+Removing it fixed the fault that prompted the audit. rose-pine's `heading` had
+been `gold`, which is also `warning` and the palette's loudest colour at 88%
+saturation, so every markdown heading in a reply read as loudly as an error.
+Headings are bold already, and underlined at level one, so the colour was never
+carrying the signal alone.
 
-`semantics.test.ts` now holds the rule rather than the fix: for every palette,
-a heading may not share a colour with a warning or an error, error and success
-may not merge, and the signature may not double as any of the three states.
+Links stay separate: catppuccin cites `blue` for them, and rose-pine's
+signature also being its link colour is that palette's coincidence rather than
+a rule.
+
+The tests hold rules rather than fixes: structure shares one colour and stays
+clear of all three outcomes, error and success may not merge, and the signature
+may not double as a state.
 
 ## Sharing is not a fault
 
@@ -188,7 +194,8 @@ tests check is whether the roles that share are saying compatible things.
 | `gold` = warning + literal | upstream names it for both |
 | `foam` = success + info + type | upstream, plus the vscode port |
 | `pine` = keyword + callable | upstream, plus the vscode port |
-| `rose` = heading + decoration + number | forced; the last warm role |
+| `rose` = decoration + number | forced; the last warm role |
+| `iris` = signature + link + heading | the palette says "links, hints"; structure joins it |
 
 catppuccin has fourteen accents and six spare, so it shares far less. Checked
 against pi's own dark theme, three collisions that looked wrong turn out to be

@@ -15,9 +15,9 @@
 		"greenOnSurface0": "#434d52",
 		"redOnSurface0": "#4e3f53",
 		"overlay2": "#9399b2",
-		"peach": "#fab387",
 		"blue": "#89b4fa",
 		"teal": "#94e2d5",
+		"peach": "#fab387",
 		"subtext0": "#a6adc8"
 	},
 	"colors": {
@@ -46,7 +46,7 @@
 		"toolErrorBg": "redOnSurface0",
 		"toolTitle": "text",
 		"toolOutput": "overlay2",
-		"mdHeading": "peach",
+		"mdHeading": "mauve",
 		"mdLink": "blue",
 		"mdLinkUrl": "overlay0",
 		"mdCode": "teal",
