@@ -7,7 +7,8 @@
 		"typecheck": "tsc --noEmit",
 		"probe:reports": "node --experimental-strip-types probe/reports.ts",
 		"probe:step": "node --experimental-strip-types probe/step.ts",
-		"probe:bytes": "node --experimental-strip-types probe/bytes.ts"
+		"probe:bytes": "node --experimental-strip-types probe/bytes.ts",
+		"probe:keys": "node --experimental-strip-types probe/keys.ts"
 	},
 	"devDependencies": {
 		"@earendil-works/pi-coding-agent": "catalog:",

@@ -13,6 +13,7 @@
 !/agent/
 /agent/*
 !/agent/settings.json
+!/agent/keybindings.json
 
 # --- generated themes: the product of agent/extensions/themes ---
 !/agent/themes/

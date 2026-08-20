@@ -53,7 +53,16 @@ while working this out.
 pnpm probe:reports    how many reports this terminal sends per notch
 pnpm probe:step       how a given step feels, scrolled by hand
 pnpm probe:bytes      what a scrolled row costs on this link
+pnpm probe:keys       which key combinations the terminal delivers at all
 ```
+
+`probe:keys` is here for the same reason as the rest: pi's fullscreen defaults
+bind ctrl+shift+up/down and ctrl+shift+f, and Windows Terminal keeps that whole
+range for its own shortcuts, so none of the three arrive. Nothing reports an
+error — the keys simply do nothing, which reads as the feature being broken.
+
+`~/.pi/agent/keybindings.json` adds arriving alternatives alongside the
+defaults, so both work depending on the terminal.
 
 `probe:reports` is the one that decides the setting:
 
