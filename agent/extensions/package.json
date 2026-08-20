@@ -1,23 +1,25 @@
 {
-  "name": "pi-extensions",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "description": "Personal pi coding agent extensions",
-  "scripts": {
-    "setup": "node scripts/setup.mjs",
-    "check": "node scripts/setup.mjs check",
-    "bootstrap": "node scripts/setup.mjs bootstrap",
-    "upgrade-pi": "node scripts/setup.mjs upgrade",
-    "test": "turbo run test",
-    "typecheck": "turbo run typecheck",
-    "smoke": "turbo run smoke",
-    "verify": "turbo run test typecheck smoke"
-  },
-  "devDependencies": {
-    "@types/node": "catalog:",
-    "turbo": "catalog:",
-    "typescript": "catalog:"
-  },
-  "packageManager": "pnpm@10.13.1"
+	"name": "pi-extensions",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"description": "Personal pi coding agent extensions",
+	"scripts": {
+		"setup": "node scripts/setup.mjs",
+		"check": "node scripts/setup.mjs check",
+		"bootstrap": "node scripts/setup.mjs bootstrap",
+		"upgrade-pi": "node scripts/setup.mjs upgrade",
+		"test": "turbo run test",
+		"typecheck": "turbo run typecheck",
+		"smoke": "turbo run smoke",
+		"verify": "turbo run test typecheck smoke && pnpm loadable",
+		"loadable": "node scripts/check-loadable.mjs"
+	},
+	"devDependencies": {
+		"@types/node": "catalog:",
+		"turbo": "catalog:",
+		"typescript": "catalog:",
+		"@earendil-works/pi-coding-agent": "catalog:"
+	},
+	"packageManager": "pnpm@10.13.1"
 }

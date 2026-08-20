@@ -1,0 +1,17 @@
+{
+	"name": "frame-budget",
+	"private": true,
+	"type": "module",
+	"main": "budget.ts",
+	"scripts": {
+		"test": "node --experimental-strip-types --test \"*.test.ts\"",
+		"typecheck": "tsc --noEmit"
+	},
+	"devDependencies": {
+		"@types/node": "catalog:",
+		"typescript": "catalog:"
+	},
+	"exports": {
+		".": "./budget.ts"
+	}
+}

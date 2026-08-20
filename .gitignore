@@ -37,6 +37,7 @@
 !/agent/extensions/cd/
 !/agent/extensions/themes/
 !/agent/extensions/tool-blocks/
+!/agent/extensions/frame-budget/
 
 # --- optional, uncomment when created ---
 # !/agent/keybindings.json
