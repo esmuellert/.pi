@@ -59,10 +59,10 @@ const draw = (lines: string[], cap = 999) => {
 	if (lines.length > cap) console.log(theme.fg("dim", `   ... ${lines.length - cap} more lines`));
 };
 
-const styles = ["count", "ellipsis", "lines", "plain"] as const;
-const definitionFor = (style: (typeof styles)[number]) =>
-	present("bash", CWD, { frame: marking("bash", () => "glyphs"), retitle: retitling(style) });
-const today = definitionFor("count");
+const today = present("bash", CWD, {
+	frame: marking("bash", () => "glyphs"),
+	retitle: retitling(),
+});
 
 /** Real output shape: no leading indentation, which pi's renderer trims anyway. */
 const OUTPUT = "Atlas/Sources/App.swift\nAtlas/Sources/Editor.swift\n3 files changed";
@@ -94,11 +94,4 @@ for (const index of (process.env.MOCK_PICK ?? "58,59").split(",").map(Number)) {
 	draw(opened, Number(process.env.MOCK_CAP ?? 16));
 	console.log(theme.fg("dim", `        ${opened.length} lines`));
 
-	// Only the title line differs between these, so show just that line.
-	label(`hint styles`);
-	for (const style of styles) {
-		const lines = block(command, OUTPUT, definitionFor(style), false);
-		const titleLine = lines.find((l) => l.includes("$")) ?? "";
-		console.log(theme.fg("dim", `  ${style.padEnd(9)}`) + titleLine.replace(/\s+$/, ""));
-	}
 }

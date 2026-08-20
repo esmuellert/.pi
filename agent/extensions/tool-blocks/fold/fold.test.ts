@@ -6,9 +6,11 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import { plain } from "../shared/ansi.ts";
-import { fold, HINTS, withoutRedundantCd } from "./index.ts";
+import { fold, withoutRedundantCd } from "./index.ts";
 
 const probe = {
 	fg: (_token: string, text: string) => `\u001b[38;2;1;2;3m${text}\u001b[39m`,
@@ -81,11 +83,16 @@ describe("folding", () => {
 		assert.equal(fold(lines, "a", 1, probe), lines);
 	});
 
-	it("offers hints that all answer the same question", () => {
-		for (const [name, format] of Object.entries(HINTS)) {
-			const text = format(37);
-			assert.ok(text.startsWith(" "), `${name} must separate itself from the command`);
-			if (name !== "plain") assert.match(text, /37/, `${name} should say how much is hidden`);
-		}
+	it("names the unit, so a number beside a command is not read as part of it", () => {
+		const folded = plain(fold(["a", "b", "c"], "grep -rn x", 80, probe)[0]!);
+		assert.match(folded, /\+2 lines$/, folded);
 	});
+
+	it("decides the wording in one place", () => {
+		// Three functions pass the hint along; only one may write it.
+		const source = readFileSync(join(import.meta.dirname, "index.ts"), "utf-8");
+		const templates = [...source.matchAll(/`\s*\+\$\{hidden\}/g)];
+		assert.equal(templates.length, 1, `${templates.length} places format the hint`);
+	});
+
 });

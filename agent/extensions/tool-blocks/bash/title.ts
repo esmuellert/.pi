@@ -11,7 +11,7 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import { wrapTextWithAnsi } from "@earendil-works/pi-tui";
 
-import { fold, withoutRedundantCd, type HintStyle } from "../fold/index.ts";
+import { fold, withoutRedundantCd } from "../fold/index.ts";
 import { blank, plain } from "../shared/ansi.ts";
 import type { RenderArgs, RenderContext } from "../tools/builtins.ts";
 import { tokenize, type Piece } from "./engine.ts";
@@ -95,7 +95,7 @@ type Cached = {
 
 const CACHE = "__toolBlocksBashTitle";
 
-export function retitling(style: HintStyle = "count") {
+export function retitling() {
 	return (_rendered: () => string[], width: number, args: RenderArgs, theme: Theme, context: RenderContext): string[] | undefined => {
 		const command = (args as { command?: unknown }).command;
 		if (typeof command !== "string") return undefined;
@@ -120,7 +120,7 @@ export function retitling(style: HintStyle = "count") {
 			return cached.lines;
 		}
 
-		const lines = build(command, width, theme, expanded, context.cwd, style);
+		const lines = build(command, width, theme, expanded, context.cwd);
 		state[CACHE] = { command, width, theme, expanded, lines } satisfies Cached;
 		return lines;
 	};
@@ -132,7 +132,6 @@ function build(
 	theme: Theme,
 	expanded: boolean,
 	cwd: string,
-	style: HintStyle,
 ): string[] | undefined {
 	const styled = title(command, theme);
 	if (styled === undefined) return undefined;
@@ -147,7 +146,7 @@ function build(
 	// so that the argument survives a wrap that fell mid-command.
 	const head = withoutRedundantCd(command, cwd).split("\n")[0] ?? "";
 	const painted = title(head, theme) ?? head;
-	return fold(wrapped, painted, width, theme, style);
+	return fold(wrapped, painted, width, theme);
 }
 
 /**

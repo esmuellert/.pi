@@ -186,8 +186,12 @@ what runs, so it stays.
 
 | | folds to |
 |---|---|
-| `cd <cwd> && cat > Probe.swift <<'EOF'` + 39 lines | `cat > Probe.swift <<'EOF' +39` |
-| `cd /elsewhere && git commit -F -` + 36 lines | `cd /elsewhere && git commit -F - +36` |
+| `cd <cwd> && cat > Probe.swift <<'EOF'` + 39 lines | `cat > Probe.swift <<'EOF' +39 lines` |
+| `cd /elsewhere && git commit -F -` + 36 lines | `cd /elsewhere && git commit -F - +36 lines` |
+
+The wording lives in one line, `format` in `fold/index.ts`, and nothing else
+writes it. Naming the unit costs six columns over a bare `+47` and the unit is
+derivable — but a bare number beside a command reads as part of it.
 
 ### What it costs to draw
 

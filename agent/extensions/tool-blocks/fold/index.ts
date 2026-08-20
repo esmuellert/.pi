@@ -16,23 +16,22 @@ import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works
 import { resolve } from "node:path";
 
 /**
- * Ways to say how much is hidden, in the dimmest colour the theme has.
+ * How much is hidden. Change this line to change every folded title.
  *
- * All of them cost columns the command could have used, so the shortest that
- * still answers "how much am I not seeing" wins. `plain` gives no number and
- * is here to show what that costs.
+ * Naming the unit costs six columns over a bare "+47", and the unit is
+ * derivable -- a folded title can only be hiding lines. It is named anyway:
+ * a bare number beside a command reads as part of it, and the point of the
+ * layered colouring this sits on is that the eye should not have to work out
+ * where the command ends.
+ *
+ * Two shorter forms were weighed and dropped. "… +47" spends a column on a
+ * mark that says what "+47" already says, and a bare "…" drops the number,
+ * which is the only thing worth knowing.
  */
-export const HINTS = {
-	count: (hidden: number) => ` +${hidden}`,
-	ellipsis: (hidden: number) => ` … +${hidden}`,
-	lines: (hidden: number) => ` +${hidden} lines`,
-	plain: () => " …",
-} as const;
+const format = (hidden: number) => ` +${hidden} lines`;
 
-export type HintStyle = keyof typeof HINTS;
-
-export function hint(hidden: number, theme: Theme, style: HintStyle = "count"): string {
-	return theme.fg("dim", HINTS[style](hidden));
+export function hint(hidden: number, theme: Theme): string {
+	return theme.fg("dim", format(hidden));
 }
 
 /**
@@ -71,10 +70,9 @@ export function fold(
 	head: string,
 	width: number,
 	theme: Theme,
-	style: HintStyle = "count",
 ): string[] {
 	if (lines.length <= 1) return lines;
-	const tag = hint(lines.length - 1, theme, style);
+	const tag = hint(lines.length - 1, theme);
 	const room = width - visibleWidth(tag);
 	if (room < 1) return lines;
 	const first = wrapTextWithAnsi(head, room)[0] ?? "";
