@@ -4,6 +4,7 @@ packages:
   - "responsive-footer"
   - "cd"
   - "themes"
+  - "tool-icons"
 
 # Single source of truth for tooling versions. Packages reference "catalog:".
 catalog:
