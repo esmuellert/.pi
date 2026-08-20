@@ -11,11 +11,11 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import { wrapTextWithAnsi } from "@earendil-works/pi-tui";
 
+import { blank, plain } from "../shared/ansi.ts";
 import type { RenderArgs, RenderContext } from "../tools/builtins.ts";
 import { tokenize, type Piece } from "./engine.ts";
 
-/** Strip SGR sequences, to compare what will be shown against what will run. */
-const plain = (text: string) => text.replace(/\u001b\[[0-9;]*m/g, "");
+
 
 /**
  * Paint pieces with the active theme, one escape sequence per run of colour.
@@ -90,9 +90,10 @@ export function retitling() {
 		const styled = title(command, theme);
 		if (styled === undefined) return undefined;
 
-		const wrapped = styled
-			.split("\n")
-			.flatMap((line) => (width > 0 ? unpad(wrapTextWithAnsi(line, width)) : [line]));
+		// wrapTextWithAnsi is undefined below one column, which is the only case
+		// there is nothing sensible to return for.
+		if (width < 1) return undefined;
+		const wrapped = styled.split("\n").flatMap((line) => unpad(wrapTextWithAnsi(line, width)));
 		return wrapped.length > 0 ? wrapped : undefined;
 	};
 }
@@ -108,6 +109,6 @@ export function retitling() {
  * pi would have shown.
  */
 function unpad(lines: readonly string[]): string[] {
-	return lines.filter((line, index) => index === 0 || line.replace(/\u001b\[[0-9;]*m/g, "") !== "");
+	return lines.filter((line, index) => index === 0 || !blank(line));
 }
 

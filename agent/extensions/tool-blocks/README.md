@@ -22,6 +22,7 @@ One folder per feature, and one folder for the mechanism they share.
 | | |
 |---|---|
 | `tools/` | taking a tool over from pi without taking on its job |
+| `shared/` | reading text that carries SGR, and the constants nothing can derive |
 | `mark/` | a glyph per block: which tool ran, and how it went |
 | `bash/` | the command line, layered the way pi's other titles are |
 | `index.ts` | wires features to tools; the only place that calls `registerTool` |
@@ -170,6 +171,18 @@ shape that appeared, including 1.7 kB heredocs — and every one is checked both
 ways. Synthetic commands would not have found the two text-losing bugs this
 caught while it was written.
 
+## What is not hardcoded
+
+Almost nothing is a number. The width comes from pi rather than being inferred
+from what it drew, the gutter is the mark's own width plus its gap, the shiki
+theme's name is read from the module that supplies it, and the scope table maps
+to theme tokens so the theme decides every colour.
+
+What is left is pinned. `shared/constants.test.ts` checks that every mark
+measures the column it is given, that the letters stay distinct, that the scope
+table holds prefixes rather than patterns and names no colour, and that
+stripping SGR leaves OSC 8 hyperlinks — pi's clickable paths — intact.
+
 ## Tests
 
 ```bash
@@ -182,3 +195,4 @@ pnpm --filter pi-tool-blocks test
 | `mark/frame.test.ts` | the framing: gutter, alignment, blank lines, forwarding |
 | `bash/bash.test.ts` | the scope map, and the highlighter against real commands |
 | `startup.test.ts` | the highlighter is ready before any tool is registered |
+| `shared/constants.test.ts` | the few constants nothing derives, pinned to what they claim |

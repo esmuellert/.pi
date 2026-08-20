@@ -35,9 +35,11 @@ let failure: unknown;
 /**
  * A theme must be loaded even though none of its colours are used: without one
  * shiki merges adjacent tokens, and `| grep ` arrives as a single run with the
- * pipe no longer distinguishable.
+ * pipe no longer distinguishable. Which theme is immaterial, so the name is
+ * read from whatever was imported rather than repeated as a string that could
+ * come to disagree with the import above it.
  */
-const THEME = "nord";
+let themeName: string | undefined;
 
 export async function prepare(): Promise<boolean> {
 	if (highlighter) return true;
@@ -48,6 +50,10 @@ export async function prepare(): Promise<boolean> {
 			import("@shikijs/langs/bash"),
 			import("@shikijs/themes/nord"),
 		]);
+		// Themes ship either as a registration or an array of them.
+		const registrations = ([] as { name?: string }[]).concat(theme.default as never);
+		themeName = registrations[0]?.name;
+		if (!themeName) return false;
 		highlighter = (await createHighlighterCore({
 			themes: [theme],
 			langs: [bash],
@@ -61,6 +67,9 @@ export async function prepare(): Promise<boolean> {
 		return false;
 	}
 }
+
+/** The grammar this feature tokenises with, named once. */
+const LANGUAGE = "bash";
 
 export const ready = () => highlighter !== undefined;
 export const lastFailure = () => failure;
@@ -77,8 +86,8 @@ export function tokenize(command: string): Piece[] | undefined {
 	if (!highlighter) return undefined;
 	try {
 		const { tokens } = highlighter.codeToTokens(command, {
-			lang: "bash",
-			theme: THEME,
+			lang: LANGUAGE,
+			theme: themeName!,
 			includeExplanation: "scopeName",
 		});
 		const pieces: Piece[] = [];

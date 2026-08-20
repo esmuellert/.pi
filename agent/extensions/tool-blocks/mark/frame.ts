@@ -9,11 +9,20 @@
 
 import type { Component } from "@earendil-works/pi-tui";
 
-/** Columns the mark occupies, including the gap after it. */
-export const GUTTER = 3;
+import { blank } from "../shared/ansi.ts";
 
-/** True when a line carries no visible text, only padding or colour. */
-const blank = (line: string) => line.replace(/\u001b\[[0-9;]*m/g, "").trim() === "";
+/**
+ * Columns the mark occupies, including the gap after it.
+ *
+ * The mark is one column and the gap is one, which is what pi puts between a
+ * verb and its object in every other title. Written as the sum rather than as
+ * three so that changing either half cannot leave the two apart.
+ */
+export const MARK_COLUMNS = 1;
+export const MARK_GAP = 1;
+export const GUTTER = MARK_COLUMNS + MARK_GAP;
+
+
 
 /**
  * `mark` is the already-styled glyph. It must occupy one column: the gutter is
@@ -32,7 +41,7 @@ export function withMark(inner: Component, mark: string): Component {
 			if (title === -1) return lines;
 			const pad = " ".repeat(GUTTER);
 			return lines.map((line, index) =>
-				index === title ? `${mark}${" ".repeat(GUTTER - 1)}${line}` : pad + line,
+				index === title ? `${mark}${" ".repeat(MARK_GAP)}${line}` : pad + line,
 			);
 		},
 		invalidate(): void {
