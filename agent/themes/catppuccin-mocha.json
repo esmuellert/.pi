@@ -21,7 +21,6 @@
 		"teal": "#94e2d5",
 		"overlay2": "#9399b2",
 		"sky": "#89dceb",
-		"sapphire": "#74c7ec",
 		"pink": "#f5c2e7"
 	},
 	"colors": {
@@ -74,11 +73,11 @@
 		"syntaxPunctuation": "overlay2",
 		"thinkingOff": "overlay0",
 		"thinkingMinimal": "overlay1",
-		"thinkingLow": "blue",
-		"thinkingMedium": "sapphire",
-		"thinkingHigh": "mauve",
-		"thinkingXhigh": "pink",
-		"thinkingMax": "red",
+		"thinkingLow": "teal",
+		"thinkingMedium": "blue",
+		"thinkingHigh": "pink",
+		"thinkingXhigh": "red",
+		"thinkingMax": "mauve",
 		"bashMode": "green"
 	},
 	"export": {

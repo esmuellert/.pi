@@ -68,11 +68,11 @@
 		"syntaxPunctuation": "subtle",
 		"thinkingOff": "muted",
 		"thinkingMinimal": "subtle",
-		"thinkingLow": "foam",
-		"thinkingMedium": "rose",
-		"thinkingHigh": "iris",
+		"thinkingLow": "pine",
+		"thinkingMedium": "foam",
+		"thinkingHigh": "rose",
 		"thinkingXhigh": "love",
-		"thinkingMax": "gold",
+		"thinkingMax": "iris",
 		"bashMode": "foam"
 	},
 	"export": {

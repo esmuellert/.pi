@@ -154,6 +154,40 @@ describe("readability", () => {
 			}
 		});
 
+		it(`${palette.name} does not put its loudest colour around the input`, () => {
+			// pi paints the editor border with the thinking level, so whichever
+			// level you run at is on screen all session. An earlier version put
+			// gold there, which is the highest-contrast colour rose-pine has.
+			const ramp = ["thinkingLow", "thinkingMedium", "thinkingHigh", "thinkingXhigh", "thinkingMax"];
+			const loudest = Math.max(...Object.values(palette.roles).map((c) => contrast(c, base)));
+			for (const token of ramp) {
+				const ratio = contrast(value(token), base);
+				assert.ok(
+					ratio < loudest,
+					`${token} is the loudest colour in the palette at ${ratio.toFixed(1)}:1 against base`,
+				);
+			}
+		});
+
+		it(`${palette.name} keeps every thinking level tellable from its neighbours`, () => {
+			const ramp = [
+				"thinkingOff",
+				"thinkingMinimal",
+				"thinkingLow",
+				"thinkingMedium",
+				"thinkingHigh",
+				"thinkingXhigh",
+				"thinkingMax",
+			];
+			const seen = new Map<string, string>();
+			for (const token of ramp) {
+				const colour = value(token);
+				const clash = seen.get(colour);
+				assert.ok(!clash, `${token} and ${clash} are both ${colour}`);
+				seen.set(colour, token);
+			}
+		});
+
 		it(`${palette.name} separates its state backgrounds from each other and the neutral one`, () => {
 			// Contrast ratio cannot see this: a red and a blue surface of equal
 			// lightness score 1.0 while looking nothing alike.

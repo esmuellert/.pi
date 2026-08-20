@@ -125,15 +125,19 @@ export const rosePineMapping: Mapping = {
 	syntaxOperator: role("subtle"), // "operators"
 	syntaxPunctuation: role("subtle"), // "punctuation"
 
-	// Thinking levels are a pi concept with no upstream counterpart. Ordered so
-	// rising effort reads as rising warmth, ending on the one warm accent.
+	// Thinking levels are pi's editor border, not a badge: the level you run at
+	// is on screen the whole session. So the ramp walks neutral, cool, warm and
+	// lands on the palette's signature, rather than ending on whatever is
+	// loudest. gold is deliberately absent — it has the highest contrast against
+	// base of any rose-pine colour, which is what you want for a warning and not
+	// what you want around your input for eight hours.
 	thinkingOff: role("muted"),
 	thinkingMinimal: role("subtle"),
-	thinkingLow: role("foam"),
-	thinkingMedium: role("rose"),
-	thinkingHigh: role("iris"),
+	thinkingLow: role("pine"),
+	thinkingMedium: role("foam"),
+	thinkingHigh: role("rose"),
 	thinkingXhigh: role("love"),
-	thinkingMax: role("gold"),
+	thinkingMax: role("iris"),
 
 	bashMode: role("foam"),
 };
@@ -200,13 +204,14 @@ export const catppuccinMapping: Mapping = {
 	syntaxOperator: role("sky"), // "Operators"
 	syntaxPunctuation: role("overlay2"),
 
+	// Same shape as rose-pine: neutral, cool, warm, then the signature. See there.
 	thinkingOff: role("overlay0"),
 	thinkingMinimal: role("overlay1"),
-	thinkingLow: role("blue"),
-	thinkingMedium: role("sapphire"),
-	thinkingHigh: role("mauve"),
-	thinkingXhigh: role("pink"),
-	thinkingMax: role("red"),
+	thinkingLow: role("teal"),
+	thinkingMedium: role("blue"),
+	thinkingHigh: role("pink"),
+	thinkingXhigh: role("red"),
+	thinkingMax: role("mauve"),
 
 	bashMode: role("green"),
 };
