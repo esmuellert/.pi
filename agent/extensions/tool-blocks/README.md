@@ -174,13 +174,24 @@ Two caches, because the two costs have different keys:
 | pieces | the command | tokenising depends on nothing else, so a resize must not redo it |
 | lines | command, width and theme | wrapping and painting depend on all three |
 
+What pi rendered is also behind a function rather than passed in, because a
+retitle that replaces the title outright never looks at it, and producing it
+costs pi a full render — another 123ms per frame spent building something
+thrown away.
+
+Measured end to end, with the mark, pi's own renderer and the component
+wrapping, over eight hundred blocks:
+
 ```
-a still frame       0.1ms      what a keystroke waits for
-a resize          ~150ms      rewrapping, without re-tokenising
-cold             ~270ms      once
+a still frame      1.2ms      what a keystroke waits for
+a resize         ~160ms      rewrapping, without re-tokenising
+cold             ~280ms      once
 ```
 
-`bash/cache.test.ts` holds both, and fails if either cache is removed.
+The other six tools pass through unchanged and cost under half a millisecond
+across two hundred blocks each.
+
+`bash/cache.test.ts` holds all of it, and fails if any of it is removed.
 
 ### Nothing may alter the command
 

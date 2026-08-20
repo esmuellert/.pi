@@ -17,6 +17,8 @@ import { before, describe, it } from "node:test";
 
 import { forget, prepare, tokenize } from "./engine.ts";
 import { retitling } from "./title.ts";
+import { builtIn } from "../tools/builtins.ts";
+import { present } from "../tools/override.ts";
 
 const COMMANDS: string[] = JSON.parse(
 	readFileSync(join(import.meta.dirname, "fixtures/commands.json"), "utf-8"),
@@ -62,6 +64,34 @@ describe("tokenising is remembered", () => {
 	});
 });
 
+describe("what pi renders and nobody reads", () => {
+	before(async () => {
+		await prepare();
+	});
+
+	it("is not produced when the retitle replaces it outright", () => {
+		// Producing it costs pi a full render per block per frame. A retitle that
+		// ignores it should not be charged for it.
+		let renders = 0;
+		const inner = { render: () => (renders += 1, ["pi's own title"]), invalidate: () => {} };
+		const definition = present("bash", process.cwd(), {
+			retitle: retitling(),
+		}, { ...builtIn("bash", process.cwd()), renderCall: () => inner } as never);
+		definition.renderCall!({ command: "ls -la" } as never, probe, { state: {} } as never).render(80);
+		assert.equal(renders, 0, "pi's rendering was produced and discarded");
+	});
+
+	it("is produced once when a retitle declines", () => {
+		let renders = 0;
+		const inner = { render: () => (renders += 1, ["pi's own title"]), invalidate: () => {} };
+		const definition = present("bash", process.cwd(), {
+			retitle: () => undefined,
+		}, { ...builtIn("bash", process.cwd()), renderCall: () => inner } as never);
+		definition.renderCall!({ command: "ls -la" } as never, probe, { state: {} } as never).render(80);
+		assert.equal(renders, 1, "asking for it and then declining should not render twice");
+	});
+});
+
 describe("a session's worth of blocks", () => {
 	before(async () => {
 		await prepare();
@@ -72,7 +102,7 @@ describe("a session's worth of blocks", () => {
 		const rows = blocks(800);
 		const retitle = retitling();
 		const draw = () => {
-			for (const row of rows) retitle([], 80, { command: row.command } as never, probe, { state: row.state } as never);
+			for (const row of rows) retitle(() => [], 80, { command: row.command } as never, probe, { state: row.state } as never);
 		};
 		draw();
 		const warm = millis(draw);
@@ -84,7 +114,7 @@ describe("a session's worth of blocks", () => {
 		const rows = blocks(800);
 		const retitle = retitling();
 		const draw = (width: number) => {
-			for (const row of rows) retitle([], width, { command: row.command } as never, probe, { state: row.state } as never);
+			for (const row of rows) retitle(() => [], width, { command: row.command } as never, probe, { state: row.state } as never);
 		};
 		draw(80);
 		const resized = millis(() => draw(60));

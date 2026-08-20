@@ -33,13 +33,19 @@ const INNER = "__toolBlocksInner";
 /**
  * Rewrite the title a built-in produced, and frame what comes back.
  *
- * `retitle` sees the lines pi rendered and returns what should be shown
- * instead; returning undefined leaves them alone. `frame` wraps the finished
- * component, for a mark in the gutter.
+ * `retitle` returns what should be shown instead, or undefined to leave pi's
+ * rendering alone. `frame` wraps the finished component, for a mark in the
+ * gutter.
+ *
+ * What pi rendered is behind a function rather than passed in. Producing it
+ * costs pi a full render, and a retitle that replaces the title outright never
+ * looks at it — 123ms per frame across a session's blocks, spent building
+ * something thrown away. Asking for it only when it is wanted costs nothing
+ * when it is not.
  */
 export type Presentation = {
 	readonly retitle?: (
-		lines: string[],
+		rendered: () => string[],
 		width: number,
 		args: RenderArgs,
 		theme: Theme,
@@ -48,10 +54,20 @@ export type Presentation = {
 	readonly frame?: (inner: Component, args: RenderArgs, theme: Theme, context: RenderContext) => Component;
 };
 
-/** A component that renders `lines` instead of whatever `inner` would. */
-function replacing(inner: Component, lines: (width: number) => string[] | undefined): Component {
+/**
+ * A component that renders `lines` instead of whatever `inner` would.
+ *
+ * The inner render is memoised per width so that a retitle which asks for it
+ * and then declines does not pay for it twice.
+ */
+function replacing(inner: Component, lines: (width: number, rendered: () => string[]) => string[] | undefined): Component {
+	let memo: { width: number; lines: string[] } | undefined;
+	const rendered = (width: number) => () => {
+		if (memo?.width !== width) memo = { width, lines: inner.render(width) };
+		return memo.lines;
+	};
 	return {
-		render: (width) => lines(width) ?? inner.render(width),
+		render: (width) => lines(width, rendered(width)) ?? rendered(width)(),
 		invalidate: () => inner.invalidate(),
 		...(typeof inner.handleInput === "function"
 			? { handleInput: (data: string) => inner.handleInput?.(data) }
@@ -78,7 +94,7 @@ export function present(
 			state[INNER] = inner;
 
 			const retitled = presentation.retitle
-				? replacing(inner, (width) => presentation.retitle?.(inner.render(width), width, args, theme, context))
+				? replacing(inner, (width, rendered) => presentation.retitle?.(rendered, width, args, theme, context))
 				: inner;
 			return presentation.frame ? presentation.frame(retitled, args, theme, context) : retitled;
 		},

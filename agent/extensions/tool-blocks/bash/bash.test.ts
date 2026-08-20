@@ -172,7 +172,7 @@ describe("retitling at a width", () => {
 		for (const command of COMMANDS.slice(0, 12)) {
 			for (const width of [120, 80, 60, 40, 30, 24, 16]) {
 				const lines = asPiWould(command, width);
-				const out = retitle(lines, width, { command } as never, probe, { state: {} } as never);
+				const out = retitle(() => lines, width, { command } as never, probe, { state: {} } as never);
 				assert.ok(out, `no title at width ${width} for ${JSON.stringify(command.slice(0, 40))}`);
 			}
 		}
@@ -182,7 +182,7 @@ describe("retitling at a width", () => {
 		for (const command of COMMANDS.slice(0, 12)) {
 			for (const width of [80, 40, 24]) {
 				const lines = asPiWould(command, width);
-				const out = retitle(lines, width, { command } as never, probe, { state: {} } as never)!;
+				const out = retitle(() => lines, width, { command } as never, probe, { state: {} } as never)!;
 				assert.deepEqual(out.map(plain), lines.map(plain), `width ${width}`);
 			}
 		}
@@ -197,7 +197,7 @@ describe("retitling at a width", () => {
 		const inferred = Math.max(...lines.map((line) => plain(line).length));
 		assert.notEqual(inferred, 25, "this fixture must be one where inference would be wrong");
 		assert.deepEqual(
-			retitle(lines, 25, { command } as never, probe, { state: {} } as never)!.map(plain),
+			retitle(() => lines, 25, { command } as never, probe, { state: {} } as never)!.map(plain),
 			lines.map(plain),
 		);
 	});
@@ -205,7 +205,7 @@ describe("retitling at a width", () => {
 	it("never overflows the width it was given", () => {
 		for (const command of COMMANDS.slice(0, 12)) {
 			for (const width of [60, 30, 20]) {
-				for (const line of retitle(asPiWould(command, width), width, { command } as never, probe, { state: {} } as never)!) {
+				for (const line of retitle(() => asPiWould(command, width), width, { command } as never, probe, { state: {} } as never)!) {
 					assert.ok(plain(line).length <= width, `${plain(line).length} > ${width}`);
 				}
 			}

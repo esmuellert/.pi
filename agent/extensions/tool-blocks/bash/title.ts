@@ -94,7 +94,7 @@ type Cached = {
 const CACHE = "__toolBlocksBashTitle";
 
 export function retitling() {
-	return (_lines: string[], width: number, args: RenderArgs, theme: Theme, context: RenderContext): string[] | undefined => {
+	return (_rendered: () => string[], width: number, args: RenderArgs, theme: Theme, context: RenderContext): string[] | undefined => {
 		const command = (args as { command?: unknown }).command;
 		if (typeof command !== "string") return undefined;
 
