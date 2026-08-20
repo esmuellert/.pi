@@ -135,9 +135,13 @@ prepare()        15ms, once, at extension load
 tokenize()       0.47ms per command
 ```
 
-`renderCall` is synchronous and `prepare()` is not, so it is started when the
-extension loads and used synchronously once ready. Commands rendered before
-that are left as pi renders them; nothing waits.
+`renderCall` is synchronous, so preparation is awaited before anything is
+registered. pi awaits the extension factory, which makes that possible.
+
+Firing it off instead looked fine on a fresh start, where the first command is
+seconds away, and failed on `/reload`: the module state resets, registration
+wins the race, and the whole transcript redraws unhighlighted and then stands
+still, because nothing draws it again. `startup.test.ts` holds the ordering.
 
 ### The adapter is a mapping, never a colour
 
@@ -177,3 +181,4 @@ pnpm --filter pi-tool-blocks test
 | `tools/override.test.ts` | the assumptions about pi that make the takeover safe |
 | `mark/frame.test.ts` | the framing: gutter, alignment, blank lines, forwarding |
 | `bash/bash.test.ts` | the scope map, and the highlighter against real commands |
+| `startup.test.ts` | the highlighter is ready before any tool is registered |

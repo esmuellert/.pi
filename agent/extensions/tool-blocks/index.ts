@@ -22,14 +22,16 @@ import { marking } from "./mark/index.ts";
 import { TOOLS } from "./tools/builtins.ts";
 import { present } from "./tools/override.ts";
 
-export default function (pi: ExtensionAPI) {
+export default async function (pi: ExtensionAPI) {
 	let style = loadConfig().style;
 	const cwd = process.cwd();
 
-	// Preparing the highlighter is async and renderCall is not, so it is started
-	// here and used synchronously once ready. Commands rendered before it is are
-	// left as pi renders them; nothing waits.
-	void prepare();
+	// Awaited, not fired and forgotten. pi awaits the extension factory, and
+	// renderCall is synchronous: a highlighter that arrives after the transcript
+	// has been drawn never gets used, because nothing draws it again. That is
+	// what /reload looked like — the module state resets, registration wins the
+	// race, and every block renders unhighlighted and stays that way.
+	await prepare();
 
 	for (const tool of TOOLS) {
 		pi.registerTool(
