@@ -26,9 +26,15 @@ import { CURRENT_SESSION_VERSION, type ExtensionAPI, SessionManager } from "@ear
 import { relocateSession, resolveTarget, type SessionSlotFactory } from "./relocate.ts";
 
 
-/** Ask pi where a new session for `cwd` belongs. Never writes anything. */
-export const piSessionSlot: SessionSlotFactory = (cwd, parentSession) => {
-	const sm = SessionManager.create(cwd, undefined, { parentSession });
+/**
+ * Ask pi where a new session for `cwd` belongs. Never writes anything.
+ *
+ * No parentSession is passed: pi assigns the same directory, cwd and a fresh id
+ * either way, so it would only end up in the header, where the iOS client
+ * cannot cope with it. contract.test.ts holds pi to that.
+ */
+export const piSessionSlot: SessionSlotFactory = (cwd) => {
+	const sm = SessionManager.create(cwd);
 	const file = sm.getSessionFile();
 	if (!file) throw new Error("pi did not assign a session file");
 	return { file, id: sm.getSessionId(), cwd: sm.getCwd() };

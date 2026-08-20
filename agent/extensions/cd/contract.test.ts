@@ -11,7 +11,7 @@
 import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
 
@@ -22,7 +22,7 @@ describe("SessionManager", () => {
 		try {
 			process.env.PI_CODING_AGENT_DIR = agent;
 			const work = join(agent, "work");
-			const sm = SessionManager.create(work, undefined, { parentSession: "/parent.jsonl" });
+			const sm = SessionManager.create(work);
 			const file = sm.getSessionFile();
 
 			assert.ok(file, "pi did not assign a session file");
@@ -33,6 +33,15 @@ describe("SessionManager", () => {
 			assert.ok(!existsSync(file), "create() wrote a file; /cd would clobber it");
 			// The encoded directory name is what /cd relies on pi to compute.
 			assert.ok(file.includes(join("sessions", "--")), `unexpected session dir layout: ${file}`);
+
+			// /cd stopped passing parentSession because it changes nothing here and
+			// only lands in the header, where the iOS client cannot read it. If pi
+			// ever starts using it to place a session, this fails rather than
+			// quietly putting relocated sessions somewhere else.
+			const linked = SessionManager.create(work, undefined, { parentSession: "/parent.jsonl" });
+			assert.equal(dirname(linked.getSessionFile()!), dirname(file), "parentSession moved the session");
+			assert.equal(linked.getCwd(), sm.getCwd());
+			assert.notEqual(linked.getSessionId(), sm.getSessionId(), "ids should still be unique");
 		} finally {
 			// Assigning undefined would set the string "undefined" and send every
 			// later lookup into a directory of that name.

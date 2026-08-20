@@ -10,12 +10,13 @@
 !/agent/
 /agent/*
 !/agent/settings.json
+!/agent/AGENTS.md
 
 # --- generated themes: the product of agent/extensions/themes ---
 !/agent/themes/
 /agent/themes/*
 !/agent/themes/*.json
-!/agent/themes/preview.py
+!/agent/themes/*.py
 
 # --- our own extensions only ---
 !/agent/extensions/
@@ -36,7 +37,6 @@
 !/agent/extensions/tool-icons/
 
 # --- optional, uncomment when created ---
-# !/agent/AGENTS.md
 # !/agent/keybindings.json
 # !/agent/footer.json
 # !/agent/prompts/

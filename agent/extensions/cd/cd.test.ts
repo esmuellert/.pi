@@ -42,9 +42,8 @@ describe("relocateSession", () => {
 	mkdirSync(target);
 
 	let served = 0;
-	const stubSlot: SessionSlotFactory = (cwd, parent) => {
+	const stubSlot: SessionSlotFactory = (cwd) => {
 		served++;
-		assert.ok(parent.length > 0, "factory must receive the source path");
 		return { file: join(root, "store", `s${served}.jsonl`), id: `new-id-${served}`, cwd: resolve(cwd) };
 	};
 
@@ -59,11 +58,24 @@ describe("relocateSession", () => {
 		const written = JSON.parse(lines[0]);
 
 		assert.equal(written.cwd, resolve(target));
-		assert.equal(written.parentSession, src);
 		assert.notEqual(written.id, "old-id", "a copy must not reuse the session id");
 		assert.equal(written.version, VERSION);
 		assert.equal(written.type, "session");
 		assert.deepEqual(lines.slice(1), body.slice(1), "history must survive byte for byte");
+	});
+
+	it("records no parent, which the iOS client cannot read", () => {
+		const written = JSON.parse(readFileSync(relocateSession(src, target, stubSlot, VERSION), "utf-8").split("\n")[0]);
+		assert.ok(!("parentSession" in written), "the header should not link back to where it came from");
+	});
+
+	it("drops a parent left over from an earlier move", () => {
+		// Spreading the original header would otherwise carry it forward, so a
+		// session moved twice would still carry the key it must not have.
+		const moved = join(root, "moved.jsonl");
+		writeFileSync(moved, [JSON.stringify({ ...header, parentSession: "/somewhere/else.jsonl" }), ""].join("\n"));
+		const written = JSON.parse(readFileSync(relocateSession(moved, target, stubSlot, VERSION), "utf-8").split("\n")[0]);
+		assert.ok(!("parentSession" in written), "an inherited parentSession must be removed");
 	});
 
 	it("writes to the slot pi assigned, creating the directory", () => {

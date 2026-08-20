@@ -16,7 +16,7 @@ export interface SessionSlot {
 	cwd: string;
 }
 
-export type SessionSlotFactory = (cwd: string, parentSession: string) => SessionSlot;
+export type SessionSlotFactory = (cwd: string) => SessionSlot;
 
 /** Expand ~, resolve against `base`, and require an existing directory. */
 export function resolveTarget(input: string, base: string): { path: string } | { error: string } {
@@ -34,6 +34,12 @@ export function resolveTarget(input: string, base: string): { path: string } | {
  * header. Every other line is carried across byte for byte, so entry ids,
  * parent links and timestamps stay exactly as they were.
  *
+ * The header does not record where the session came from. pi does not need it —
+ * the slot it assigns is the same with or without a parentSession — and the iOS
+ * client chokes on the key, so a relocated session is a session in its own
+ * right. A parentSession left over from an earlier move is dropped too, which
+ * spreading the original header would otherwise carry forward.
+ *
  * Written to a temporary name first: a crash mid-write would otherwise leave a
  * truncated session that pi would try to load.
  */
@@ -50,15 +56,15 @@ export function relocateSession(
 	const original = JSON.parse(lines[headerLine]);
 	if (original?.type !== "session") throw new Error("First entry is not a session header");
 
-	const slot = makeSlot(targetCwd, sourceFile);
+	const slot = makeSlot(targetCwd);
+	const { parentSession: _dropped, ...carried } = original;
 	lines[headerLine] = JSON.stringify({
-		...original,
+		...carried,
 		type: "session",
 		version: sessionVersion,
 		id: slot.id,
 		timestamp: new Date().toISOString(),
 		cwd: slot.cwd,
-		parentSession: sourceFile,
 	});
 
 	mkdirSync(dirname(slot.file), { recursive: true });
