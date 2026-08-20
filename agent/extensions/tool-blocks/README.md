@@ -159,6 +159,29 @@ change here. Scopes are hierarchical, so this matches on prefixes and the
 longest wins: `string.quoted.heredoc` beats the `string` it also matches, and a
 grammar that grows a new scope lands on its parent instead of falling out.
 
+### What it costs to draw
+
+Every tool block re-renders on every frame, so anything done per render is done
+once per block per keystroke. Tokenising is half a millisecond, which is
+nothing until a session holds eight hundred bash blocks and a still frame costs
+two thirds of a second — typing goes visibly laggy, and it looks like the
+session has grown too large.
+
+Two caches, because the two costs have different keys:
+
+| | keyed on | why |
+|---|---|---|
+| pieces | the command | tokenising depends on nothing else, so a resize must not redo it |
+| lines | command, width and theme | wrapping and painting depend on all three |
+
+```
+a still frame       0.1ms      what a keystroke waits for
+a resize          ~150ms      rewrapping, without re-tokenising
+cold             ~270ms      once
+```
+
+`bash/cache.test.ts` holds both, and fails if either cache is removed.
+
 ### Nothing may alter the command
 
 A highlighter that changes the text shows something other than what ran. Three

@@ -83,19 +83,48 @@ export function title(command: string, theme: Theme): string | undefined {
  * short of the width, by five columns in the fixtures, so the replacement
  * would wrap tighter than pi did.
  */
+/** What a cached title was made from. Anything else and it must be made again. */
+type Cached = {
+	command: string;
+	width: number;
+	theme: Theme;
+	lines: string[] | undefined;
+};
+
+const CACHE = "__toolBlocksBashTitle";
+
 export function retitling() {
-	return (_lines: string[], width: number, args: RenderArgs, theme: Theme, _context: RenderContext): string[] | undefined => {
+	return (_lines: string[], width: number, args: RenderArgs, theme: Theme, context: RenderContext): string[] | undefined => {
 		const command = (args as { command?: unknown }).command;
 		if (typeof command !== "string") return undefined;
-		const styled = title(command, theme);
-		if (styled === undefined) return undefined;
 
-		// wrapTextWithAnsi is undefined below one column, which is the only case
-		// there is nothing sensible to return for.
-		if (width < 1) return undefined;
-		const wrapped = styled.split("\n").flatMap((line) => unpad(wrapTextWithAnsi(line, width)));
-		return wrapped.length > 0 ? wrapped : undefined;
+		// Every block re-renders on every frame, so this runs once per bash block
+		// per keystroke. Tokenising is half a millisecond, which is nothing until
+		// a session holds eight hundred of them and every frame costs two thirds
+		// of a second. pi's own bash renderer caches for the same reason.
+		//
+		// The theme is part of the key because /theme repaints without changing
+		// the command or the width.
+		const state = context.state as Record<string, unknown>;
+		const cached = state[CACHE] as Cached | undefined;
+		if (cached && cached.command === command && cached.width === width && cached.theme === theme) {
+			return cached.lines;
+		}
+
+		const lines = build(command, width, theme);
+		state[CACHE] = { command, width, theme, lines } satisfies Cached;
+		return lines;
 	};
+}
+
+function build(command: string, width: number, theme: Theme): string[] | undefined {
+	const styled = title(command, theme);
+	if (styled === undefined) return undefined;
+	// wrapTextWithAnsi is undefined below one column, which is the only case
+	// there is nothing sensible to return for.
+	if (width < 1) return undefined;
+	const wrapped = styled.split("\n").flatMap((line) => unpad(wrapTextWithAnsi(line, width)));
+	return wrapped.length > 0 ? wrapped : undefined;
 }
 
 /**

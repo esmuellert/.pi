@@ -82,7 +82,39 @@ export const lastFailure = () => failure;
  * alters the text shows something other than what ran, so `render` checks this
  * and falls back rather than trusting it.
  */
+/**
+ * Tokenising is the expensive part and depends on nothing but the command.
+ *
+ * Every block re-tokenised on every frame cost two thirds of a second in a
+ * session holding eight hundred of them; the same commands recur, and a
+ * command's pieces never change. Held per tool row would still re-tokenise on
+ * a width change, which is when the cost is most visible, so the cache is
+ * keyed on the command itself.
+ *
+ * Bounded because a long session's commands are unbounded. Least-recently-used
+ * is not worth the bookkeeping here: dropping the oldest half keeps the recent
+ * ones, which are the ones on screen.
+ */
+const CACHE_LIMIT = 2048;
+const cache = new Map<string, Piece[] | undefined>();
+
 export function tokenize(command: string): Piece[] | undefined {
+	if (!highlighter) return undefined;
+	if (cache.has(command)) return cache.get(command);
+	const pieces = tokenizeUncached(command);
+	if (cache.size >= CACHE_LIMIT) {
+		for (const key of [...cache.keys()].slice(0, Math.floor(CACHE_LIMIT / 2))) cache.delete(key);
+	}
+	cache.set(command, pieces);
+	return pieces;
+}
+
+/** Discard everything remembered, for tests that need a cold path. */
+export function forget(): void {
+	cache.clear();
+}
+
+function tokenizeUncached(command: string): Piece[] | undefined {
 	if (!highlighter) return undefined;
 	try {
 		const { tokens } = highlighter.codeToTokens(command, {
