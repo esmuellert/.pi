@@ -15,6 +15,7 @@
 !/agent/extensions/
 /agent/extensions/*
 !/agent/extensions/responsive-footer/
+!/agent/extensions/cd/
 
 # --- optional, uncomment when created ---
 # !/agent/AGENTS.md

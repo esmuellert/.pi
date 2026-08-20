@@ -1,0 +1,9 @@
+{
+  "name": "pi-cd",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "/cd command for the pi coding agent",
+  "pi": { "extensions": ["./index.ts"] },
+  "scripts": { "test": "node --experimental-strip-types --test cd.test.ts" }
+}
