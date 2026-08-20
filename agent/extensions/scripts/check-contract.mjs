@@ -8,13 +8,13 @@
  * behaves the way the extensions assume.
  *
  * Run after `pi update`:
- *     node ~/.pi/agent/check-contract.mjs
+ *     cd ~/.pi/agent/extensions && pnpm contract
  *
  * Exits non-zero on the first broken contract, so it can gate an upgrade.
  */
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
+import { accessSync, constants as fsConstants, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -37,23 +37,40 @@ const assert = (cond, msg) => {
 	if (!cond) throw new Error(msg);
 };
 
+/** The launcher shim execs an absolute path to dist/cli.js; that is the pointer back to the package. */
+const SHIM_PATTERN = String.raw`"?([^"\s]*node_modules/@earendil-works/pi-coding-agent)/dist/cli\.js"?`;
+
 /**
- * Find pi's package root by reading the launcher shim.
- *
- * pi is installed globally, so it is not resolvable from this directory's
- * module paths. The shim (pnpm or npm) execs an absolute path to dist/cli.js,
- * which is the one reliable pointer back to the package.
+ * Locate the installed pi by walking PATH, skipping anything inside this
+ * workspace: pnpm puts node_modules/.bin first, so a local copy would shadow
+ * the real one. Done without a shell so it does not depend on `command -v -a`,
+ * which is a bash extension rather than POSIX.
  */
+function findPiShim(workspace) {
+	for (const dir of (process.env.PATH ?? "").split(":")) {
+		if (!dir) continue;
+		const candidate = join(dir, "pi");
+		if (resolve(candidate).startsWith(workspace)) continue;
+		try {
+			accessSync(candidate, fsConstants.X_OK);
+			return candidate;
+		} catch {
+			// Not here; keep walking.
+		}
+	}
+	return undefined;
+}
+
 function findPiRoot() {
-	const shim = execFileSync("command", ["-v", "pi"], { encoding: "utf-8", shell: "/bin/sh" }).trim();
-	assert(shim.length > 0, "pi is not on PATH");
-	const script = readFileSync(shim, "utf-8");
-	const match = /"?([^"\s]*node_modules\/@earendil-works\/pi-coding-agent)\/dist\/cli\.js"?/.exec(script);
+	const workspace = resolve(dirname(dirname(fileURLToPath(import.meta.url))));
+	const shim = findPiShim(workspace);
+	assert(shim, "no pi on PATH outside this workspace");
+	const match = new RegExp(SHIM_PATTERN).exec(readFileSync(shim, "utf-8"));
 	assert(match, `could not find the package path inside ${shim}`);
 	const root = match[1].replace(/\$basedir/g, dirname(shim));
 	assert(existsSync(join(root, "package.json")), `resolved ${root} but it has no package.json`);
-	// Global installs are symlinks into a store; sibling packages such as
-	// pi-tui only resolve from the real path.
+	// Global installs are symlinks into a store; siblings such as pi-tui only
+	// resolve from the real path.
 	return realpathSync(resolve(root));
 }
 
@@ -85,7 +102,8 @@ check("pi-tui package resolves", () => {
 const pi = piDist && existsSync(piDist) ? await import(piDist) : {};
 const tui = tuiDist && existsSync(tuiDist) ? await import(tuiDist) : {};
 
-const extRoot = join(dirname(fileURLToPath(import.meta.url)), "extensions");
+// scripts/ lives inside the workspace; packages are its siblings.
+const extRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 
 // -------------------------------------------------------------- cd extension
 

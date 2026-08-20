@@ -131,14 +131,14 @@ export default function (pi: ExtensionAPI) {
 		};
 	};
 
-	// Reinstall on session start and after /reload so hot reloads keep working.
+	// session_start also fires after /reload, with reason "reload", so this one
+	// handler covers both. There is no separate "reload" event.
 	const apply = (ctx: ExtensionContext) => {
 		if (ctx.mode !== "tui") return;
 		ctx.ui.setFooter(enabled ? factory(ctx) : undefined);
 	};
 
 	pi.on("session_start", async (_e, ctx) => apply(ctx));
-	pi.on("reload", async (_e, ctx) => apply(ctx));
 
 	pi.registerCommand("footer-icons", {
 		description: "Check Nerd Font glyphs and remember whether to use them",

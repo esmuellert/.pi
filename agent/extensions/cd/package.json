@@ -4,6 +4,20 @@
   "version": "0.1.0",
   "type": "module",
   "description": "/cd command for the pi coding agent",
-  "pi": { "extensions": ["./index.ts"] },
-  "scripts": { "test": "node --experimental-strip-types --test cd.test.ts" }
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test cd.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
 }

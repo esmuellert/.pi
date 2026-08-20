@@ -10,11 +10,21 @@
 !/agent/
 /agent/*
 !/agent/settings.json
-!/agent/check-contract.mjs
 
 # --- our own extensions only ---
 !/agent/extensions/
 /agent/extensions/*
+# workspace root
+!/agent/extensions/package.json
+!/agent/extensions/pnpm-workspace.yaml
+!/agent/extensions/pnpm-lock.yaml
+!/agent/extensions/turbo.json
+!/agent/extensions/.npmrc
+!/agent/extensions/README.md
+!/agent/extensions/tsconfig.json
+!/agent/extensions/tsconfig.base.json
+!/agent/extensions/scripts/
+# our packages
 !/agent/extensions/responsive-footer/
 !/agent/extensions/cd/
 
@@ -25,3 +35,9 @@
 # !/agent/prompts/
 # !/agent/skills/
 # !/agent/themes/
+
+# never: dependencies (68 MB, plus per-package symlink trees) and turbo's cache
+/agent/extensions/node_modules/
+/agent/extensions/*/node_modules/
+/agent/extensions/.turbo/
+/agent/extensions/*/.turbo/

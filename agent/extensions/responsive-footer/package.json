@@ -5,9 +5,21 @@
   "type": "module",
   "description": "Width-adaptive multi-line footer for the pi coding agent",
   "pi": {
-    "extensions": ["./index.ts"]
+    "extensions": [
+      "./index.ts"
+    ]
   },
   "scripts": {
-    "test": "node --experimental-strip-types --test layout.test.ts"
+    "test": "node --experimental-strip-types --test layout.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
   }
 }
