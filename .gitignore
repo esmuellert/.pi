@@ -3,6 +3,9 @@
 /*
 !.gitignore
 
+# --- docs: notes that outlive a session, not loaded into context ---
+!/docs/
+
 # --- search routing (lives above agent/) ---
 !/web-search.json
 
@@ -10,7 +13,6 @@
 !/agent/
 /agent/*
 !/agent/settings.json
-!/agent/AGENTS.md
 
 # --- generated themes: the product of agent/extensions/themes ---
 !/agent/themes/
