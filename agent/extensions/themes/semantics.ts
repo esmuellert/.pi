@@ -21,31 +21,9 @@ export type Semantics = {
 	/** Foreground greys, dimmest first, ending at body text. */
 	readonly neutrals: readonly string[];
 
-	/**
-	 * The accent that carries the palette's identity.
-	 *
-	 * Also what a document's own furniture is drawn in -- headings and list
-	 * bullets. Those are structure rather than content, and structure is where
-	 * a palette shows what it is. Links are not included: catppuccin cites blue
-	 * for them, and rose-pine's signature being its link colour too is that
-	 * palette's coincidence.
-	 *
-	 * Headings once had a declaration of their own, which meant picking a
-	 * colour for something no palette describes: they describe code, and a
-	 * heading is prose. The pick was wrong (rose-pine's was the warning
-	 * colour), and replacing it with a better pick would have left the picking.
-	 * Headings are bold already, and underlined at level one, so the colour was
-	 * never carrying the signal alone.
-	 */
+	/** The accent that carries the palette's identity. */
 	readonly signature: string;
 	/** A second accent for decoration that must not read as a status. */
-	/**
-	 * Inline code, and whatever else is ornament rather than meaning.
-	 *
-	 * Also uncited: no palette names a colour for this. Taken as the warm or
-	 * cool counterpart to the signature, so the two accents a page shows most
-	 * often do not sit in the same part of the wheel.
-	 */
 	readonly decoration: string;
 
 	readonly error: string;
@@ -58,6 +36,7 @@ export type Semantics = {
 	/** Comments; upstream states this, so it is not read off the ladder. */
 	readonly comment: string;
 
+	readonly heading: string;
 	/** Strings and other literals. */
 	readonly literal: string;
 	readonly keyword: string;
@@ -81,6 +60,7 @@ export const rosePineSemantics: Semantics = {
 	info: "foam", // "info, object keys"
 	comment: "muted", // "comments"
 
+	heading: "gold",
 	literal: "gold", // "strings"
 	keyword: "pine", // from the vscode port
 	callable: "pine", // "functions"
@@ -102,6 +82,7 @@ export const catppuccinSemantics: Semantics = {
 	info: "blue", // "Property (e.g. JSON keys)"
 	comment: "overlay2", // "Comments"
 
+	heading: "peach",
 	literal: "green", // "Strings"
 	keyword: "mauve", // "Keyword"
 	callable: "blue", // "Methods, Functions"

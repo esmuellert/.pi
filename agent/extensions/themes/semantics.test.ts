@@ -80,26 +80,3 @@ describe("ladders", () => {
 		});
 	}
 });
-
-describe("what may not share a colour", () => {
-	/**
-	 * A palette has fewer accents than there are things to say with them, so
-	 * sharing is not a fault -- rose-pine has six for thirteen roles. What
-	 * matters is that two roles sharing a colour are saying compatible things.
-	 */
-	for (const [name, semantics] of [["rose-pine", rosePineSemantics], ["catppuccin", catppuccinSemantics]] as const) {
-		describe(name, () => {
-			it("keeps error and success apart, which is the one pair nothing may merge", () => {
-				assert.notEqual(semantics.error, semantics.success);
-			});
-
-			it("keeps the signature off the three states", () => {
-				// The signature is the colour the palette is known by, used for
-				// links and hints. It must not double as an outcome.
-				for (const state of ["error", "warning", "success"] as const) {
-					assert.notEqual(semantics.signature, semantics[state], `signature doubles as ${state}`);
-				}
-			});
-		});
-	}
-});

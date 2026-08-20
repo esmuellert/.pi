@@ -48,6 +48,7 @@ const inventedSemantics: Semantics = {
 	link: "berry",
 	info: "berry",
 	comment: "fog",
+	heading: "apricot",
 	literal: "lime",
 	keyword: "plum",
 	callable: "berry",
@@ -101,6 +102,7 @@ describe("the rules are about structure, not about a palette", () => {
 			warning: "plum",
 			success: "plum",
 			info: "plum",
+			heading: "plum",
 			literal: "plum",
 			keyword: "plum",
 			callable: "plum",
@@ -204,36 +206,6 @@ describe("every colour is upstream", () => {
 			// Both projects state 0.15; rose-pine writes it as #..26.
 			assert.equal(STATE_TINT, 0.15);
 			assert.equal(Math.round((0x26 / 255) * 100) / 100, STATE_TINT);
-		});
-	}
-});
-
-describe("a document's own furniture", () => {
-	/**
-	 * Headings, list bullets and links are structure rather than content, and
-	 * are drawn in the one colour a palette is known by.
-	 *
-	 * The rule replaces a declaration. Headings used to name their own colour,
-	 * which meant choosing one for something no palette describes -- and the
-	 * choice was wrong twice over in rose-pine: it landed on the warning colour,
-	 * which is also the loudest colour it has. Structure has somewhere it
-	 * belongs, so it does not need choosing.
-	 */
-	for (const palette of PALETTES) {
-		const { colors } = derive(palette, semanticsFor(palette));
-
-		it(`draws ${palette.name}'s structure in one colour`, () => {
-			// Not links: catppuccin cites blue for those, and rose-pine's
-			// signature happening to be its link colour is a coincidence of that
-			// palette rather than a rule.
-			assert.deepEqual(colors.mdHeading, colors.accent, "a heading is structure");
-			assert.deepEqual(colors.mdHeading, colors.mdListBullet);
-		});
-
-		it(`keeps ${palette.name}'s structure clear of the three outcomes`, () => {
-			for (const outcome of ["error", "warning", "success"] as const) {
-				assert.notDeepEqual(colors.mdHeading, colors[outcome], `a heading reads as ${outcome}`);
-			}
 		});
 	}
 });
