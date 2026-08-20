@@ -28,6 +28,9 @@ const KNOWN: Record<string, string> = {
 	"\u001b[6~": "pageDown",
 	"\u001b[1;5H": "ctrl+home",
 	"\u001b[1;5F": "ctrl+end",
+	"\u0011": "ctrl+q",
+	"\u0013": "ctrl+s",
+	"\u001b\r": "alt+enter",
 };
 
 const TRY = [
@@ -37,6 +40,8 @@ const TRY = [
 	"shift+up / shift+down     conflicts with selection in some terminals",
 	"ctrl+shift+f              pi's default for search",
 	"ctrl+g                    a plain control character, always arrives",
+	"ctrl+q / ctrl+s           traditionally flow control; raw mode should free them",
+	"alt+enter                 Windows Terminal uses it for fullscreen",
 ];
 
 console.log("Press each of these. What prints, arrived. What stays silent, cannot be bound.\n");

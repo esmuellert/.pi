@@ -1,5 +1,18 @@
 {
-	"tui.altScreen.previousPrompt": ["ctrl+shift+up", "ctrl+up"],
-	"tui.altScreen.nextPrompt": ["ctrl+shift+down", "ctrl+down"],
-	"tui.altScreen.search": ["ctrl+shift+f", "ctrl+f"]
+	"tui.altScreen.previousPrompt": [
+		"ctrl+shift+up",
+		"ctrl+up"
+	],
+	"tui.altScreen.nextPrompt": [
+		"ctrl+shift+down",
+		"ctrl+down"
+	],
+	"tui.altScreen.search": [
+		"ctrl+shift+f",
+		"ctrl+f"
+	],
+	"app.message.followUp": [
+		"alt+enter",
+		"ctrl+q"
+	]
 }
