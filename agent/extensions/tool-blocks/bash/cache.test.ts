@@ -15,6 +15,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { before, describe, it } from "node:test";
 
+import { FRAME_MS, frame, overBudget } from "frame-budget";
+
 import { forget, prepare, tokenize } from "./engine.ts";
 import { retitling } from "./title.ts";
 import { builtIn } from "../tools/builtins.ts";
@@ -35,12 +37,6 @@ const blocks = (count: number) =>
 		command: COMMANDS[index % COMMANDS.length]!,
 		state: {} as Record<string, unknown>,
 	}));
-
-const millis = (work: () => void) => {
-	const started = performance.now();
-	work();
-	return performance.now() - started;
-};
 
 describe("tokenising is remembered", () => {
 	before(async () => {
@@ -104,12 +100,11 @@ describe("a session's worth of blocks", () => {
 		const draw = () => {
 			for (const row of rows) retitle(() => [], 80, { command: row.command } as never, probe, { state: row.state } as never);
 		};
-		draw();
-		const warm = millis(draw);
-		assert.ok(warm < 20, `a still frame cost ${warm.toFixed(0)}ms, which a keystroke would wait for`);
+		assert.equal(overBudget(frame(draw)), undefined);
 	});
 
-	it("stays under a second when the width changes", () => {
+	it("stays out of a freeze when the width changes", () => {
+		let draws = 0;
 		// Resizing has to rewrap everything, but must not re-tokenise it.
 		const rows = blocks(800);
 		const retitle = retitling();
@@ -117,7 +112,10 @@ describe("a session's worth of blocks", () => {
 			for (const row of rows) retitle(() => [], width, { command: row.command } as never, probe, { state: row.state } as never);
 		};
 		draw(80);
-		const resized = millis(() => draw(60));
-		assert.ok(resized < 1000, `a resize cost ${resized.toFixed(0)}ms`);
+		// A resize has to rewrap every block, so it cannot fit a frame -- but it
+		// must not re-tokenise, which is the difference between a pause and a
+		// freeze. Ten frames is the width of that gap, not a measured limit.
+		const resized = frame(() => draw(draws++ % 2 ? 60 : 61));
+		assert.equal(overBudget(resized, FRAME_MS * 10), undefined);
 	});
 });

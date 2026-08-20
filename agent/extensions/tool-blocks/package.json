@@ -1,29 +1,30 @@
 {
-  "name": "pi-tool-blocks",
-  "private": true,
-  "version": "0.1.0",
-  "type": "module",
-  "description": "Presentation for pi's tool blocks: a mark per block, and a layered bash title",
-  "pi": {
-    "extensions": [
-      "./index.ts"
-    ]
-  },
-  "scripts": {
-    "test": "node --experimental-strip-types --test \"*.test.ts\" \"*/*.test.ts\"",
-    "typecheck": "tsc --noEmit",
-    "smoke": "pi --no-extensions -e . --no-tools --no-session -p 'reply with exactly: SMOKE_OK'"
-  },
-  "peerDependencies": {
-    "@earendil-works/pi-coding-agent": "*"
-  },
-  "devDependencies": {
-    "@shikijs/langs": "catalog:",
-    "@shikijs/themes": "catalog:",
-    "shiki": "catalog:",
-    "@earendil-works/pi-coding-agent": "catalog:",
-    "@earendil-works/pi-tui": "catalog:",
-    "@types/node": "catalog:",
-    "typescript": "catalog:"
-  }
+	"name": "pi-tool-blocks",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"description": "Presentation for pi's tool blocks: a mark per block, and a layered bash title",
+	"pi": {
+		"extensions": [
+			"./index.ts"
+		]
+	},
+	"scripts": {
+		"test": "node --experimental-strip-types --test \"*.test.ts\" \"*/*.test.ts\"",
+		"typecheck": "tsc --noEmit",
+		"smoke": "pi --no-extensions -e . --no-tools --no-session -p 'reply with exactly: SMOKE_OK'"
+	},
+	"peerDependencies": {
+		"@earendil-works/pi-coding-agent": "*"
+	},
+	"devDependencies": {
+		"@shikijs/langs": "catalog:",
+		"@shikijs/themes": "catalog:",
+		"shiki": "catalog:",
+		"@earendil-works/pi-coding-agent": "catalog:",
+		"@earendil-works/pi-tui": "catalog:",
+		"@types/node": "catalog:",
+		"typescript": "catalog:",
+		"frame-budget": "workspace:*"
+	}
 }

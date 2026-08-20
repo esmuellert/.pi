@@ -15,6 +15,7 @@ verify everything, and type checking against the pi that is actually installed.
 | `responsive-footer` | Width-adaptive multi-line footer. Wraps instead of abbreviating, so labels stay readable at any terminal size. |
 | `cd` | `/cd <dir>` moves the session to another directory, which pi otherwise fixes at session creation. |
 | `tool-blocks` | Presentation for tool blocks: a glyph per block, and a bash title with the layers pi gives its other six. |
+| `frame-budget` | What a still frame may cost, and how to measure it. Shared by the packages that draw |
 | `themes` | Five dark themes generated from the upstream rose-pine and catppuccin palettes, so "official" is provable rather than claimed. |
 
 The `themes` package is a generator rather than an extension: it writes
