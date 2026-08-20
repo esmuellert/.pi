@@ -4,7 +4,7 @@ packages:
   - "responsive-footer"
   - "cd"
   - "themes"
-  - "tool-icons"
+  - "tool-blocks"
 
 # Single source of truth for tooling versions. Packages reference "catalog:".
 catalog:
@@ -17,6 +17,11 @@ catalog:
   # rather than by transcription. Bumping these can change theme output.
   "@catppuccin/palette": ^1.8.0
   "@rose-pine/palette": ^4.0.1
+  # VS Code's tokeniser. Its shell grammar is the only one measured here
+  # that recognises command names, options, operators and heredoc bodies.
+  "@shikijs/langs": ^4.4.3
+  "@shikijs/themes": ^4.4.3
+  shiki: ^4.4.3
   "@types/node": ^26.2.0
   turbo: ^2.10.11
   typescript: ^7.0.2

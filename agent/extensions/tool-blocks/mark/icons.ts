@@ -10,10 +10,7 @@
  * same one the footer already draws from.
  */
 
-export type ToolName = "read" | "edit" | "write" | "bash" | "grep" | "find" | "ls";
-
-/** Every tool this extension wraps, in the order pi lists them. */
-export const TOOLS: readonly ToolName[] = ["read", "bash", "edit", "write", "ls", "grep", "find"];
+import type { ToolName } from "../tools/builtins.ts";
 
 export const ICON: Readonly<Record<ToolName, string>> = {
 	read: "\uf15c", // file-text

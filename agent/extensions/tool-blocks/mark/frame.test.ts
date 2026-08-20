@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import type { Component } from "@earendil-works/pi-tui";
 
-import { GUTTER, withMark } from "./wrap.ts";
+import { GUTTER, withMark } from "./frame.ts";
 
 /** A component that reports the width it was asked to render at. */
 function stub(lines: string[] | ((width: number) => string[])): Component & { widths: number[]; invalidated: number } {

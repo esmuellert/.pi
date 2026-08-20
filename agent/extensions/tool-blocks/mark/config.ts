@@ -1,5 +1,5 @@
 /**
- * Config loading for ~/.pi/agent/tool-icons.json.
+ * Config loading for ~/.pi/agent/tool-blocks.json.
  *
  * Whether the terminal's font has Nerd Font glyphs cannot be detected: a
  * missing one still measures a single column, so it renders as a box that the
@@ -31,7 +31,7 @@ export function parseConfig(raw: unknown): Config {
 export function configPath(): string {
 	// PI_CODING_AGENT_DIR is how pi itself finds this directory.
 	const dir = process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent");
-	return join(dir, "tool-icons.json");
+	return join(dir, "tool-blocks.json");
 }
 
 export function loadConfig(path = configPath()): Config {

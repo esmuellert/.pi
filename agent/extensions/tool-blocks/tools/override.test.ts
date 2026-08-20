@@ -3,22 +3,19 @@
  *
  * Run: pnpm test
  *
- * wrap.test.ts covers the framing against a stub. This covers the assumptions
- * about pi that make the framing safe to apply to its own tools, and that would
- * otherwise fail silently: tool-execution catches renderer errors and falls
- * back to a plain title, so a broken wrapper looks like a styling regression
- * rather than a crash.
+ * tool-execution catches renderer errors and falls back to a plain title, so a
+ * broken override looks like a styling regression rather than a crash. These
+ * hold pi to the behaviour that makes the override safe.
  */
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { createReadToolDefinition, initTheme } from "@earendil-works/pi-coding-agent";
+import { createReadToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { Component } from "@earendil-works/pi-tui";
 
-import { ICON, LETTER, TOOLS } from "./icons.ts";
-import { marked } from "./index.ts";
-import { GUTTER, withMark } from "./wrap.ts";
+import { builtIn, TOOLS } from "./builtins.ts";
+import { present } from "./override.ts";
 
 /** A theme that reports which colour each piece of text was given. */
 const probe = {
@@ -47,7 +44,7 @@ function context(overrides: Record<string, unknown> = {}) {
 describe("pi's built-in tools", () => {
 	it("still expose a call renderer to wrap", () => {
 		for (const tool of TOOLS) {
-			const definition = marked(tool, process.cwd(), () => "glyphs");
+			const definition = present(tool, process.cwd(), {});
 			assert.equal(typeof definition.renderCall, "function", `${tool} has no renderCall`);
 		}
 	});
@@ -58,7 +55,7 @@ describe("pi's built-in tools", () => {
 		// The factory closes over cwd afresh each call, so identity only means
 		// anything against the very object that was wrapped.
 		const built = createReadToolDefinition(process.cwd());
-		const wrapped = marked("read", process.cwd(), () => "glyphs", built);
+		const wrapped = present("read", process.cwd(), {}, built);
 		const changed = Object.keys(built).filter(
 			(field) => wrapped[field as keyof typeof wrapped] !== built[field as keyof typeof built],
 		);
@@ -97,75 +94,47 @@ describe("pi's built-in tools", () => {
 	});
 });
 
-describe("marked", () => {
+describe("present", () => {
 	it("hands the built-in its own component, never the wrapper", () => {
-		const definition = marked("read", process.cwd(), () => "glyphs");
+		const frame = (inner: Component) => ({ ...inner, render: (w: number) => inner.render(w) }) as Component;
+		const definition = present("read", process.cwd(), { frame });
 		const state = {};
 		const first = definition.renderCall!({ file_path: "/tmp/a.ts" } as never, probe, context({ state }));
 		// A second render must not throw, which it would if the wrapper leaked.
 		const second = definition.renderCall!({ file_path: "/tmp/b.ts" } as never, probe, context({ state, lastComponent: first }));
-		assert.notEqual(second, first, "the wrapper should be fresh each render");
 		assert.ok(second.render(60).length > 0);
 	});
 
 	it("keeps its component out of the key edit uses for its diff preview", () => {
 		const state: Record<string, unknown> = {};
-		marked("read", process.cwd(), () => "glyphs").renderCall!({ file_path: "/tmp/a.ts" } as never, probe, context({ state }));
-		assert.deepEqual(Object.keys(state), ["__toolIconsInner"], "unexpected keys in pi's per-row state");
+		present("read", process.cwd(), {}).renderCall!({ file_path: "/tmp/a.ts" } as never, probe, context({ state }));
+		assert.deepEqual(Object.keys(state), ["__toolBlocksInner"], "unexpected keys in pi's per-row state");
 	});
 
-	it("colours the mark by how the call turned out", () => {
-		const cases = [
-			[{ isPartial: true, isError: false }, "muted"],
-			[{ isPartial: false, isError: false }, "success"],
-			[{ isPartial: false, isError: true }, "error"],
-		] as const;
-		for (const [state, token] of cases) {
-			const out = marked("read", process.cwd(), () => "glyphs")
-				.renderCall!({ file_path: "/tmp/a.ts" } as never, probe, context(state))
-				.render(60);
-			assert.ok(out[0]!.startsWith(`<${token}>`), `expected ${token}, got ${out[0]!.slice(0, 20)}`);
-		}
-	});
-
-	it("uses the glyph, the letter, or nothing, as configured", () => {
-		const render = (style: "glyphs" | "letters" | "off") =>
-			marked("read", process.cwd(), () => style)
-				.renderCall!({ file_path: "/tmp/a.ts" } as never, probe, context())
-				.render(60)[0]!;
-		assert.ok(render("glyphs").includes(ICON.read));
-		assert.ok(render("letters").includes(LETTER.read));
-		assert.ok(!render("off").includes(ICON.read));
-		assert.ok(!render("off").startsWith(" "), "off should not leave the gutter behind");
-	});
-});
-
-describe("the real theme", () => {
-	it("has the colour tokens the marks ask for", () => {
-		// theme.fg throws on an unknown token, and tool-execution would swallow it.
-		initTheme("dark");
-		const rendered = marked("read", process.cwd(), () => "glyphs").renderCall!(
-			{ file_path: "/tmp/a.ts" } as never,
-			// The real theme is a module singleton; this exercises it through pi.
-			(globalThis as never as { theme?: never }).theme ?? probe,
-			context(),
+	it("changes nothing but the call renderer", () => {
+		// Registering a tool replaces the built-in outright, so a dropped field
+		// stops working rather than falling back.
+		const built = createReadToolDefinition(process.cwd());
+		const wrapped = present("read", process.cwd(), {}, built);
+		const changed = Object.keys(built).filter(
+			(field) => wrapped[field as keyof typeof wrapped] !== built[field as keyof typeof built],
 		);
-		assert.ok(rendered.render(60)[0]!.length > GUTTER);
+		assert.deepEqual(changed, ["renderCall"]);
 	});
-});
 
-describe("withMark against pi's own component", () => {
-	it("does not disturb what the built-in produced", () => {
-		const inner = createReadToolDefinition(process.cwd()).renderCall!(
-			{ file_path: "/tmp/a.ts" } as never,
-			probe,
-			context(),
-		);
-		const bare = inner.render(60 - GUTTER);
-		const framed = withMark(inner, "*").render(60);
-		assert.deepEqual(
-			framed.map((line) => line.slice(GUTTER)),
-			bare,
-		);
+	it("leaves a tool without a call renderer alone", () => {
+		const bare = { ...createReadToolDefinition(process.cwd()), renderCall: undefined };
+		assert.equal(present("read", process.cwd(), {}, bare as never), bare);
+	});
+
+	it("lets retitle replace the lines pi produced", () => {
+		const definition = present("read", process.cwd(), { retitle: () => ["replaced"] });
+		assert.deepEqual(definition.renderCall!({ file_path: "/tmp/a.ts" } as never, probe, context()).render(60), ["replaced"]);
+	});
+
+	it("keeps pi's lines when retitle declines", () => {
+		const plain = builtIn("read", process.cwd()).renderCall!({ file_path: "/tmp/a.ts" } as never, probe, context()).render(60);
+		const definition = present("read", process.cwd(), { retitle: () => undefined });
+		assert.deepEqual(definition.renderCall!({ file_path: "/tmp/a.ts" } as never, probe, context()).render(60), plain);
 	});
 });
