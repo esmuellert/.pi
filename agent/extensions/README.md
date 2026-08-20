@@ -16,6 +16,7 @@ verify everything, and type checking against the pi that is actually installed.
 | `cd` | `/cd <dir>` moves the session to another directory, which pi otherwise fixes at session creation. |
 | `tool-blocks` | Presentation for tool blocks: a glyph per block, and a bash title with the layers pi gives its other six. |
 | `frame-budget` | What a still frame may cost, and how to measure it. Shared by the packages that draw |
+| `wheel` | How far one wheel event scrolls the fullscreen transcript, and probes to decide it |
 | `themes` | Five dark themes generated from the upstream rose-pine and catppuccin palettes, so "official" is provable rather than claimed. |
 
 The `themes` package is a generator rather than an extension: it writes

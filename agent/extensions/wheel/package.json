@@ -1,0 +1,17 @@
+{
+	"name": "wheel",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"test": "node --experimental-strip-types --test \"*.test.ts\"",
+		"typecheck": "tsc --noEmit",
+		"probe:reports": "node --experimental-strip-types probe/reports.ts",
+		"probe:step": "node --experimental-strip-types probe/step.ts",
+		"probe:bytes": "node --experimental-strip-types probe/bytes.ts"
+	},
+	"devDependencies": {
+		"@earendil-works/pi-coding-agent": "catalog:",
+		"@types/node": "catalog:",
+		"typescript": "catalog:"
+	}
+}

@@ -7,6 +7,7 @@ packages:
   - "tool-blocks"
   # Shared by the packages that draw, so "fast enough" means the same thing in
   # each of them and is measured the same way.
+  - "wheel"
   - "frame-budget"
 
 # Single source of truth for tooling versions. Packages reference "catalog:".
