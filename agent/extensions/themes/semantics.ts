@@ -24,6 +24,13 @@ export type Semantics = {
 	/** The accent that carries the palette's identity. */
 	readonly signature: string;
 	/** A second accent for decoration that must not read as a status. */
+	/**
+	 * Inline code, and whatever else is ornament rather than meaning.
+	 *
+	 * Also uncited: no palette names a colour for this. Taken as the warm or
+	 * cool counterpart to the signature, so the two accents a page shows most
+	 * often do not sit in the same part of the wheel.
+	 */
 	readonly decoration: string;
 
 	readonly error: string;
@@ -36,6 +43,15 @@ export type Semantics = {
 	/** Comments; upstream states this, so it is not read off the ladder. */
 	readonly comment: string;
 
+	/**
+	 * Markdown headings.
+	 *
+	 * The one accent with no upstream role to cite, since a palette describes
+	 * code and a heading is prose. pi's own dark theme decides it the same way
+	 * and is the reference used here: heading gets a warm colour of its own,
+	 * distinctly softer than warning, which it reserves for pure yellow. A
+	 * heading marks structure; it must not read as something being wrong.
+	 */
 	readonly heading: string;
 	/** Strings and other literals. */
 	readonly literal: string;
@@ -60,7 +76,10 @@ export const rosePineSemantics: Semantics = {
 	info: "foam", // "info, object keys"
 	comment: "muted", // "comments"
 
-	heading: "gold",
+	// Not gold: that is warning, and this palette's loudest colour at 88%
+	// saturation. Rose is the only other warm role, and softer at 55% -- the
+	// same relation pi's dark theme puts between its heading and its warning.
+	heading: "rose",
 	literal: "gold", // "strings"
 	keyword: "pine", // from the vscode port
 	callable: "pine", // "functions"
@@ -82,6 +101,8 @@ export const catppuccinSemantics: Semantics = {
 	info: "blue", // "Property (e.g. JSON keys)"
 	comment: "overlay2", // "Comments"
 
+	// Peach is warm and already distinct from warning, which this palette has
+	// enough colours to keep separate.
 	heading: "peach",
 	literal: "green", // "Strings"
 	keyword: "mauve", // "Keyword"
