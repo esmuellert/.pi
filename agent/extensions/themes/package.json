@@ -1,0 +1,20 @@
+{
+  "name": "pi-themes",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "pi themes generated strictly from the rose-pine and catppuccin palettes",
+  "scripts": {
+    "build": "node --experimental-strip-types build.ts",
+    "test": "node --experimental-strip-types --test *.test.ts",
+    "typecheck": "tsc --noEmit",
+    "smoke": "node --experimental-strip-types build.ts --check"
+  },
+  "devDependencies": {
+    "@catppuccin/palette": "catalog:",
+    "@rose-pine/palette": "catalog:",
+    "@earendil-works/pi-coding-agent": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

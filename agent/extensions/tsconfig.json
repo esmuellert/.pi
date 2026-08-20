@@ -1,5 +1,5 @@
 {
   "extends": "./tsconfig.base.json",
   "files": [],
-  "references": [{ "path": "./responsive-footer" }, { "path": "./cd" }]
+  "references": [{ "path": "./responsive-footer" }, { "path": "./cd" }, { "path": "./themes" }]
 }

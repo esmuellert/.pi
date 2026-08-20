@@ -11,6 +11,12 @@
 /agent/*
 !/agent/settings.json
 
+# --- generated themes: the product of agent/extensions/themes ---
+!/agent/themes/
+/agent/themes/*
+!/agent/themes/*.json
+!/agent/themes/preview.py
+
 # --- our own extensions only ---
 !/agent/extensions/
 /agent/extensions/*
@@ -26,6 +32,7 @@
 # our packages
 !/agent/extensions/responsive-footer/
 !/agent/extensions/cd/
+!/agent/extensions/themes/
 
 # --- optional, uncomment when created ---
 # !/agent/AGENTS.md
@@ -33,7 +40,6 @@
 # !/agent/footer.json
 # !/agent/prompts/
 # !/agent/skills/
-# !/agent/themes/
 
 # never: dependencies (68 MB, plus per-package symlink trees) and turbo's cache
 /agent/extensions/node_modules/

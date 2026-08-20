@@ -3,6 +3,7 @@
 packages:
   - "responsive-footer"
   - "cd"
+  - "themes"
 
 # Single source of truth for tooling versions. Packages reference "catalog:".
 catalog:
@@ -11,6 +12,10 @@ catalog:
   "@earendil-works/pi-ai": 0.84.2
   "@earendil-works/pi-coding-agent": 0.84.2
   "@earendil-works/pi-tui": 0.84.2
+  # Upstream palettes, so "official" is enforced by the dependency graph
+  # rather than by transcription. Bumping these can change theme output.
+  "@catppuccin/palette": ^1.8.0
+  "@rose-pine/palette": ^4.0.1
   "@types/node": ^26.2.0
   turbo: ^2.10.11
   typescript: ^7.0.2

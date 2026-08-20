@@ -6,6 +6,9 @@ settings:
 
 catalogs:
   default:
+    '@catppuccin/palette':
+      specifier: ^1.8.0
+      version: 1.8.0
     '@earendil-works/pi-ai':
       specifier: 0.84.2
       version: 0.84.2
@@ -15,6 +18,9 @@ catalogs:
     '@earendil-works/pi-tui':
       specifier: 0.84.2
       version: 0.84.2
+    '@rose-pine/palette':
+      specifier: ^4.0.1
+      version: 4.0.1
     '@types/node':
       specifier: ^26.2.0
       version: 26.2.0
@@ -62,6 +68,24 @@ importers:
       '@earendil-works/pi-tui':
         specifier: 'catalog:'
         version: 0.84.2
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.2.0
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
+  themes:
+    devDependencies:
+      '@catppuccin/palette':
+        specifier: 'catalog:'
+        version: 1.8.0
+      '@earendil-works/pi-coding-agent':
+        specifier: 'catalog:'
+        version: 0.84.2(ws@8.21.3)
+      '@rose-pine/palette':
+        specifier: 'catalog:'
+        version: 4.0.1
       '@types/node':
         specifier: 'catalog:'
         version: 26.2.0
@@ -180,6 +204,9 @@ packages:
   '@babel/runtime@7.29.7':
     resolution: {integrity: sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw==}
     engines: {node: '>=6.9.0'}
+
+  '@catppuccin/palette@1.8.0':
+    resolution: {integrity: sha512-qXhwKiLzQomUygUJYB36YAFgs+dET5bIocfkiaFIatQF5Pwc7L112TlF9P8J5Oqs3x3XTjYSucG0ncHXSCuk7Q==}
 
   '@earendil-works/pi-agent-core@0.84.2':
     resolution: {integrity: sha512-8Pn3wSCxj0cfo5I6jxQYVB/3uuQRmHhAlEclyjqpOuMEdQMIODHizRogv56FLdbU+dTiGnybeHQ2N+sV1/L2YA==}
@@ -313,6 +340,10 @@ packages:
 
   '@protobufjs/utf8@1.1.2':
     resolution: {integrity: sha512-b1UQwcEZ4yCnMCD8DAL1VlbvBJE9/IX4FTIp7BG1xYpf29SLazLSrqUkj4w7Y5y7cCVP6E5tcqqcI0xemPkHug==}
+
+  '@rose-pine/palette@4.0.1':
+    resolution: {integrity: sha512-4scxhgntd3Vov1vy3+oZTNAsovtLyd4Khukfwdj4BvRkkbHnFQcDRo6fUJ7zu07SUNI+avr+76QwLNpx/lvcLA==}
+    engines: {node: '>=16'}
 
   '@silvia-odwyer/photon-node@0.3.4':
     resolution: {integrity: sha512-bnly4BKB3KDTFxrUIcgCLbaeVVS8lrAkri1pEzskpmxu9MdfGQTy8b8EgcD83ywD3RPMsIulY8xJH5Awa+t9fA==}
@@ -1011,6 +1042,8 @@ snapshots:
 
   '@babel/runtime@7.29.7': {}
 
+  '@catppuccin/palette@1.8.0': {}
+
   '@earendil-works/pi-agent-core@0.84.2(ws@8.21.3)':
     dependencies:
       '@earendil-works/pi-ai': 0.84.2(ws@8.21.3)
@@ -1172,6 +1205,8 @@ snapshots:
   '@protobufjs/pool@1.1.0': {}
 
   '@protobufjs/utf8@1.1.2': {}
+
+  '@rose-pine/palette@4.0.1': {}
 
   '@silvia-odwyer/photon-node@0.3.4': {}
 

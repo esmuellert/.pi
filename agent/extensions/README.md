@@ -14,6 +14,10 @@ verify everything, and type checking against the pi that is actually installed.
 |---|---|
 | `responsive-footer` | Width-adaptive multi-line footer. Wraps instead of abbreviating, so labels stay readable at any terminal size. |
 | `cd` | `/cd <dir>` moves the session to another directory, which pi otherwise fixes at session creation. |
+| `themes` | Five dark themes generated from the upstream rose-pine and catppuccin palettes, so "official" is provable rather than claimed. |
+
+The `themes` package is a generator rather than an extension: it writes
+`~/.pi/agent/themes/*.json`, which pi reads.
 
 Loose `*.ts` files in this directory belong to other tools (the mobile client
 installs some) and are deliberately outside the workspace.
