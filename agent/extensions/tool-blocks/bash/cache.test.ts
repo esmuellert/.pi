@@ -73,7 +73,7 @@ describe("what pi renders and nobody reads", () => {
 		const definition = present("bash", process.cwd(), {
 			retitle: retitling(),
 		}, { ...builtIn("bash", process.cwd()), renderCall: () => inner } as never);
-		definition.renderCall!({ command: "ls -la" } as never, probe, { state: {} } as never).render(80);
+		definition.renderCall!({ command: "ls -la" } as never, probe, { state: {}, expanded: true, cwd: process.cwd() } as never).render(80);
 		assert.equal(renders, 0, "pi's rendering was produced and discarded");
 	});
 
@@ -83,7 +83,7 @@ describe("what pi renders and nobody reads", () => {
 		const definition = present("bash", process.cwd(), {
 			retitle: () => undefined,
 		}, { ...builtIn("bash", process.cwd()), renderCall: () => inner } as never);
-		definition.renderCall!({ command: "ls -la" } as never, probe, { state: {} } as never).render(80);
+		definition.renderCall!({ command: "ls -la" } as never, probe, { state: {}, expanded: true, cwd: process.cwd() } as never).render(80);
 		assert.equal(renders, 1, "asking for it and then declining should not render twice");
 	});
 });
@@ -98,7 +98,7 @@ describe("a session's worth of blocks", () => {
 		const rows = blocks(800);
 		const retitle = retitling();
 		const draw = () => {
-			for (const row of rows) retitle(() => [], 80, { command: row.command } as never, probe, { state: row.state } as never);
+			for (const row of rows) retitle(() => [], 80, { command: row.command } as never, probe, { state: row.state, expanded: true, cwd: process.cwd() } as never);
 		};
 		assert.equal(overBudget(frame(draw)), undefined);
 	});
@@ -109,7 +109,7 @@ describe("a session's worth of blocks", () => {
 		const rows = blocks(800);
 		const retitle = retitling();
 		const draw = (width: number) => {
-			for (const row of rows) retitle(() => [], width, { command: row.command } as never, probe, { state: row.state } as never);
+			for (const row of rows) retitle(() => [], width, { command: row.command } as never, probe, { state: row.state, expanded: true, cwd: process.cwd() } as never);
 		};
 		draw(80);
 		// A resize has to rewrap every block, so it cannot fit a frame -- but it

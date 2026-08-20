@@ -25,6 +25,7 @@ One folder per feature, and one folder for the mechanism they share.
 | `shared/` | reading text that carries SGR, and the constants nothing can derive |
 | `mark/` | a glyph per block: which tool ran, and how it went |
 | `bash/` | the command line, layered the way pi's other titles are |
+| `fold/` | Showing a long command as one line until ctrl+o asks for it |
 | `index.ts` | wires features to tools; the only place that calls `registerTool` |
 
 **Only one extension can win this.** pi merges tool definitions with `Map.set`,
@@ -158,6 +159,35 @@ so the active theme decides what any of it looks like, and a new theme needs no
 change here. Scopes are hierarchical, so this matches on prefixes and the
 longest wins: `string.quoted.heredoc` beats the `string` it also matches, and a
 grammar that grows a new scope lands on its parent instead of falling out.
+
+### Folding
+
+Half the commands here run to several lines, and the single-line ones are no
+shorter: 28 of 30 wrap at eighty columns, the longest to eleven. So a title is
+folded when it does not fit on one *rendered* line, not when it holds a
+newline.
+
+ctrl+o already toggles `context.expanded`, which pi's own `read` uses for its
+compact title and `write` for its preview. Folding joins that switch rather
+than inventing one, so there is nothing new to learn and nothing new to
+configure.
+
+Two things it does not do:
+
+**The head is repainted from the command**, not taken from the first rendered
+line. A wrap falls wherever the width says, and `cat > path/to/file.swift`
+wrapped at eighty columns leaves `cat >` — a line that says a file was written
+without saying which.
+
+**A leading `cd <path> &&` is dropped only when it names the directory the
+command already runs in.** It opens 70% of these commands and costs a median of
+34 columns, which at a narrow width is the whole line. Anywhere else it changes
+what runs, so it stays.
+
+| | folds to |
+|---|---|
+| `cd <cwd> && cat > Probe.swift <<'EOF'` + 39 lines | `cat > Probe.swift <<'EOF' +39` |
+| `cd /elsewhere && git commit -F -` + 36 lines | `cd /elsewhere && git commit -F - +36` |
 
 ### What it costs to draw
 

@@ -11,6 +11,7 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import { wrapTextWithAnsi } from "@earendil-works/pi-tui";
 
+import { fold, withoutRedundantCd, type HintStyle } from "../fold/index.ts";
 import { blank, plain } from "../shared/ansi.ts";
 import type { RenderArgs, RenderContext } from "../tools/builtins.ts";
 import { tokenize, type Piece } from "./engine.ts";
@@ -88,12 +89,13 @@ type Cached = {
 	command: string;
 	width: number;
 	theme: Theme;
+	expanded: boolean;
 	lines: string[] | undefined;
 };
 
 const CACHE = "__toolBlocksBashTitle";
 
-export function retitling() {
+export function retitling(style: HintStyle = "count") {
 	return (_rendered: () => string[], width: number, args: RenderArgs, theme: Theme, context: RenderContext): string[] | undefined => {
 		const command = (args as { command?: unknown }).command;
 		if (typeof command !== "string") return undefined;
@@ -105,26 +107,47 @@ export function retitling() {
 		//
 		// The theme is part of the key because /theme repaints without changing
 		// the command or the width.
+		const expanded = context.expanded;
 		const state = context.state as Record<string, unknown>;
 		const cached = state[CACHE] as Cached | undefined;
-		if (cached && cached.command === command && cached.width === width && cached.theme === theme) {
+		if (
+			cached &&
+			cached.command === command &&
+			cached.width === width &&
+			cached.theme === theme &&
+			cached.expanded === expanded
+		) {
 			return cached.lines;
 		}
 
-		const lines = build(command, width, theme);
-		state[CACHE] = { command, width, theme, lines } satisfies Cached;
+		const lines = build(command, width, theme, expanded, context.cwd, style);
+		state[CACHE] = { command, width, theme, expanded, lines } satisfies Cached;
 		return lines;
 	};
 }
 
-function build(command: string, width: number, theme: Theme): string[] | undefined {
+function build(
+	command: string,
+	width: number,
+	theme: Theme,
+	expanded: boolean,
+	cwd: string,
+	style: HintStyle,
+): string[] | undefined {
 	const styled = title(command, theme);
 	if (styled === undefined) return undefined;
 	// wrapTextWithAnsi is undefined below one column, which is the only case
 	// there is nothing sensible to return for.
 	if (width < 1) return undefined;
 	const wrapped = styled.split("\n").flatMap((line) => unpad(wrapTextWithAnsi(line, width)));
-	return wrapped.length > 0 ? wrapped : undefined;
+	if (wrapped.length === 0) return undefined;
+	if (expanded) return wrapped;
+
+	// The head is painted from the command rather than taken from `wrapped`,
+	// so that the argument survives a wrap that fell mid-command.
+	const head = withoutRedundantCd(command, cwd).split("\n")[0] ?? "";
+	const painted = title(head, theme) ?? head;
+	return fold(wrapped, painted, width, theme, style);
 }
 
 /**
