@@ -21,10 +21,11 @@ installs some) and are deliberately outside the workspace.
 ## Commands
 
 ```bash
-pnpm verify      # test + typecheck + contract check
-pnpm test        # turbo test
-pnpm typecheck   # turbo typecheck
-pnpm contract    # runtime contracts against the installed pi
+pnpm verify            # everything below
+pnpm check:pi-version  # catalog pin vs installed pi
+pnpm test              # unit + contract tests
+pnpm typecheck         # tsc across the workspace
+pnpm smoke             # each extension actually loads in pi
 ```
 
 After upgrading pi:
@@ -32,7 +33,7 @@ After upgrading pi:
 ```bash
 pi update
 cd ~/.pi/agent/extensions
-pnpm contract                       # fails, naming the new version
+pnpm check:pi-version               # fails, naming the new version
 # bump the pi versions in the catalog
 pnpm install && pnpm verify
 ```
@@ -66,9 +67,11 @@ Each catches something the others cannot:
 
 | Layer | Catches |
 |---|---|
-| `typecheck` | API shape drift. Found a `pi.on("reload")` handler for an event that does not exist — dead code that tests and manual use had both missed. |
-| `test` | Our own logic. 257 assertions, run against stubs. |
-| `contract` | Runtime behaviour the types do not describe: that `visibleWidth` still measures Nerd Font glyphs as one column, that `SessionManager.create` does not write a file, that `getExtensionStatuses` is still a Map. |
+| `check:pi-version` | pi moved and nothing here has been re-verified against it. |
+| `typecheck` | API shape drift. Found a `pi.on("reload")` handler for an event that does not exist — dead code that the tests and manual use had both missed. |
+| `test` | Our own logic (against stubs), plus `contract.test.ts` in each package for behaviour types cannot state: that `visibleWidth` measures a Nerd Font glyph as one column, that `SessionManager.create` does not write a file, that the theme still defines the colour keys the footer paints with. |
+| `smoke` | The extension still loads in a real pi. |
 
 The unit tests would keep passing if pi changed every API underneath them, which
-is why the other two layers exist.
+is why the other layers exist. There is no bespoke check runner: the contract
+checks are ordinary `node:test` files, so turbo caches them like anything else.

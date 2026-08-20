@@ -5,10 +5,11 @@
   "type": "module",
   "description": "Personal pi coding agent extensions",
   "scripts": {
-    "test": "turbo test",
-    "typecheck": "turbo typecheck",
-    "contract": "node scripts/check-contract.mjs",
-    "verify": "turbo run test typecheck && pnpm contract"
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "smoke": "turbo run smoke",
+    "check:pi-version": "node scripts/check-pi-version.mjs",
+    "verify": "pnpm check:pi-version && turbo run test typecheck smoke"
   },
   "devDependencies": {
     "@types/node": "catalog:",

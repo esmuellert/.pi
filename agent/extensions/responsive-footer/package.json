@@ -10,8 +10,9 @@
     ]
   },
   "scripts": {
-    "test": "node --experimental-strip-types --test layout.test.ts",
-    "typecheck": "tsc --noEmit"
+    "test": "node --experimental-strip-types --test *.test.ts",
+    "typecheck": "tsc --noEmit",
+    "smoke": "pi --no-extensions -e . --no-tools --no-session -p 'reply with exactly: SMOKE_OK'"
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",

@@ -3,11 +3,27 @@
   "ui": "stream",
   "tasks": {
     "test": {
-      "inputs": ["**/*.ts", "package.json", "tsconfig.json"],
+      "inputs": [
+        "**/*.ts",
+        "package.json",
+        "tsconfig.json"
+      ],
       "outputs": []
     },
     "typecheck": {
-      "inputs": ["**/*.ts", "package.json", "tsconfig.json", "../tsconfig.base.json"],
+      "inputs": [
+        "**/*.ts",
+        "package.json",
+        "tsconfig.json",
+        "../tsconfig.base.json"
+      ],
+      "outputs": []
+    },
+    "smoke": {
+      "inputs": [
+        "**/*.ts",
+        "package.json"
+      ],
       "outputs": []
     }
   }
