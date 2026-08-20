@@ -172,7 +172,7 @@ describe("retitling at a width", () => {
 		for (const command of COMMANDS.slice(0, 12)) {
 			for (const width of [120, 80, 60, 40, 30, 24, 16]) {
 				const lines = asPiWould(command, width);
-				const out = retitle(lines, { command } as never, probe, {} as never);
+				const out = retitle(lines, width, { command } as never, probe, {} as never);
 				assert.ok(out, `no title at width ${width} for ${JSON.stringify(command.slice(0, 40))}`);
 			}
 		}
@@ -182,16 +182,30 @@ describe("retitling at a width", () => {
 		for (const command of COMMANDS.slice(0, 12)) {
 			for (const width of [80, 40, 24]) {
 				const lines = asPiWould(command, width);
-				const out = retitle(lines, { command } as never, probe, {} as never)!;
+				const out = retitle(lines, width, { command } as never, probe, {} as never)!;
 				assert.deepEqual(out.map(plain), lines.map(plain), `width ${width}`);
 			}
 		}
 	});
 
+	it("uses the width it is given, not one guessed from pi's lines", () => {
+		// Word wrapping leaves lines short of the width — by five columns in
+		// these fixtures — so inferring it from the longest line pi produced
+		// wraps tighter than pi did.
+		const command = "a bb ccc dddd eeeee ffffff";
+		const lines = asPiWould(command, 25);
+		const inferred = Math.max(...lines.map((line) => plain(line).length));
+		assert.notEqual(inferred, 25, "this fixture must be one where inference would be wrong");
+		assert.deepEqual(
+			retitle(lines, 25, { command } as never, probe, {} as never)!.map(plain),
+			lines.map(plain),
+		);
+	});
+
 	it("never overflows the width it was given", () => {
 		for (const command of COMMANDS.slice(0, 12)) {
 			for (const width of [60, 30, 20]) {
-				for (const line of retitle(asPiWould(command, width), { command } as never, probe, {} as never)!) {
+				for (const line of retitle(asPiWould(command, width), width, { command } as never, probe, {} as never)!) {
 					assert.ok(plain(line).length <= width, `${plain(line).length} > ${width}`);
 				}
 			}

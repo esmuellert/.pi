@@ -9,7 +9,7 @@
  */
 
 import type { Theme } from "@earendil-works/pi-coding-agent";
-import { visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
+import { wrapTextWithAnsi } from "@earendil-works/pi-tui";
 
 import type { RenderArgs, RenderContext } from "../tools/builtins.ts";
 import { tokenize, type Piece } from "./engine.ts";
@@ -77,15 +77,19 @@ export function title(command: string, theme: Theme): string | undefined {
  * `wrapTextWithAnsi` is the function pi's own Text wraps with, so the result
  * breaks in the same places pi would have broken it, and reopens the colour on
  * the far side of a break.
+ *
+ * The width is passed in rather than inferred. Reading it back off the longest
+ * line pi produced looked adequate and is not: word wrapping leaves lines
+ * short of the width, by five columns in the fixtures, so the replacement
+ * would wrap tighter than pi did.
  */
 export function retitling() {
-	return (lines: string[], args: RenderArgs, theme: Theme, _context: RenderContext): string[] | undefined => {
+	return (_lines: string[], width: number, args: RenderArgs, theme: Theme, _context: RenderContext): string[] | undefined => {
 		const command = (args as { command?: unknown }).command;
 		if (typeof command !== "string") return undefined;
 		const styled = title(command, theme);
 		if (styled === undefined) return undefined;
 
-		const width = widthOf(lines);
 		const wrapped = styled
 			.split("\n")
 			.flatMap((line) => (width > 0 ? unpad(wrapTextWithAnsi(line, width)) : [line]));
@@ -107,14 +111,3 @@ function unpad(lines: readonly string[]): string[] {
 	return lines.filter((line, index) => index === 0 || line.replace(/\u001b\[[0-9;]*m/g, "") !== "");
 }
 
-/**
- * The width pi wrapped to, recovered from what it produced.
- *
- * retitle is not given the width, so it is read back off the longest line pi
- * rendered. A single short line means nothing was wrapped and any width will
- * do, which is why the fallback leaves the text alone rather than guessing.
- */
-function widthOf(lines: readonly string[]): number {
-	if (lines.length < 2) return 0;
-	return Math.max(...lines.map((line) => visibleWidth(line)));
-}

@@ -38,7 +38,13 @@ const INNER = "__toolBlocksInner";
  * component, for a mark in the gutter.
  */
 export type Presentation = {
-	readonly retitle?: (lines: string[], args: RenderArgs, theme: Theme, context: RenderContext) => string[] | undefined;
+	readonly retitle?: (
+		lines: string[],
+		width: number,
+		args: RenderArgs,
+		theme: Theme,
+		context: RenderContext,
+	) => string[] | undefined;
 	readonly frame?: (inner: Component, args: RenderArgs, theme: Theme, context: RenderContext) => Component;
 };
 
@@ -72,7 +78,7 @@ export function present(
 			state[INNER] = inner;
 
 			const retitled = presentation.retitle
-				? replacing(inner, (width) => presentation.retitle?.(inner.render(width), args, theme, context))
+				? replacing(inner, (width) => presentation.retitle?.(inner.render(width), width, args, theme, context))
 				: inner;
 			return presentation.frame ? presentation.frame(retitled, args, theme, context) : retitled;
 		},
