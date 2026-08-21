@@ -1,0 +1,14 @@
+{
+	"name": "paste-space",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"test": "node --experimental-strip-types --test \"*.test.ts\"",
+		"typecheck": "tsc --noEmit"
+	},
+	"devDependencies": {
+		"@earendil-works/pi-coding-agent": "catalog:",
+		"@types/node": "catalog:",
+		"typescript": "catalog:"
+	}
+}
