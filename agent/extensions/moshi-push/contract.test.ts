@@ -152,10 +152,10 @@ describe("host-event schema", () => {
 
 describe("endpoint", () => {
 	it("addresses the paired host", () => {
-		assert.equal(
-			eventsUrl("host_00000000000000000000000000000000"),
-			"https://api.getmoshi.app/api/v1/hosts/host_00000000000000000000000000000000/events",
-		);
+		// Shaped like a real host id -- the prefix and a 32-character hex body --
+		// without being one. What is tested is the path, not the id.
+		const host = "host_" + "0".repeat(32);
+		assert.equal(eventsUrl(host), `https://api.getmoshi.app/api/v1/hosts/${host}/events`);
 	});
 
 	it("escapes a host id rather than pasting it into a path", () => {
