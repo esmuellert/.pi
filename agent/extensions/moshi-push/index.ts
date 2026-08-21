@@ -123,12 +123,19 @@ function contextRemaining(ctx: ExtensionContext): number | undefined {
 	return 100 - percent;
 }
 
-function turnFrom(ctx: ExtensionContext, sessionId: string, summary: string, durationMs: number): Turn {
+function turnFrom(
+	ctx: ExtensionContext,
+	sessionId: string,
+	summary: string,
+	durationMs: number,
+	toolCalls: number,
+): Turn {
 	const turn: Turn = {
 		sessionId,
 		project: basename(ctx.cwd || process.cwd()) || "pi",
 		summary,
 		durationMs,
+		toolCalls,
 		now: Date.now(),
 	};
 	const model = ctx.model?.id ?? process.env.PI_MODEL;
@@ -147,6 +154,7 @@ export default function (pi: ExtensionAPI) {
 	let rootSession = false;
 	let sessionEnabled = true;
 	let turnStartedAt = 0;
+	let toolCalls = 0;
 	let closingWords = "";
 	let lastError = "";
 
@@ -160,6 +168,11 @@ export default function (pi: ExtensionAPI) {
 		if (!turnStartedAt) turnStartedAt = Date.now();
 	});
 
+	// Counted at the end so a tool that is still running is not yet work done.
+	pi.on("tool_execution_end", () => {
+		toolCalls += 1;
+	});
+
 	pi.on("agent_end", (event) => {
 		// A run can end and resume (retry, compaction, queued follow-up), so keep
 		// the latest words rather than the ones from the run that settles.
@@ -170,8 +183,10 @@ export default function (pi: ExtensionAPI) {
 	pi.on("agent_settled", (_event, ctx) => {
 		const durationMs = turnStartedAt ? Date.now() - turnStartedAt : 0;
 		const summary = closingWords;
+		const tools = toolCalls;
 		turnStartedAt = 0;
 		closingWords = "";
+		toolCalls = 0;
 
 		if (!rootSession || !sessionEnabled) return;
 		// Another extension may have started a new run; that one is not finished.
@@ -183,7 +198,7 @@ export default function (pi: ExtensionAPI) {
 		const creds = credentials();
 		if (!creds) return;
 		const settings = config();
-		const turn = turnFrom(ctx, sessionId, summary, durationMs);
+		const turn = turnFrom(ctx, sessionId, summary, durationMs, tools);
 
 		// Detached on purpose: a notification must never delay or fail a turn.
 		void (async () => {
@@ -226,6 +241,7 @@ export default function (pi: ExtensionAPI) {
 					ctx,
 					ctx.sessionManager.getSessionId() || "moshi-push-test",
 					"Test notification from moshi-push",
+					0,
 					0,
 				);
 				try {

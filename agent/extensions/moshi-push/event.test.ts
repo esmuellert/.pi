@@ -31,6 +31,7 @@ const turn = (overrides: Partial<Turn> = {}): Turn => ({
 	project: "Downloads",
 	summary: "Refactored the parser and every test passes.",
 	durationMs: 133_000,
+	toolCalls: 12,
 	now: 1_787_270_808_000,
 	...overrides,
 });
@@ -110,20 +111,33 @@ describe("wording", () => {
 		assert.equal(formatDuration(4_500_000), "1h 15m");
 	});
 
-	it("names the project and appends the elapsed time", () => {
-		assert.equal(eventTitle(turn()), "pi ✓ Downloads");
-		assert.equal(eventMessage(turn()), "Refactored the parser and every test passes. · 2m 13s");
+	it("puts the three facts worth reading in the headline", () => {
+		assert.equal(eventTitle(turn()), "Downloads · 12 tools · 2m 13s");
+		assert.equal(eventMessage(turn()), "Refactored the parser and every test passes.");
+	});
+
+	it("counts one tool without pluralising it", () => {
+		assert.equal(eventTitle(turn({ toolCalls: 1 })), "Downloads · 1 tool · 2m 13s");
+	});
+
+	it("drops the segments a turn did not earn", () => {
+		assert.equal(eventTitle(turn({ toolCalls: 0 })), "Downloads · 2m 13s");
+		assert.equal(eventTitle(turn({ toolCalls: 0, durationMs: 0 })), "Downloads");
 	});
 
 	it("says something when the turn produced no prose", () => {
 		assert.equal(eventMessage(turn({ summary: "", durationMs: 0 })), "Turn finished");
 	});
 
-	it("keeps the elapsed time when the summary is the part that must give way", () => {
+	it("gives the whole body to what was said, since the numbers are in the title", () => {
 		const message = eventMessage(turn({ summary: "x".repeat(400) }));
 		assert.ok(message.length <= 200, `message was ${message.length} chars`);
-		assert.ok(message.endsWith("· 2m 13s"), message.slice(-20));
-		assert.ok(message.includes("…"));
+		assert.ok(message.endsWith("…"));
+	});
+
+	it("keeps a long project name inside the title limit", () => {
+		const title = eventTitle(turn({ project: "p".repeat(120) }));
+		assert.ok(title.length <= 80, `title was ${title.length} chars`);
 	});
 
 	it("clamps without inventing an ellipsis it does not need", () => {

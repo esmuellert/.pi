@@ -86,6 +86,7 @@ const turn: Turn = {
 	project: "Downloads",
 	summary: "Refactored the parser and every test passes.",
 	durationMs: 133_000,
+	toolCalls: 12,
 	model: "claude-opus-5",
 	contextRemaining: 62,
 	hostName: "Mac",

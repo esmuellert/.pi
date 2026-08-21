@@ -76,6 +76,7 @@ describe("with Moshi paired", () => {
 			assert.deepEqual(calls, [
 				"on:session_start",
 				"on:agent_start",
+				"on:tool_execution_end",
 				"on:agent_end",
 				"on:agent_settled",
 				"command:moshi-push",

@@ -159,6 +159,8 @@ export type Turn = {
 	/** The assistant's closing words. Empty is fine; the text falls back. */
 	summary: string;
 	durationMs: number;
+	/** Tools run across the whole settled turn, retries and follow-ups included. */
+	toolCalls: number;
 	model?: string;
 	contextRemaining?: number;
 	hostName?: string;
@@ -225,17 +227,26 @@ export function formatDuration(ms: number): string {
 }
 
 /**
+ * `Downloads · 12 tools · 3m 11s` — which project, how much work, how long.
+ *
+ * The first line of a lock screen is the widest thing on it, so it carries the
+ * three facts that are worth reading before deciding whether to pick the phone
+ * up. The agent is always pi and the tick was always a tick, so neither earns
+ * the space. Segments with nothing to say are left out rather than padded.
+ *
  * Which field becomes the headline depends on the category, so both events
  * carry the same pair and each reads as either a headline or a label.
  */
 export function eventTitle(turn: Turn): string {
-	return clamp(`pi ✓ ${turn.project}`, TITLE_LIMIT);
+	const parts = [turn.project];
+	if (turn.toolCalls > 0) parts.push(`${turn.toolCalls} ${turn.toolCalls === 1 ? "tool" : "tools"}`);
+	if (turn.durationMs > 0) parts.push(formatDuration(turn.durationMs));
+	return clamp(parts.join(" · "), TITLE_LIMIT);
 }
 
+/** Everything measurable now lives in the title, so this is only what was said. */
 export function eventMessage(turn: Turn): string {
-	const suffix = turn.durationMs > 0 ? ` · ${formatDuration(turn.durationMs)}` : "";
-	const body = turn.summary || "Turn finished";
-	return `${clamp(body, MESSAGE_LIMIT - suffix.length)}${suffix}`;
+	return clamp(turn.summary || "Turn finished", MESSAGE_LIMIT);
 }
 
 export function shouldNotify(turn: Turn, config: Config, consoleLocked: boolean | undefined): boolean {
