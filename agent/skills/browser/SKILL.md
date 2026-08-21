@@ -81,21 +81,39 @@ And when a script needs more than a line, write it to a file and run it with
 node, importing `cdp.mjs` **by absolute path** — a relative import resolves
 against the script's own directory, not this one.
 
-## When everything hangs
+## Dialogs
 
-A page showing an `alert`, `confirm` or `prompt` stops running JavaScript, and
-every script that runs JavaScript hangs with it — `eval`, `click`, `fill`.
+`alert`, `confirm` and `prompt` **cannot be answered** from here, on this
+machine. Chrome closes them itself as Cancel the moment they open.
+
+That is not a timing problem, and trying harder does not help. Watched on the
+socket: `javascriptDialogOpening` arrives, `handleJavaScriptDialog` with
+`accept: true` goes out **one millisecond later**, and `javascriptDialogClosed`
+comes back with `result: false`. The same for `confirm` and `prompt`, with and
+without `userGesture`, and whether triggered synchronously or from a timer.
+
+So a page whose flow depends on confirming a dialog cannot be driven through
+that step. What works instead:
 
 ```bash
-node dialog.mjs              # accept it
-node dialog.mjs --dismiss    # cancel it
-node dialog.mjs --text "answer"
+# Replace the dialog before triggering it
+node eval.mjs 'window.confirm = () => true; window.prompt = () => "answer"; "patched"'
+node click.mjs 7
 ```
 
-It reloads the page afterwards. Closing the dialog is not enough on its own:
-Chrome leaves the execution context dead, and a reload is the only way found to
-get the page answering again. **Anything typed into the page is lost**, and the
-handles from the last snapshot are stale.
+The page cannot tell, unless it checks — and almost none do. Say that this was
+done, since the run is then not quite what a person would have seen.
+
+`dialog.mjs` is still there for the case where one is stuck on screen:
+
+```bash
+node dialog.mjs              # close it and reload
+node dialog.mjs --no-reload
+```
+
+It reloads afterwards, because closing alone leaves the page's execution
+context dead: `Runtime.enable` never returns. **Anything typed into the page is
+lost**, and the handles from the last snapshot are stale.
 
 ## Pictures
 
