@@ -33,7 +33,12 @@ let made = 0;
 function checkout(back: number): string {
 	const id = `${back}-${made++}`;
 	const remote = join(root, `remote-${id}.git`);
-	git(root, "init", "-q", "--bare", remote);
+	// -b main, because the push below names that branch and the bare repo's HEAD
+	// has to match it. git init takes HEAD from init.defaultBranch, which is
+	// still master on a default install, and cloning a repo whose HEAD names a
+	// ref that does not exist checks out nothing -- so the reset below has no
+	// commits to count back from.
+	git(root, "init", "-q", "--bare", "-b", "main", remote);
 	const work = join(root, `work-${id}`);
 	git(root, "clone", "-q", remote, work);
 	for (const message of ["first", "second", "third"]) git(work, "commit", "-q", "--allow-empty", "-m", message);
