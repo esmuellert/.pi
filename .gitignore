@@ -15,6 +15,11 @@
 !/agent/settings.json
 !/agent/keybindings.json
 
+# --- skills: ours, but not the state they accumulate ---
+!/agent/skills/
+/agent/skills/*
+!/agent/skills/browser/
+
 # --- generated themes, plus the scripts for looking at them ---
 !/agent/themes/
 /agent/themes/*
@@ -45,6 +50,11 @@
 
 # --- optional, uncomment when created ---
 # !/agent/keybindings.json
+
+# --- skills: ours, but not the state they accumulate ---
+!/agent/skills/
+/agent/skills/*
+!/agent/skills/browser/
 # !/agent/footer.json
 # !/agent/prompts/
 # !/agent/skills/
@@ -54,3 +64,6 @@
 /agent/extensions/*/node_modules/
 /agent/extensions/.turbo/
 /agent/extensions/*/.turbo/
+
+# The browser skill's profile holds cookies and login state.
+/agent/browser/
