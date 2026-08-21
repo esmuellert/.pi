@@ -72,6 +72,22 @@ node eval.mjs 'await fetch("/api/thing").then(r => r.json())'
 Runs in the page, top-level `await` included. This is the way to do anything
 the other scripts do not cover.
 
+## When everything hangs
+
+A page showing an `alert`, `confirm` or `prompt` stops running JavaScript, and
+every script that runs JavaScript hangs with it — `eval`, `click`, `fill`.
+
+```bash
+node dialog.mjs              # accept it
+node dialog.mjs --dismiss    # cancel it
+node dialog.mjs --text "answer"
+```
+
+It reloads the page afterwards. Closing the dialog is not enough on its own:
+Chrome leaves the execution context dead, and a reload is the only way found to
+get the page answering again. **Anything typed into the page is lost**, and the
+handles from the last snapshot are stale.
+
 ## Pictures
 
 ```bash
