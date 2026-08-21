@@ -15,7 +15,7 @@
 !/agent/settings.json
 !/agent/keybindings.json
 
-# --- generated themes: the product of agent/extensions/themes ---
+# --- generated themes, plus the scripts for looking at them ---
 !/agent/themes/
 /agent/themes/*
 !/agent/themes/*.json
