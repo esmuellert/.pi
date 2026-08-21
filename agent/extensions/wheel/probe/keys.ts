@@ -30,6 +30,8 @@ const KNOWN: Record<string, string> = {
 	"\u001b[1;5F": "ctrl+end",
 	"\u0011": "ctrl+q",
 	"\u0013": "ctrl+s",
+	"\u0016": "ctrl+v",
+	"\u001bq": "alt+q",
 	"\u001b\r": "alt+enter",
 };
 
@@ -41,6 +43,8 @@ const TRY = [
 	"ctrl+shift+f              pi's default for search",
 	"ctrl+g                    a plain control character, always arrives",
 	"ctrl+q / ctrl+s           traditionally flow control; raw mode should free them",
+	"ctrl+v / alt+q            candidates for restoring queued messages",
+	"alt+up                    what restores them today",
 	"alt+enter                 Windows Terminal uses it for fullscreen",
 ];
 
