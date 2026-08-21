@@ -193,40 +193,6 @@ The wording lives in one line, `format` in `fold/index.ts`, and nothing else
 writes it. Naming the unit costs six columns over a bare `+47` and the unit is
 derivable — but a bare number beside a command reads as part of it.
 
-### Framing
-
-pi's default shell is a `Box(1, 1, bgFn)` — a filled rectangle the full width
-of the transcript, with a blank filled row above and below. Three of a seven
-row block are solid colour carrying nothing.
-
-Nothing has to be stripped to replace it. A tool definition can declare
-`renderShell: "self"`, and pi then draws no background at all and hands the
-width over; that is how `edit` already works.
-
-| | costs | states where a block ends |
-|---|---|---|
-| `rail` | 2 columns | no |
-| `bracket` | 2 columns, 1 row | at the foot |
-| `box` | 4 columns, 2 rows | on every side |
-
-`rail` and `bracket` are not inventions — pi's own markdown gives a quote a `│`
-rail and a code block a `┌─` corner, both in a border colour with no fill.
-
-What a fill gives away for free is the block's **extent**: where it stops is
-visible without any character saying so. That is what the other two trade away.
-
-`/tool-frame` switches between them.
-
-### Drawn in halves
-
-pi renders a tool's title and its result as two sibling components of the same
-container, and an extension wraps each on its own — nothing sees both. So a
-framing that closes is drawn in halves: the title's component opens it, the
-result's closes it, and they meet because the two render adjacently.
-
-`box/draw.test.ts` holds that the halves join into exactly what the whole would
-have been.
-
 ### The gutter's background
 
 The mark sits in columns opened in front of whatever the tool rendered, which

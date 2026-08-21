@@ -29,7 +29,6 @@ import { builtIn, type BuiltIn, type RenderArgs, type RenderContext, type ToolNa
  * use. edit keeps its diff preview in that same object.
  */
 const INNER = "__toolBlocksInner";
-const INNER_RESULT = "__toolBlocksInnerResult";
 
 /**
  * Rewrite the title a built-in produced, and frame what comes back.
@@ -52,13 +51,6 @@ export type Presentation = {
 		theme: Theme,
 		context: RenderContext,
 	) => string[] | undefined;
-	/** Wraps whatever the built-in's renderResult produced, for the frame's lower half. */
-	readonly frameResult?: (
-		inner: Component,
-		theme: Theme,
-		context: RenderContext,
-	) => Component;
-
 	readonly frame?: (inner: Component, args: RenderArgs, theme: Theme, context: RenderContext) => Component;
 };
 
@@ -96,10 +88,6 @@ export function present(
 
 	return {
 		...definition,
-		// pi's default shell is a filled rectangle drawn by Box(1, 1, bgFn).
-		// Declaring "self" makes it draw nothing and hand the width over, which
-		// is what lets a frame replace the fill without stripping anything.
-		renderShell: "self" as const,
 		renderCall(args: RenderArgs, theme: Theme, context: RenderContext): Component {
 			const state = context.state as Record<string, unknown>;
 			const inner = renderCall(args, theme, { ...context, lastComponent: state[INNER] as Component | undefined });
@@ -110,21 +98,5 @@ export function present(
 				: inner;
 			return presentation.frame ? presentation.frame(retitled, args, theme, context) : retitled;
 		},
-		...(definition.renderResult && presentation.frameResult
-			? {
-					renderResult(result: unknown, options: unknown, theme: Theme, context: RenderContext): Component {
-						const state = context.state as Record<string, unknown>;
-						const inner = (definition.renderResult as never as (r: unknown, o: unknown, t: Theme, c: unknown) => Component)(result, options, theme, {
-							...context,
-							lastComponent: state[INNER_RESULT] as Component | undefined,
-						});
-						state[INNER_RESULT] = inner;
-						return presentation.frameResult!(inner, theme, context);
-					},
-				}
-			: {}),
-		// The built-in types narrow renderCall and renderResult per tool, and one
-		// wrapper cannot satisfy seven signatures at once. What it does satisfy
-		// is passing every argument through untouched, which the tests hold.
-	} as BuiltIn;
+	};
 }

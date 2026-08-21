@@ -16,15 +16,14 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 import { prepare } from "./bash/engine.ts";
 import { retitling } from "./bash/title.ts";
-import { FRAMES, type FrameStyle, loadConfig, type MarkStyle, saveConfig } from "./mark/config.ts";
+import { loadConfig, saveConfig, type MarkStyle } from "./mark/config.ts";
 import { ICON, LETTER } from "./mark/icons.ts";
-import { framing } from "./box/index.ts";
 import { marking } from "./mark/index.ts";
 import { TOOLS } from "./tools/builtins.ts";
 import { present } from "./tools/override.ts";
 
 export default async function (pi: ExtensionAPI) {
-	let { style, frame } = loadConfig();
+	let style = loadConfig().style;
 	const cwd = process.cwd();
 
 	// Awaited, not fired and forgotten. pi awaits the extension factory, and
@@ -37,13 +36,7 @@ export default async function (pi: ExtensionAPI) {
 	for (const tool of TOOLS) {
 		pi.registerTool(
 			present(tool, cwd, {
-				// The framing goes outside the mark, so the mark sits inside it.
-				// It is drawn in halves: the title opens it, the result closes
-				// it, because pi renders those as two sibling components and
-				// nothing sees both.
-				frame: (inner, args, theme, context) =>
-					framing(frame, theme, context, "head")(marking(tool, () => style)(inner, args, theme, context)),
-				frameResult: (inner, theme, context) => framing(frame, theme, context, "tail")(inner),
+				frame: marking(tool, () => style),
 				...(tool === "bash" ? { retitle: retitling() } : {}),
 			}) as never,
 		);
@@ -63,26 +56,8 @@ export default async function (pi: ExtensionAPI) {
 					] as never);
 			if (!next) return;
 			style = next as MarkStyle;
-			saveConfig({ style, frame });
+			saveConfig({ style });
 			ctx.ui.notify(`Tool marks: ${style}`);
-		},
-	});
-
-	pi.registerCommand("tool-frame", {
-		description: "Set apart tool blocks with a rail, a bracket, or a box",
-		async handler(args, ctx) {
-			const wanted = args.trim().toLowerCase();
-			const next = FRAMES.includes(wanted as FrameStyle)
-				? (wanted as FrameStyle)
-				: await ctx.ui.select("Set tool blocks apart with", [
-						{ label: "rail     │  one column, like pi's own block quotes", value: "rail" },
-						{ label: "bracket  ╭ ╰  a corner and a foot, like its code blocks", value: "bracket" },
-						{ label: "box      ╭─╮  encloses; the only one that states where a block ends", value: "box" },
-					] as never);
-			if (!next) return;
-			frame = next as FrameStyle;
-			saveConfig({ style, frame });
-			ctx.ui.notify(`Tool frame: ${frame}`);
 		},
 	});
 }
