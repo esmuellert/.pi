@@ -18,6 +18,16 @@ import { behind, summarise } from "./behind.ts";
 
 const KEY = "behind";
 
+/**
+ * How long an answer is trusted before asking again.
+ *
+ * The check is only worth repeating because a pull during a session leaves the
+ * reminder stale, and a session runs for hundreds of turns -- 346 in the one
+ * this was written in. Once every few minutes catches a pull without turning
+ * a conversation into a stream of network requests.
+ */
+const REFRESH_MS = 5 * 60 * 1000;
+
 /** The repository pi runs from, which is the one worth watching. */
 function configRepo(): string {
 	const agent = process.env.PI_CODING_AGENT_DIR;
@@ -27,18 +37,43 @@ function configRepo(): string {
 }
 
 export default function (pi: ExtensionAPI) {
-	pi.on("session_start", async (_event, ctx: ExtensionContext) => {
-		if (ctx.mode !== "tui") return;
-		// Deliberately not awaited: a network round trip is ~200ms and would be
-		// paid on every start, for something nobody is waiting to read.
+	let lastChecked = 0;
+	let checking = false;
+
+	/**
+	 * Look, and say what was found -- including that there is nothing to say.
+	 *
+	 * Clearing matters as much as setting. Pulling mid-session used to leave the
+	 * reminder up until the next start, telling you to do something already done.
+	 */
+	const check = (ctx: ExtensionContext) => {
+		if (checking || Date.now() - lastChecked < REFRESH_MS) return;
+		checking = true;
+		// Deliberately not awaited: a network round trip is ~200ms and nobody is
+		// waiting to read the answer.
 		void behind(configRepo())
 			.then((state) => {
-				const text = summarise(state, ".pi");
-				if (text) ctx.ui.setStatus(KEY, text);
+				lastChecked = Date.now();
+				ctx.ui.setStatus(KEY, summarise(state, ".pi"));
 			})
 			.catch(() => {
 				// A check that cannot run says nothing. There is no version of
 				// this worth interrupting a session for.
+			})
+			.finally(() => {
+				checking = false;
 			});
+	};
+
+	pi.on("session_start", async (_event, ctx: ExtensionContext) => {
+		if (ctx.mode !== "tui") return;
+		check(ctx);
+	});
+
+	// A pull during a session makes the reminder wrong, so it is looked at
+	// again as turns go by -- at most once every REFRESH_MS.
+	pi.on("turn_end", async (_event, ctx: ExtensionContext) => {
+		if (ctx.mode !== "tui") return;
+		check(ctx);
 	});
 }

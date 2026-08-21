@@ -5,6 +5,17 @@ Say when the config repository has commits that are not here yet.
 `~/.pi` is what pi runs from. Being behind means running an older version of
 your own setup, and nothing else says so — git only complains when asked.
 
+## It clears itself
+
+The check runs at `session_start` and again as turns go by, at most once every
+five minutes. Pulling mid-session used to leave the reminder up until the next
+start, telling you to do something already done — `setStatus` is now given the
+result even when there is nothing to say, since `undefined` is what removes it.
+
+Five minutes rather than every turn: the session this was written in ran 346
+turns, and a network request per turn is not worth catching a pull a little
+sooner.
+
 ## It does not block startup
 
 The check talks to the network, about 200ms. `session_start` returns

@@ -11,6 +11,7 @@
 
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -91,5 +92,27 @@ describe("what the footer shows", () => {
 	it("shows nothing for anything else", () => {
 		assert.equal(summarise({ kind: "current" }, ".pi"), undefined);
 		assert.equal(summarise({ kind: "unknown", reason: "offline" }, ".pi"), undefined);
+	});
+});
+
+describe("clearing", () => {
+	/**
+	 * setStatus takes undefined to mean "remove this". summarise returns
+	 * undefined for everything that is not "behind", and the caller passes it
+	 * through rather than skipping the call -- pulling mid-session used to
+	 * leave the reminder up until the next start, telling you to do something
+	 * already done.
+	 */
+	it("returns undefined rather than an empty string", () => {
+		// An empty string is a status the footer would render as a blank field;
+		// undefined is what removes it.
+		assert.equal(summarise({ kind: "current" }, ".pi"), undefined);
+		assert.equal(summarise({ kind: "unknown", reason: "offline" }, ".pi"), undefined);
+	});
+
+	it("is passed to setStatus rather than guarded away", () => {
+		const source = readFileSync(join(import.meta.dirname, "index.ts"), "utf-8");
+		assert.match(source, /setStatus\(KEY, summarise\(/, "the result must reach setStatus even when undefined");
+		assert.doesNotMatch(source, /if \(text\) ctx\.ui\.setStatus/, "guarding on truthiness leaves a stale reminder up");
 	});
 });
