@@ -33,6 +33,10 @@ const KNOWN: Record<string, string> = {
 	"\u0016": "ctrl+v",
 	"\u001bq": "alt+q",
 	"\u001b\r": "alt+enter",
+	"\r": "enter (CR)",
+	"\n": "ctrl+j / LF",
+	"\u001b[13;2u": "shift+enter (kitty)",
+	"\u001b[27;2;13~": "shift+enter (xterm)",
 };
 
 const TRY = [
@@ -46,6 +50,8 @@ const TRY = [
 	"ctrl+v / alt+q            candidates for restoring queued messages",
 	"alt+up                    what restores them today",
 	"alt+enter                 Windows Terminal uses it for fullscreen",
+	"shift+enter               newline, or something else on this terminal?",
+	"enter                     for comparison",
 ];
 
 console.log("Press each of these. What prints, arrived. What stays silent, cannot be bound.\n");
