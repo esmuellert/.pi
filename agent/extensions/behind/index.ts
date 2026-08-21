@@ -71,7 +71,10 @@ export default function (pi: ExtensionAPI) {
 				// question about the width.
 				ctx.ui.setWidget(KEY, (_tui, theme) => ({
 					render(width: number): string[] {
-						const painted = theme.fg("muted", text);
+						// dim, not warning: the line appearing at all is the
+						// signal, and being a few commits behind is not a
+						// warning. It needs to be readable, not noticed.
+						const painted = theme.fg("dim", text);
 						const room = width - visibleWidth(painted);
 						return [room > 0 ? " ".repeat(room) + painted : painted];
 					},
