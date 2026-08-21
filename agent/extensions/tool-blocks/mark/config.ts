@@ -13,19 +13,27 @@ import { join } from "node:path";
 
 export type MarkStyle = "glyphs" | "letters" | "off";
 
+/** How a block is set apart from the page. See box/draw.ts for what each is. */
+export type FrameStyle = "rail" | "bracket" | "box";
+
 export type Config = {
 	readonly style: MarkStyle;
+	readonly frame: FrameStyle;
 };
 
-export const DEFAULT_CONFIG: Config = { style: "glyphs" };
+export const DEFAULT_CONFIG: Config = { style: "glyphs", frame: "rail" };
 
 const STYLES: readonly MarkStyle[] = ["glyphs", "letters", "off"];
+export const FRAMES: readonly FrameStyle[] = ["rail", "bracket", "box"];
 
 /** Accept only what we wrote, so a hand-edited file degrades rather than throws. */
 export function parseConfig(raw: unknown): Config {
 	if (typeof raw !== "object" || raw === null) return DEFAULT_CONFIG;
-	const style = (raw as { style?: unknown }).style;
-	return STYLES.includes(style as MarkStyle) ? { style: style as MarkStyle } : DEFAULT_CONFIG;
+	const { style, frame } = raw as { style?: unknown; frame?: unknown };
+	return {
+		style: STYLES.includes(style as MarkStyle) ? (style as MarkStyle) : DEFAULT_CONFIG.style,
+		frame: FRAMES.includes(frame as FrameStyle) ? (frame as FrameStyle) : DEFAULT_CONFIG.frame,
+	};
 }
 
 export function configPath(): string {

@@ -40,7 +40,7 @@ describe("loading the extension", () => {
 		const { api, tools, commands } = stubPi();
 		await extension(api);
 		assert.equal(tools.length, 7, "every built-in tool should be taken over");
-		assert.deepEqual(commands, ["tool-marks"]);
+		assert.deepEqual(commands, ["tool-marks", "tool-frame"]);
 	});
 
 	it("returns a promise, so pi waits for it", () => {
