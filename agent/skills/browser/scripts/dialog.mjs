@@ -1,74 +1,115 @@
 #!/usr/bin/env node
 /**
- * Deal with an alert, confirm or prompt that is holding the page.
+ * Do something that opens a dialog, and answer it.
  *
- * A dialog stops JavaScript, and with it every command that runs JavaScript --
- * eval, click and fill all hang. So does Page.enable and even Runtime.enable
- * on that page's socket, watched directly: those requests get no reply at all,
- * while Page.handleJavaScriptDialog on the same socket answers immediately.
+ * This cannot be two commands. Once a connection has enabled the Page domain,
+ * Chrome treats it as the handler and closes the dialog itself as soon as
+ * nobody answers -- on the socket, `javascriptDialogOpening` is followed at
+ * once by `javascriptDialogClosed`. So the answer is arranged first, on the
+ * same connection, and the trigger sent after.
  *
- * Closing the dialog is not enough. Chrome leaves the page's execution context
- * dead afterwards -- Runtime.enable still never returns -- so the page is
- * reloaded, which is the only way found to get it answering again. Anything
- * typed into the page is lost, which is why this says so.
+ * Answering only works because the browser is started with
+ * --disable-features=DevToolsDebuggingRestrictions; see cdp.mjs.
  *
- * Usage: node dialog.mjs [--dismiss] [--text <answer>] [--no-reload]
- *   default is to accept; --text answers a prompt
+ * Usage:
+ *   node dialog.mjs --click <handle> [--dismiss] [--text <answer>]
+ *   node dialog.mjs --eval '<expression>' [--dismiss] [--text <answer>]
  */
-import { pages, PORT } from "./cdp.mjs";
+import { currentPage, ensure } from "./cdp.mjs";
+import { resolve } from "./act.mjs";
 
 const args = process.argv.slice(2);
+const flag = (name) => {
+	const at = args.indexOf(name);
+	return at >= 0 ? args[at + 1] : undefined;
+};
 const accept = !args.includes("--dismiss");
-const textAt = args.indexOf("--text");
-const promptText = textAt >= 0 ? args[textAt + 1] : undefined;
+const promptText = flag("--text");
+const handle = flag("--click");
+const expression = flag("--eval");
 
-/**
- * Talk to a page without waiting for any reply first.
- *
- * The usual client awaits each command, which is exactly what a dialog
- * prevents. Here the command is sent and the socket closed shortly after:
- * handleJavaScriptDialog is acted on whether or not anyone waits for it.
- */
-async function tell(target, method, params) {
-	const socket = new WebSocket(target.webSocketDebuggerUrl);
-	await new Promise((resolve, reject) => {
-		socket.addEventListener("open", resolve, { once: true });
-		socket.addEventListener("error", () => reject(new Error("could not attach")), { once: true });
-	});
-	socket.send(JSON.stringify({ id: 1, method, params }));
-	await new Promise((resolve) => setTimeout(resolve, 400));
-	socket.close();
+if (!handle && !expression) {
+	console.error("usage: node dialog.mjs (--click <handle> | --eval '<js>') [--dismiss] [--text <answer>]");
+	process.exit(1);
 }
 
 try {
-	const open = await pages();
-	if (open.length === 0) throw new Error("no pages open");
-	let handled = 0;
-	for (const page of open) {
-		try {
-			// No Page.enable first. It is the obvious thing to try and it never
-			// returns while a dialog is up -- watching the socket, id 1 got no
-			// reply and id 2 did. handleJavaScriptDialog works without it.
-			await tell(page, "Page.handleJavaScriptDialog", {
-				accept,
-				...(promptText === undefined ? {} : { promptText }),
-			});
-			handled += 1;
-		} catch {
-			// A page with no dialog rejects the command; that is not a failure.
+	await ensure();
+	const page = await currentPage();
+	const socket = new WebSocket(page.webSocketDebuggerUrl);
+	await new Promise((ready, failed) => {
+		socket.addEventListener("open", ready, { once: true });
+		socket.addEventListener("error", () => failed(new Error("could not attach")), { once: true });
+	});
+
+	let nextId = 0;
+	const replies = new Map();
+	const seen = [];
+
+	socket.addEventListener("message", (message) => {
+		const parsed = JSON.parse(message.data);
+		if (parsed.method === "Page.javascriptDialogOpening") {
+			seen.push({ type: parsed.params.type, message: parsed.params.message });
+			// Answered here, in the handler. Anything later is too late.
+			socket.send(JSON.stringify({
+				id: ++nextId,
+				method: "Page.handleJavaScriptDialog",
+				params: { accept, ...(promptText === undefined ? {} : { promptText }) },
+			}));
+		}
+		if (parsed.method === "Page.javascriptDialogClosed") {
+			const last = seen.at(-1);
+			if (last) last.answered = parsed.params.result;
+		}
+		if (parsed.id !== undefined) replies.set(parsed.id, parsed);
+	});
+
+	const call = async (method, params = {}) => {
+		const id = ++nextId;
+		socket.send(JSON.stringify({ id, method, params }));
+		for (let waited = 0; waited < 20_000; waited += 100) {
+			if (replies.has(id)) return replies.get(id);
+			await new Promise((resolve) => setTimeout(resolve, 100));
+		}
+		throw new Error(`${method} timed out`);
+	};
+
+	await call("Page.enable");
+
+	// A handle names an element; the page is asked for it by role and name,
+	// the same two things the snapshot printed.
+	const trigger = expression ?? (() => {
+		const target = resolve(handle);
+		return `(() => {
+			const wanted = ${JSON.stringify(target.name)};
+			const match = [...document.querySelectorAll("a, button, input, [role]")]
+				.find((el) => (el.innerText || el.value || el.getAttribute("aria-label") || "").trim() === wanted.trim());
+			if (!match) throw new Error("[${handle}] is not on the page any more — take a fresh snapshot");
+			match.click();
+			return "clicked";
+		})()`;
+	})();
+
+	const outcome = await call("Runtime.evaluate", {
+		expression: trigger, returnByValue: true, awaitPromise: true, userGesture: true,
+	});
+	// A dialog can arrive while the trigger is still running.
+	await new Promise((resolve) => setTimeout(resolve, 700));
+	socket.close();
+
+	if (outcome.exceptionDetails) {
+		console.error(outcome.exceptionDetails.exception?.description?.split("\n")[0] ?? outcome.exceptionDetails.text);
+		process.exit(1);
+	}
+	if (seen.length === 0) {
+		console.log("no dialog appeared");
+	} else {
+		for (const dialog of seen) {
+			const got = dialog.answered === undefined ? "" : dialog.answered ? " → accepted" : " → dismissed";
+			console.log(`${dialog.type}: ${JSON.stringify(dialog.message)}${got}`);
 		}
 	}
-	console.log(`${accept ? "accepted" : "dismissed"} dialogs on ${handled} page(s)`);
-
-	if (args.includes("--no-reload")) {
-		console.log("not reloading; the page's execution context is probably still dead");
-		process.exit(0);
-	}
-	// Reload without waiting for a reply, for the same reason as above.
-	for (const page of open) await tell(page, "Page.reload", {});
-	await new Promise((resolve) => setTimeout(resolve, 2500));
-	console.log("reloaded — anything typed into the page before the dialog is gone");
-	console.log("take a fresh snapshot; the old handles are stale");
+	if (outcome.result?.value !== undefined) console.log(`result: ${JSON.stringify(outcome.result.value)}`);
 } catch (error) {
 	console.error(String(error.message ?? error));
 	process.exit(1);

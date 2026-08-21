@@ -103,6 +103,14 @@ export async function ensure({ launch = true } = {}) {
 		`--user-data-dir=${PROFILE}`,
 		"--no-first-run",
 		"--no-default-browser-check",
+		// Without this, Chrome accepts Input.dispatchMouseEvent, Input.dispatchKeyEvent
+		// and Page.handleJavaScriptDialog over a debugging *port* and silently does
+		// nothing: the command returns success, no event reaches the page, and a
+		// dialog closes as Cancel one millisecond after being answered with accept.
+		// Playwright does not hit this because it connects over --remote-debugging-pipe
+		// instead, which is not restricted; a port is what lets separate processes
+		// share one browser, which is the whole shape of this skill.
+		"--disable-features=DevToolsDebuggingRestrictions",
 		"about:blank",
 	], { detached: true, stdio: "ignore" });
 	child.unref();

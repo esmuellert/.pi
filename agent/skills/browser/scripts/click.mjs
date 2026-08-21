@@ -2,20 +2,11 @@
 /**
  * Click what a snapshot handle names.
  *
- * Real mouse events first, because a page can tell the difference: an
- * `isTrusted` click is the only kind some listeners act on, and coordinates
- * are what a person's click actually is.
+ * Real mouse events at the element's own coordinates, which is what a person's
+ * click is: a page that only acts on `isTrusted` events sees a real one.
  *
- * But `Input.dispatchMouseEvent` returns success and delivers nothing on this
- * machine -- watched with capture-phase listeners, zero events arrive, while
- * `Input.insertText` and `Runtime.evaluate` on the same socket work. The window
- * is visible, focused and hit-testable at those coordinates, so there is no
- * state to correct. Rather than guess at why, this checks whether the click
- * landed and falls back to dispatching the events from inside the page, which
- * does work.
- *
- * The fallback is second, not first: it produces untrusted events, and a page
- * that refuses those would fail silently if it were tried first.
+ * These are silently dropped unless the browser was started with
+ * --disable-features=DevToolsDebuggingRestrictions; see cdp.mjs.
  *
  * Usage: node click.mjs <handle> [--double]
  */
@@ -44,12 +35,6 @@ try {
 			await callOn(send, objectId, "function () { this.click(); }");
 			return `clicked [${handle}] ${target.role} "${target.name}" (via DOM: it has no size on screen)`;
 		}
-		// A marker to tell whether anything reached the page.
-		await callOn(send, objectId, `function () {
-			this.__clicked = false;
-			this.addEventListener("click", () => { this.__clicked = true; }, { once: true, capture: true });
-		}`);
-
 		await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: box.x, y: box.y });
 		for (const type of ["mousePressed", "mouseReleased"]) {
 			await send("Input.dispatchMouseEvent", {
@@ -57,21 +42,7 @@ try {
 				clickCount: double ? 2 : 1,
 			});
 		}
-		await new Promise((resolve) => setTimeout(resolve, 250));
-
-		const landed = await callOn(send, objectId, "function () { return this.__clicked === true; }").catch(() => true);
-		if (landed) return `clicked [${handle}] ${target.role} "${target.name}"`;
-
-		// Nothing arrived. Dispatch from inside the page instead.
-		await callOn(send, objectId, `function (double) {
-			const r = this.getBoundingClientRect();
-			const at = { bubbles: true, cancelable: true, view: window, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 };
-			for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup", "click"]) {
-				const Event = type.startsWith("pointer") ? PointerEvent : MouseEvent;
-				this.dispatchEvent(new Event(type, { ...at, detail: double ? 2 : 1 }));
-			}
-		}`, [double]);
-		return `clicked [${handle}] ${target.role} "${target.name}" (synthetic: real mouse events did not reach the page)`;
+		return `clicked [${handle}] ${target.role} "${target.name}"`;
 	});
 	console.log(said);
 	console.log("take another snapshot to see what changed");

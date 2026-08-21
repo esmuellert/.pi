@@ -69,6 +69,10 @@ node eval.mjs 'document.querySelectorAll("a").length'
 node eval.mjs 'await fetch("/api/thing").then(r => r.json())'
 ```
 
+An accessible name can contain characters that are not visible — icon fonts
+put private-use glyphs in it, so `button " Login"` on one real page is
+`button "\uf090 Login"`. Copy the number, not the name.
+
 Runs in the page, top-level `await` included. This is the way to do anything
 the other scripts do not cover.
 
@@ -83,37 +87,18 @@ against the script's own directory, not this one.
 
 ## Dialogs
 
-`alert`, `confirm` and `prompt` **cannot be answered** from here, on this
-machine. Chrome closes them itself as Cancel the moment they open.
-
-That is not a timing problem, and trying harder does not help. Watched on the
-socket: `javascriptDialogOpening` arrives, `handleJavaScriptDialog` with
-`accept: true` goes out **one millisecond later**, and `javascriptDialogClosed`
-comes back with `result: false`. The same for `confirm` and `prompt`, with and
-without `userGesture`, and whether triggered synchronously or from a timer.
-
-So a page whose flow depends on confirming a dialog cannot be driven through
-that step. What works instead:
+`alert`, `confirm` and `prompt` are answered with `dialog.mjs`, which must be
+running before the dialog opens — Chrome closes an unanswered one itself.
 
 ```bash
-# Replace the dialog before triggering it
-node eval.mjs 'window.confirm = () => true; window.prompt = () => "answer"; "patched"'
-node click.mjs 7
+node dialog.mjs --click 7                 # accept whatever the click opens
+node dialog.mjs --click 7 --dismiss
+node dialog.mjs --eval 'confirmThing()' --text "answer"
 ```
 
-The page cannot tell, unless it checks — and almost none do. Say that this was
-done, since the run is then not quite what a person would have seen.
-
-`dialog.mjs` is still there for the case where one is stuck on screen:
-
-```bash
-node dialog.mjs              # close it and reload
-node dialog.mjs --no-reload
-```
-
-It reloads afterwards, because closing alone leaves the page's execution
-context dead: `Runtime.enable` never returns. **Anything typed into the page is
-lost**, and the handles from the last snapshot are stale.
+This only works because the browser is started with
+`--disable-features=DevToolsDebuggingRestrictions`. Without it Chrome accepts
+the answer and closes the dialog as Cancel anyway.
 
 ## Pictures
 
