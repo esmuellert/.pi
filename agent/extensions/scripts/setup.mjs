@@ -43,9 +43,22 @@ function fail(message) {
 	process.exit(1);
 }
 
+/**
+ * Windows ships pi, pnpm, corepack and npm as .cmd shims rather than as
+ * executables, and neither spawn nor execFile can start one: they look for an
+ * image to run and report ENOENT. Every command here is one of those, so on
+ * Windows they are reached through the interpreter. Naming it explicitly rather
+ * than passing `shell: true` keeps the arguments a real argv, which is what
+ * that option is deprecated for not doing.
+ */
+const WINDOWS = process.platform === "win32";
+const viaShell = (command, args) =>
+	WINDOWS ? [process.env.ComSpec ?? "cmd.exe", ["/d", "/s", "/c", command, ...args]] : [command, args];
+
 /** Run a command, streaming output, and fail the script if it does. */
 function run(command, args, options = {}) {
-	const result = spawnSync(command, args, { cwd: WORKSPACE, stdio: "inherit", ...options });
+	const [bin, argv] = viaShell(command, args);
+	const result = spawnSync(bin, argv, { cwd: WORKSPACE, stdio: "inherit", ...options });
 	if (result.error) fail(`${command} could not be started: ${result.error.message}`);
 	if (result.status !== 0) fail(`${command} ${args.join(" ")} exited ${result.status}`);
 }
@@ -53,7 +66,8 @@ function run(command, args, options = {}) {
 /** Capture a command's stdout, or undefined if it cannot run at all. */
 function capture(command, args) {
 	try {
-		return execFileSync(command, args, { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+		const [bin, argv] = viaShell(command, args);
+		return execFileSync(bin, argv, { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }).trim();
 	} catch {
 		return undefined;
 	}

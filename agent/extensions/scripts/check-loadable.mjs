@@ -15,7 +15,7 @@
 
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join, sep } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -25,7 +25,9 @@ const agentDir = join(here, "..", "..");
 // walk up from there rather than asking for a subpath it does not have.
 const entry = fileURLToPath(import.meta.resolve("@earendil-works/pi-coding-agent"));
 const pi = entry.slice(0, entry.indexOf(`${sep}dist${sep}`));
-const { discoverAndLoadExtensions } = await import(`file://${join(pi, "dist/core/extensions/loader.js")}`);
+// pathToFileURL, because a Windows path interpolated after "file://" is not a
+// URL: the drive letter reads as the host and the separators are not escaped.
+const { discoverAndLoadExtensions } = await import(pathToFileURL(join(pi, "dist/core/extensions/loader.js")).href);
 
 const { extensions, errors } = await discoverAndLoadExtensions([], process.cwd(), agentDir);
 

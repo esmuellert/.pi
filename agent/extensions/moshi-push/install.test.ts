@@ -19,10 +19,10 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { describe, it } from "node:test";
 
-const INDEX = join(dirname(fileURLToPath(import.meta.url)), "index.ts");
+const INDEX = pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), "index.ts")).href;
 
 /** What the extension asks pi for, when loaded against the given home. */
 function registrations(home: string): string[] {
@@ -38,7 +38,9 @@ function registrations(home: string): string[] {
 		process.stdout.write(JSON.stringify(calls));
 	`;
 	const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
-		env: { ...process.env, HOME: home, PI_CODING_AGENT_DIR: join(home, "agent") },
+		// Both, because the two platforms read different variables: homedir()
+		// takes USERPROFILE on Windows and ignores HOME entirely.
+		env: { ...process.env, HOME: home, USERPROFILE: home, PI_CODING_AGENT_DIR: join(home, "agent") },
 		encoding: "utf8",
 	});
 	assert.equal(result.status, 0, result.stderr);
