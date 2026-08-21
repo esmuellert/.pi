@@ -57,6 +57,18 @@ importers:
         specifier: 'catalog:'
         version: 7.0.2
 
+  behind:
+    devDependencies:
+      '@earendil-works/pi-coding-agent':
+        specifier: 'catalog:'
+        version: 0.84.2(ws@8.21.3)
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.2.0
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
   cd:
     devDependencies:
       '@earendil-works/pi-coding-agent':
