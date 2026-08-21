@@ -5,6 +5,15 @@ Say when the config repository has commits that are not here yet.
 `~/.pi` is what pi runs from. Being behind means running an older version of
 your own setup, and nothing else says so — git only complains when asked.
 
+```
+  .pi is 3 commits behind main — git pull
+```
+
+Above the editor, not in the footer. The footer is where the numbers that are
+always true live — context, cost, model — and a line that appears only when
+something needs doing does not belong among them. It says what to do as well as
+what is true, since a count alone leaves the reader to work that out.
+
 ## It clears itself
 
 The check runs at `session_start` and again as turns go by, at most once every

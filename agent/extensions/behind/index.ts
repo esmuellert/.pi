@@ -4,10 +4,14 @@
  * ~/.pi is what pi runs from. Being behind means running an older version of
  * your own setup, and nothing else says so -- git only complains when you ask.
  *
+ * It is shown above the editor rather than in the footer. The footer is where
+ * the numbers that are always true live -- context, cost, model -- and a line
+ * that appears only when something needs doing does not belong among them.
+ *
  * The check talks to the network, so it is not awaited. session_start returns
- * immediately and the answer arrives in the footer a moment later; setStatus
- * writes to the footer's data provider and requests a render, so it works at
- * any time rather than only during the handler.
+ * immediately and the line arrives a moment later; setWidget writes to the
+ * container and requests a render, so it works at any time rather than only
+ * during the handler.
  */
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
@@ -54,7 +58,10 @@ export default function (pi: ExtensionAPI) {
 		void behind(configRepo())
 			.then((state) => {
 				lastChecked = Date.now();
-				ctx.ui.setStatus(KEY, summarise(state, ".pi"));
+				const text = summarise(state, ".pi");
+				// undefined removes the widget, which is how the line clears
+				// itself once the pull has happened.
+				ctx.ui.setWidget(KEY, text === undefined ? undefined : [`  ${text}`]);
 			})
 			.catch(() => {
 				// A check that cannot run says nothing. There is no version of

@@ -52,8 +52,15 @@ export async function behind(cwd: string, timeoutMs = 5000): Promise<State> {
 	return count > 0 ? { kind: "behind", commits: count, branch } : { kind: "current" };
 }
 
-/** What to show in the footer, or nothing when there is nothing to say. */
+/**
+ * What to show, or nothing when there is nothing to say.
+ *
+ * Says what to do as well as what is true. A count alone leaves the reader to
+ * work out that a pull is what closes the gap, and this sits above the editor
+ * where a line is worth its width.
+ */
 export function summarise(state: State, name: string): string | undefined {
 	if (state.kind !== "behind") return undefined;
-	return `${name} behind ${state.commits}`;
+	const commits = state.commits === 1 ? "1 commit" : `${state.commits} commits`;
+	return `${name} is ${commits} behind ${state.branch} — git pull`;
 }

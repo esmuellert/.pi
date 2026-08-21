@@ -84,9 +84,13 @@ describe("counting", () => {
 	});
 });
 
-describe("what the footer shows", () => {
-	it("names the repository and the count", () => {
-		assert.equal(summarise({ kind: "behind", commits: 3, branch: "main" }, ".pi"), ".pi behind 3");
+describe("what the line says", () => {
+	it("names the repository, the count, and what to do", () => {
+		assert.equal(summarise({ kind: "behind", commits: 3, branch: "main" }, ".pi"), ".pi is 3 commits behind main — git pull");
+	});
+
+	it("says one commit rather than 1 commits", () => {
+		assert.match(summarise({ kind: "behind", commits: 1, branch: "main" }, ".pi")!, /\b1 commit\b/);
 	});
 
 	it("shows nothing for anything else", () => {
@@ -104,15 +108,13 @@ describe("clearing", () => {
 	 * already done.
 	 */
 	it("returns undefined rather than an empty string", () => {
-		// An empty string is a status the footer would render as a blank field;
-		// undefined is what removes it.
+		// An empty string is a widget of one blank line; undefined removes it.
 		assert.equal(summarise({ kind: "current" }, ".pi"), undefined);
 		assert.equal(summarise({ kind: "unknown", reason: "offline" }, ".pi"), undefined);
 	});
 
-	it("is passed to setStatus rather than guarded away", () => {
+	it("reaches setWidget even when there is nothing to say", () => {
 		const source = readFileSync(join(import.meta.dirname, "index.ts"), "utf-8");
-		assert.match(source, /setStatus\(KEY, summarise\(/, "the result must reach setStatus even when undefined");
-		assert.doesNotMatch(source, /if \(text\) ctx\.ui\.setStatus/, "guarding on truthiness leaves a stale reminder up");
+		assert.match(source, /setWidget\(KEY, text === undefined \? undefined :/, "undefined must reach setWidget, since that is what removes it");
 	});
 });
