@@ -72,6 +72,15 @@ node eval.mjs 'await fetch("/api/thing").then(r => r.json())'
 Runs in the page, top-level `await` included. This is the way to do anything
 the other scripts do not cover.
 
+Two things to know. It runs at the page's top level, where `window`'s own
+properties are already declared — `const top = …`, `name`, `self`, `status`,
+`length` all fail with "Identifier has already been declared". Wrap in
+`(() => { … })()` or pick another name.
+
+And when a script needs more than a line, write it to a file and run it with
+node, importing `cdp.mjs` **by absolute path** — a relative import resolves
+against the script's own directory, not this one.
+
 ## When everything hangs
 
 A page showing an `alert`, `confirm` or `prompt` stops running JavaScript, and
