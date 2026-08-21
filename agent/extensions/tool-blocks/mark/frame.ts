@@ -9,7 +9,7 @@
 
 import type { Component } from "@earendil-works/pi-tui";
 
-import { blank } from "../shared/ansi.ts";
+import { blank, openingBackground } from "../shared/ansi.ts";
 
 /**
  * Columns the mark occupies, including the gap after it.
@@ -27,6 +27,17 @@ export const GUTTER = MARK_COLUMNS + MARK_GAP;
 /**
  * `mark` is the already-styled glyph. It must occupy one column: the gutter is
  * fixed, so a wider mark would push the first line out of line with the rest.
+ *
+ * The gutter is painted in whatever background the line it precedes opens
+ * with. The columns opened in front of a block start outside the background
+ * that block drew, and show the page through -- a black stripe down the left
+ * of every one, most visible on `edit` because it is tall.
+ *
+ * The background is read from the line rather than worked out. Which one a
+ * block wears is the tool's business: pi picks pending, success or error from
+ * two flags, but `edit` overrides that and uses the pending background for a
+ * settled edit. Reading is right for every tool in every state, including ones
+ * not written yet.
  */
 export function withMark(inner: Component, mark: string): Component {
 	return {
@@ -39,10 +50,13 @@ export function withMark(inner: Component, mark: string): Component {
 			// than on line zero. A component with nothing to say keeps its shape.
 			const title = lines.findIndex((line) => !blank(line));
 			if (title === -1) return lines;
-			const pad = " ".repeat(GUTTER);
-			return lines.map((line, index) =>
-				index === title ? `${mark}${" ".repeat(MARK_GAP)}${line}` : pad + line,
-			);
+			return lines.map((line, index) => {
+				const gutter = index === title ? mark + " ".repeat(MARK_GAP) : " ".repeat(GUTTER);
+				const background = openingBackground(line);
+				// A line with no background of its own is the page showing
+				// through, and the gutter should show it too.
+				return (background ? background + gutter : gutter) + line;
+			});
 		},
 		invalidate(): void {
 			// Required by Component, and called on theme changes. Forgetting to

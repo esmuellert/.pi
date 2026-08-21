@@ -16,3 +16,29 @@ export const plain = (text: string): string => text.replace(SGR, "");
 
 /** True when a line carries no visible text, whatever colour it is painted. */
 export const blank = (line: string): boolean => plain(line).trim() === "";
+
+/**
+ * The background a line opens with, as the sequence that sets it.
+ *
+ * Returned rather than computed, because which background a tool block wears
+ * is the tool's business and not a rule anyone else can restate. pi picks
+ * pending, success or error from two flags -- but `edit` overrides that with
+ * its own choice, using the pending background for a settled edit. Reading the
+ * line is right for every tool, in every state, including ones not written yet.
+ *
+ * Only the leading run is read: what a line does after its first character is
+ * about the line, not about the margin in front of it.
+ */
+export function openingBackground(line: string): string | undefined {
+	const leading = /^(?:\u001b\[[0-9;]*m)+/.exec(line)?.[0];
+	if (!leading) return undefined;
+	// The last background wins, as the terminal would have it.
+	let found: string | undefined;
+	for (const sequence of leading.matchAll(/\u001b\[([0-9;]*)m/g)) {
+		const first = Number(sequence[1]!.split(";")[0]);
+		// 40-47 and 100-107 are the palette backgrounds; 48 opens an extended
+		// one, whose parameters follow in the same sequence. 49 resets.
+		if ((first >= 40 && first <= 49) || (first >= 100 && first <= 107)) found = sequence[0];
+	}
+	return found;
+}

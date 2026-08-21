@@ -120,3 +120,46 @@ describe("withMark", () => {
 		assert.notEqual(wrapped.render(40)[0], wrapped.render(40)[0]);
 	});
 });
+
+describe("the gutter's background", () => {
+	const ESC = String.fromCharCode(27);
+	const bg = (line: string) => /\u001b\[(4[0-9]|10[0-7])[0-9;]*m/.exec(line)?.[0];
+
+	it("matches the line it sits in front of", () => {
+		// The columns opened in front of a block start outside the background
+		// that block drew, and would show the page through as a black stripe.
+		const painted = `${ESC}[48;2;50;56;72m${ESC}[38;2;1;2;3medit a.ts`;
+		const [line] = withMark({ render: () => [painted], invalidate() {} }, "*").render(20);
+		assert.equal(bg(line!), `${ESC}[48;2;50;56;72m`);
+		assert.ok(line!.startsWith(`${ESC}[48;2;50;56;72m*`), line);
+	});
+
+	it("reads the background rather than deciding it", () => {
+		// Which background a block wears is the tool's business. pi picks from
+		// two flags; edit overrides that and uses the pending background for a
+		// settled edit. Two different backgrounds must produce two gutters.
+		const one = withMark({ render: () => [`${ESC}[48;2;1;1;1mx`], invalidate() {} }, "*").render(10)[0]!;
+		const two = withMark({ render: () => [`${ESC}[48;2;9;9;9mx`], invalidate() {} }, "*").render(10)[0]!;
+		assert.notEqual(bg(one), bg(two));
+	});
+
+	it("leaves an unpainted line unpainted", () => {
+		const [line] = withMark({ render: () => ["plain"], invalidate() {} }, "*").render(10);
+		assert.equal(bg(line!), undefined);
+		assert.equal(line, "* plain");
+	});
+
+	it("carries the background down every line, not just the marked one", () => {
+		const painted = (text: string) => `${ESC}[48;2;50;56;72m${text}`;
+		const lines = withMark(
+			{ render: () => [painted("title"), painted("body"), painted("more")], invalidate() {} },
+			"*",
+		).render(20);
+		for (const line of lines) assert.equal(bg(line), `${ESC}[48;2;50;56;72m`, line);
+	});
+
+	it("takes the last background when a line sets more than one", () => {
+		const [line] = withMark({ render: () => [`${ESC}[41m${ESC}[44mx`], invalidate() {} }, "*").render(10);
+		assert.equal(bg(line!), `${ESC}[44m`);
+	});
+});

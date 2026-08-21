@@ -193,6 +193,26 @@ The wording lives in one line, `format` in `fold/index.ts`, and nothing else
 writes it. Naming the unit costs six columns over a bare `+47` and the unit is
 derivable — but a bare number beside a command reads as part of it.
 
+### The gutter's background
+
+The mark sits in columns opened in front of whatever the tool rendered, which
+puts them outside the background that block drew — a black stripe down the left
+of every one, most visible on `edit` because it is tall.
+
+The background is **read from the line**, not worked out. Which one a block
+wears is the tool's business: pi picks pending, success or error from
+`isPartial` and `isError`, but `edit` overrides that in `getEditHeaderBg` and
+uses the *pending* background for a settled edit. A table mapping outcome to
+background gets `edit` wrong and would get the next such tool wrong too.
+
+```
+read/bash/write/ls/grep/find   48;2;50;56;72    toolSuccessBg
+edit                           48;2;31;29;46    toolPendingBg, by its own rule
+```
+
+Lines with no background of their own — the blank ones above and below a block
+— keep none, since there the page is what should show.
+
 ### What it costs to draw
 
 Every tool block re-renders on every frame, so anything done per render is done
