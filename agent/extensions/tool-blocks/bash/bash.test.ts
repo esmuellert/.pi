@@ -146,12 +146,19 @@ describe("pi-tui's wrapping", () => {
 	it("breaks styled text differently from the same text unstyled", () => {
 		// The reason retitling has to drop blank lines. If this ever fails,
 		// pi-tui has been fixed and unpad() can go.
-		const text = "$ cd /home/dev/repos/scratchpad && sed -n '1,120p' scratchpad.xcodeproj/project.pbxproj";
+		//
+		// The bug needs a styled word to land exactly on the boundary, so it
+		// shows at some widths and not others. Searching rather than naming one
+		// width keeps the test about the bug instead of about a coincidence.
+		const text = "$ cd /home/dev/repos/atlas && sed -n '1,120p' atlas.xcodeproj/project.pbxproj";
 		const styled = text.split(" ").map((word) => (word ? `\u001b[38;2;1;2;3m${word}\u001b[39m` : word)).join(" ");
-		const bare = wrapTextWithAnsi(text, 24);
-		const coloured = wrapTextWithAnsi(styled, 24).map(plain);
-		assert.notDeepEqual(coloured, bare, "pi-tui now wraps styled and unstyled text alike");
-		assert.ok(coloured.includes(""), "the difference used to be an invented blank line");
+		const differs = (width: number) => {
+			const bare = wrapTextWithAnsi(text, width);
+			const coloured = wrapTextWithAnsi(styled, width).map(plain);
+			return JSON.stringify(coloured) !== JSON.stringify(bare) && coloured.includes("");
+		};
+		const widths = Array.from({ length: 60 }, (_, i) => i + 12).filter(differs);
+		assert.ok(widths.length > 0, "pi-tui now wraps styled and unstyled text alike at every width");
 	});
 });
 
