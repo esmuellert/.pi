@@ -1,5 +1,11 @@
 {
   "extends": "./tsconfig.base.json",
   "files": [],
-  "references": [{ "path": "./responsive-footer" }, { "path": "./cd" }, { "path": "./themes" }, { "path": "./tool-blocks" }]
+  "references": [
+    { "path": "./responsive-footer" },
+    { "path": "./cd" },
+    { "path": "./themes" },
+    { "path": "./tool-blocks" },
+    { "path": "./moshi-push" }
+  ]
 }

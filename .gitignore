@@ -40,6 +40,7 @@
 !/agent/extensions/tool-blocks/
 !/agent/extensions/frame-budget/
 !/agent/extensions/wheel/
+!/agent/extensions/moshi-push/
 
 # --- optional, uncomment when created ---
 # !/agent/keybindings.json

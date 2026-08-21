@@ -5,6 +5,7 @@ packages:
   - "cd"
   - "themes"
   - "tool-blocks"
+  - "moshi-push"
   # Shared by the packages that draw, so "fast enough" means the same thing in
   # each of them and is measured the same way.
   - "wheel"

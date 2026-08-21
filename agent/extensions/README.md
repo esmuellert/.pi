@@ -18,6 +18,7 @@ verify everything, and type checking against the pi that is actually installed.
 | `frame-budget` | What a still frame may cost, and how to measure it. Shared by the packages that draw |
 | `wheel` | How far one wheel event scrolls the fullscreen transcript, and probes to decide it |
 | `themes` | Five dark themes generated from the upstream rose-pine and catppuccin palettes, so "official" is provable rather than claimed. |
+| `moshi-push` | An iOS notification when a turn finishes. Moshi only rings for approvals and errors, so this borrows one and then corrects the card. |
 
 The `themes` package is a generator rather than an extension: it writes
 `~/.pi/agent/themes/*.json`, which pi reads.
