@@ -17,6 +17,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 
+import { visibleWidth } from "@earendil-works/pi-tui";
+
 import { behind, summarise } from "./behind.ts";
 
 let root: string;
@@ -118,8 +120,50 @@ describe("clearing", () => {
 		assert.equal(summarise({ kind: "unknown", reason: "offline" }, ".pi"), undefined);
 	});
 
-	it("reaches setWidget even when there is nothing to say", () => {
+	it("removes the widget when there is nothing to say", () => {
+		// undefined is what setWidget takes to mean "remove this". Returning
+		// early without calling it would leave the last reminder up.
 		const source = readFileSync(join(import.meta.dirname, "index.ts"), "utf-8");
-		assert.match(source, /setWidget\(KEY, text === undefined \? undefined :/, "undefined must reach setWidget, since that is what removes it");
+		assert.match(source, /setWidget\(KEY, undefined\)/, "nothing removes the widget");
+		assert.match(source, /if \(text === undefined\) \{[\s\S]{0,120}?setWidget\(KEY, undefined\)/, "the empty case must remove rather than skip");
+	});
+});
+
+describe("alignment", () => {
+	/**
+	 * The line sits at the right edge, which needs the width -- and only a
+	 * component is told the width. An array of strings is the simpler form of
+	 * setWidget and cannot do this.
+	 */
+	const paint = (_token: string, text: string) => `\u001b[38;2;1;2;3m${text}\u001b[39m`;
+	const pad = (text: string, width: number) => {
+		const painted = paint("muted", text);
+		const room = width - visibleWidth(painted);
+		return room > 0 ? " ".repeat(room) + painted : painted;
+	};
+
+	it("measures what is visible, not what is written", () => {
+		// The escape sequences are bytes in the string and no columns on screen.
+		const painted = paint("muted", "abc");
+		assert.equal(visibleWidth(painted), 3);
+		assert.ok(painted.length > 3);
+	});
+
+	it("ends at the right edge, whatever the width", () => {
+		const text = summarise({ kind: "behind", commits: 3, branch: "main" }, ".pi")!;
+		for (const width of [40, 60, 80, 200]) {
+			assert.equal(visibleWidth(pad(text, width)), width, `width ${width}`);
+		}
+	});
+
+	it("does not truncate when there is no room", () => {
+		// Losing the end of "git pull" to fit is worse than overflowing.
+		const text = summarise({ kind: "behind", commits: 3, branch: "main" }, ".pi")!;
+		assert.equal(visibleWidth(pad(text, 10)), visibleWidth(paint("muted", text)));
+	});
+
+	it("asks setWidget for a component, since only one is given the width", () => {
+		const source = readFileSync(join(import.meta.dirname, "index.ts"), "utf-8");
+		assert.match(source, /setWidget\(KEY, \(_tui, theme\) =>/, "the array form cannot right-align");
 	});
 });

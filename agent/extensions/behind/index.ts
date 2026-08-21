@@ -15,6 +15,7 @@
  */
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { visibleWidth } from "@earendil-works/pi-tui";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -61,7 +62,21 @@ export default function (pi: ExtensionAPI) {
 				const text = summarise(state, ".pi");
 				// undefined removes the widget, which is how the line clears
 				// itself once the pull has happened.
-				ctx.ui.setWidget(KEY, text === undefined ? undefined : [`  ${text}`]);
+				if (text === undefined) {
+					ctx.ui.setWidget(KEY, undefined);
+					return;
+				}
+				// A factory rather than an array of lines, because only a
+				// component is told the width, and right alignment is a
+				// question about the width.
+				ctx.ui.setWidget(KEY, (_tui, theme) => ({
+					render(width: number): string[] {
+						const painted = theme.fg("muted", text);
+						const room = width - visibleWidth(painted);
+						return [room > 0 ? " ".repeat(room) + painted : painted];
+					},
+					invalidate() {},
+				}));
 			})
 			.catch(() => {
 				// A check that cannot run says nothing. There is no version of

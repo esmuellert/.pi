@@ -6,13 +6,20 @@ Say when the config repository has commits that are not here yet.
 your own setup, and nothing else says so — git only complains when asked.
 
 ```
-  .pi is 3 commits behind main — git pull
+                              .pi is 3 commits behind main — git pull
 ```
 
-Above the editor, not in the footer. The footer is where the numbers that are
+Right-aligned, above the editor, not in the footer. The footer is where the numbers that are
 always true live — context, cost, model — and a line that appears only when
 something needs doing does not belong among them. It says what to do as well as
 what is true, since a count alone leaves the reader to work that out.
+
+Right alignment needs the width, and only a component is told the width — so
+`setWidget` is given a factory rather than an array of lines. Padding is
+measured with `visibleWidth`, which counts columns rather than bytes; the
+colour escapes are half the string and none of the width. When the line is
+wider than the terminal it overflows rather than truncating, since losing the
+end of "git pull" to fit is worse.
 
 ## It clears itself
 
