@@ -107,7 +107,18 @@ export function present(
 		...(presentation.footnote && renderResult
 			? {
 				renderResult(result: unknown, options: unknown, theme: Theme, context: RenderContext): Component {
-					const inner = renderResult(result as never, options as never, theme, context as never);
+					// pi hands back what this returned as `lastComponent` and reuses it:
+					// bash's renderer calls clear() and addChild() on it. Given a
+					// wrapper it called them on something that has neither, which
+					// threw, and pi's fallback drew the output without its own
+					// "Took 0.0s" -- every other render, since the failure cleared
+					// the reference and the one after started fresh.
+					const inner = renderResult(
+						result as never,
+						options as never,
+						theme,
+						{ ...context, lastComponent: unwrap(context.lastComponent) } as never,
+					);
 					// The footnote is asked for on every render rather than once
 					// here, because what it has to say arrives later than this
 					// call and pi may reuse the component it was given.
@@ -134,16 +145,35 @@ export function present(
  * `extra` is a function so that a footnote which is not ready yet costs one
  * call returning undefined, and the lines below simply are not there. It is
  * given the width, because anything it adds has to fit the same column.
+ *
+ * A footnote that throws must not take the block with it. pi catches a renderer
+ * that throws while it is being built, but this runs during `render`, which is
+ * below that guard: an exception here reaches Box and the whole block vanishes,
+ * pi's own "Took 0.0s" along with it.
  */
 function appending(inner: Component, extra: (width: number) => string[] | undefined): Component {
 	return {
+		[WRAPPED]: inner,
 		render(width: number): string[] {
 			const lines = inner.render(width);
-			const tail = extra(width);
+			let tail: string[] | undefined;
+			try {
+				tail = extra(width);
+			} catch {
+				return lines;
+			}
 			return tail && tail.length > 0 ? [...lines, ...tail] : lines;
 		},
 		invalidate() {
 			inner.invalidate?.();
 		},
-	};
+	} as Component;
+}
+
+/** What a wrapper is wrapping, so pi gets its own component back. */
+const WRAPPED = Symbol("toolBlocksWrapped");
+
+/** The component inside a wrapper, or whatever was passed if it is not one. */
+function unwrap(component: Component | undefined): Component | undefined {
+	return (component as { [WRAPPED]?: Component } | undefined)?.[WRAPPED] ?? component;
 }

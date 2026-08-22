@@ -160,6 +160,38 @@ describe("footnote", () => {
 		assert.deepEqual(component?.render(40), ["block", "  late"]);
 	});
 
+	it("hands pi back its own component, not the wrapper", () => {
+		// pi reuses what renderResult returned: bash's renderer calls clear()
+		// and addChild() on it. Given the wrapper it threw, pi fell back to a
+		// plain component, and the block lost its own "Took 0.0s" along with the
+		// sentence -- on every other render, since the failure cleared the
+		// reference and the render after it started fresh.
+		const seen: unknown[] = [];
+		const definition = present("bash", "/tmp", { footnote: () => ["  note"] }, {
+			renderCall: () => stub,
+			renderResult: (_r: never, _o: never, _t: never, ctx: { lastComponent?: unknown }) => {
+				seen.push(ctx.lastComponent);
+				return stub;
+			},
+		} as never);
+		const first = definition.renderResult?.({} as never, {} as never, probe, context() as never);
+		definition.renderResult?.({} as never, {} as never, probe, context({ lastComponent: first }) as never);
+		assert.deepEqual(seen, [undefined, stub], "the second call should see the inner component");
+	});
+
+	it("keeps the block when the footnote throws", () => {
+		// pi catches a renderer that throws while it is being built, but this
+		// runs inside render(), below that guard. An exception here reached Box
+		// and took the whole block with it -- output, pi's own "Took 0.0s", and
+		// the sentence alike. theme.fg throws when the theme is mid-reload,
+		// which is exactly when a late sentence arrives.
+		const definition = wrap(() => {
+			throw new Error("theme not initialized");
+		});
+		const component = definition.renderResult?.({} as never, {} as never, probe, context() as never);
+		assert.deepEqual(component?.render(40), ["block"]);
+	});
+
 	it("leaves the block alone when there is nothing to add", () => {
 		const definition = wrap(() => undefined);
 		const component = definition.renderResult?.({} as never, {} as never, probe, context() as never);

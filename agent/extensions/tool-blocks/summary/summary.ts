@@ -27,9 +27,6 @@ export const DEADLINE_MS = 6_000;
 /** Long enough to be worth a sentence. One line explains itself. */
 export const MIN_LINES = 2;
 
-/** Who writes them, in order of preference. */
-export const CANDIDATES = ["claude-haiku-4.5", "gemini-3.7-flash"] as const;
-
 /** What the model is told. Kept here so a test can assert on it. */
 export const INSTRUCTION =
 	"One clause, under nine words, saying what this shell command does. "
@@ -53,18 +50,36 @@ export interface Slot {
 let registry: ModelRegistry | undefined;
 let writer: Model<Api> | undefined;
 
-/** Handed a registry at session start; picks the cheapest writer available. */
+/** Handed a registry at session start; picks who writes the sentences. */
 export function useRegistry(found: ModelRegistry | undefined): void {
 	registry = found;
-	writer = undefined;
-	const available = found?.getAvailable?.() ?? [];
-	for (const id of CANDIDATES) {
-		const match = available.find((model) => model.id === id);
-		if (match) {
-			writer = match;
-			return;
-		}
-	}
+	writer = pick(found?.getAvailable?.() ?? []);
+}
+
+/**
+ * Who writes the sentences.
+ *
+ * Pinned to one model on purpose. Each writes in a recognisably different way,
+ * and a note whose voice changes when an account gains a model is worse than a
+ * note written by a slightly weaker one.
+ *
+ * Which one was measured rather than assumed: twelve real commands from a
+ * session's own history, four instructions, eight models, ranked blind by a
+ * stronger model. sonnet-4.6 scored 6.4 and haiku-4.5 5.2, against 4.8 to 5.8
+ * for every gemini, gpt-mini and mai model available -- which also answered
+ * three to seven times slower.
+ *
+ * The fallback exists so an account without it gets sentences rather than
+ * silence. Output rate stands in for "small and quick"; a sentence is thirty
+ * tokens, so input price barely enters into it.
+ */
+export const WRITER = "claude-sonnet-4.6";
+
+export function pick(available: readonly Model<Api>[]): Model<Api> | undefined {
+	const preferred = available.find((model) => model.id === WRITER);
+	if (preferred) return preferred;
+	const priced = available.filter((model) => typeof model.cost?.output === "number");
+	return [...priced].sort((a, b) => (a.cost?.output ?? 0) - (b.cost?.output ?? 0))[0];
 }
 
 /** True when a command is long enough that its first line does not say enough. */
@@ -75,17 +90,20 @@ export function worthSummarising(command: string): boolean {
 /**
  * The sentence for a command, starting one if there is none yet.
  *
- * Returns immediately, always. Nothing is asked for until `argsComplete`: a
- * tool call's arguments arrive a chunk at a time and every chunk redraws the
- * block, so asking earlier describes half a command and does it a dozen times.
+ * Returns immediately, always.
+ *
+ * Only ever called from the result renderer, which pi runs once the command has
+ * finished -- so the command here is whole. `context.argsComplete` looks like
+ * the right gate and is not: it is set on the tools still pending when a
+ * message stops streaming, and a block that has already run is no longer among
+ * them, so it reads false forever after.
  */
 export function summaryFor(
 	command: string,
-	argsComplete: boolean,
 	slot: Slot,
 	invalidate: () => void,
 ): string | undefined {
-	if (!argsComplete || !worthSummarising(command)) return undefined;
+	if (!worthSummarising(command)) return undefined;
 	if (slot.summaryFor !== command) {
 		slot.summaryFor = command;
 		slot.summary = undefined;
