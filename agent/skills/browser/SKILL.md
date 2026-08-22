@@ -1,6 +1,6 @@
 ---
 name: browser
-description: Drive a real Chrome window — read pages as an accessibility tree, click, type, upload, wait, and run JavaScript. Use for anything on a site that needs a logged-in session, a rendered page, or interaction: reading a page that needs JavaScript, filling a form, checking how something looks, or working through a site the way a person would.
+description: Drive a real Chrome window — read pages as an accessibility tree, click, type, upload, wait, and run JavaScript. Use for anything on a site that needs a logged-in session, a rendered page, or interaction — reading a page that needs JavaScript, filling a form, checking how something looks, or working through a site the way a person would.
 ---
 
 # browser
