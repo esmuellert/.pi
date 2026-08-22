@@ -12,8 +12,9 @@
 		"test": "turbo run test",
 		"typecheck": "turbo run typecheck",
 		"smoke": "turbo run smoke",
-		"verify": "turbo run test typecheck smoke && pnpm loadable",
-		"loadable": "node scripts/check-loadable.mjs"
+		"verify": "turbo run test typecheck smoke && pnpm loadable && pnpm skill",
+		"loadable": "node scripts/check-loadable.mjs",
+		"skill": "pnpm --dir ../skills/browser install --silent && pnpm --dir ../skills/browser test"
 	},
 	"devDependencies": {
 		"@types/node": "catalog:",

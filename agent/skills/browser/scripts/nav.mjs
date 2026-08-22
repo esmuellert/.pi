@@ -1,45 +1,72 @@
 #!/usr/bin/env node
 /**
- * Go to a URL, and wait for the page to settle.
+ * Go to a URL, or move through history.
  *
- * Usage: node nav.mjs <url> [--new] [--target <id>]
+ * Usage:
+ *   node nav.mjs <url> [--new] [--tab <n>]
+ *   node nav.mjs --back | --forward [--tab <n>]
  */
-import { attach, currentPage, ensure, pages } from "./cdp.mjs";
+import { connect, explain } from "./browser.mjs";
 
 const args = process.argv.slice(2);
-const targetAt = args.indexOf("--target");
-const targetId = targetAt >= 0 ? args[targetAt + 1] : undefined;
-// A flag is not the url, and neither is the value that follows --target.
-const url = args.find((a, i) => !a.startsWith("--") && !(targetAt >= 0 && i === targetAt + 1));
-if (!url) {
-	console.error("usage: node nav.mjs <url> [--new]");
+const tabAt = args.indexOf("--tab");
+const pageIndex = tabAt >= 0 ? Number(args[tabAt + 1]) : undefined;
+// A flag is not the url, and neither is the value that follows --tab. Guard on
+// tabAt first: without it, index !== -1 + 1 excludes the first argument, which
+// is exactly where the url usually is.
+const url = args.find((argument, index) => !argument.startsWith("--") && !(tabAt >= 0 && index === tabAt + 1));
+const back = args.includes("--back");
+const forward = args.includes("--forward");
+
+if (!url && !back && !forward) {
+	console.error("usage: node nav.mjs <url> [--new] [--tab <n>]\n       node nav.mjs --back | --forward");
 	process.exit(1);
 }
 
+const session = await connect({ pageIndex });
 try {
-	await ensure();
+	let page = session.page;
 	if (args.includes("--new")) {
-		await fetch(`http://127.0.0.1:${process.env.BROWSER_DEBUG_PORT || 9222}/json/new?${encodeURIComponent(url)}`, { method: "PUT" });
-		await new Promise((resolve) => setTimeout(resolve, 1500));
-		const open = await pages();
-		const made = open.at(-1);
-		console.log(`${made.id}  ${made.title || "(loading)"}  ${made.url}`);
-		process.exit(0);
+		page = await session.context.newPage();
 	}
 
-	const page = await currentPage(targetId);
-	const { send, close } = await attach(page);
-	await send("Page.enable");
-	await send("Page.navigate", { url: url.includes("://") ? url : `https://${url}` });
-	// Settling is not the load event: single-page apps finish rendering after
-	// it. A short wait afterwards costs less than a snapshot of a half-drawn page.
-	await new Promise((resolve) => setTimeout(resolve, 2500));
-	const title = await send("Runtime.evaluate", { expression: "document.title", returnByValue: true });
-	const here = await send("Runtime.evaluate", { expression: "location.href", returnByValue: true });
-	close();
-	console.log(`${title.result.value}`);
-	console.log(`${here.result.value}`);
+	// goBack returns null both when there is nowhere to go and when the page it
+	// arrived at has no HTTP response -- about:blank is one, and it is where the
+	// browser starts. So the url is compared instead of trusting the return.
+	if (back || forward) {
+		const before = page.url();
+		if (back) await page.goBack({ waitUntil: "commit" });
+		else await page.goForward({ waitUntil: "commit" });
+		if (page.url() === before) {
+			console.log(`nothing to go ${back ? "back" : "forward"} to`);
+			console.log(before);
+			process.exit(0);
+		}
+	} else {
+		await page.goto(url.includes("://") ? url : `https://${url}`, { waitUntil: "domcontentloaded" });
+	}
+
+	// domcontentloaded is when the markup is there; a single-page app draws
+	// after it. Waiting for the network to go quiet catches that, and failing
+	// to go quiet is normal on pages that poll, so it is not an error.
+	await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});
+
+	// Every read is given a deadline of its own. Each of these has hung here at
+	// least once after a back or forward, where `commit` returns before the
+	// document is finished arriving -- and a navigation that worked should not
+	// be reported as nothing at all because printing it did not come back.
+	const title = await Promise.race([
+		page.evaluate("document.title").catch(() => ""),
+		new Promise((resolve) => setTimeout(() => resolve("(no title yet)"), 5000)),
+	]);
+	console.log(title || "(untitled)");
+	console.log(page.url());
+	if (args.includes("--new")) {
+		console.log(`opened as tab ${session.context.pages().indexOf(page)}`);
+	}
 } catch (error) {
-	console.error(String(error.message ?? error));
-	process.exit(1);
+	console.error(explain(error));
+	process.exitCode = 1;
+} finally {
+	await session.done();
 }

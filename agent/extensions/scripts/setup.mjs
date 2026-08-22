@@ -152,9 +152,37 @@ function bootstrap() {
 		done("install workspace deps");
 	}
 
+	installSkills();
+
 	console.log(`\n${cyan("verify")}`);
 	verify();
 	console.log(`\nThis machine matches the repo.`);
+}
+
+/**
+ * Install what the skills need.
+ *
+ * A skill is not a workspace package. turbo refuses a member outside its own
+ * root, and moving the root up to agent/ would put a node_modules and a
+ * package.json beside pi's sessions, auth and trust files. A skill is also a
+ * portable thing -- self-contained dependencies are what let it be copied
+ * somewhere else -- and it needs none of what the workspace gives the
+ * extensions: no TypeScript, no build, no pi version contract.
+ *
+ * So it installs itself, and this is what keeps that on the one path a fresh
+ * machine follows.
+ */
+function installSkills() {
+	const skills = join(dirname(WORKSPACE), "skills");
+	if (!existsSync(skills)) return;
+	const [bin, prefix] = pnpm();
+	for (const entry of readdirSync(skills, { withFileTypes: true })) {
+		if (!entry.isDirectory()) continue;
+		const dir = join(skills, entry.name);
+		if (!existsSync(join(dir, "package.json"))) continue;
+		run(bin, [...prefix, "--dir", dir, "install", "--silent"]);
+		done(`install ${entry.name} skill deps`);
+	}
 }
 
 function upgrade(requested) {

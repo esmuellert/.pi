@@ -2,51 +2,60 @@
 /**
  * Click what a snapshot handle names.
  *
- * Real mouse events at the element's own coordinates, which is what a person's
- * click is: a page that only acts on `isTrusted` events sees a real one.
+ * Playwright waits for the element to be attached, visible, to have stopped
+ * moving, to be enabled, and for a click at that point to actually reach it --
+ * retrying until it does. That last check is why a cookie banner over a button
+ * now fails loudly instead of being clicked in its place.
  *
- * These are silently dropped unless the browser was started with
- * --disable-features=DevToolsDebuggingRestrictions; see cdp.mjs.
- *
- * Usage: node click.mjs <handle> [--double]
+ * Usage: node click.mjs <handle> [--double] [--right] [--force]
  */
-import { callOn, withElement } from "./act.mjs";
+import { describe, withHandle } from "./act.mjs";
+import { explain } from "./browser.mjs";
 
-const [handle] = process.argv.slice(2).filter((a) => !a.startsWith("--"));
-const double = process.argv.includes("--double");
+const args = process.argv.slice(2);
+const [handle] = args.filter((argument) => !argument.startsWith("--"));
 if (!handle) {
-	console.error("usage: node click.mjs <handle> [--double]");
+	console.error("usage: node click.mjs <handle> [--double] [--right] [--force]");
 	process.exit(1);
 }
 
 try {
-	const said = await withElement(handle, async ({ send, objectId, target }) => {
-		// Scroll it into view first: a click at coordinates outside the viewport
-		// lands on whatever is there instead.
-		await callOn(send, objectId, "function () { this.scrollIntoView({ block: 'center' }); }");
-		await new Promise((resolve) => setTimeout(resolve, 120));
-		const box = await callOn(send, objectId, `function () {
-			const r = this.getBoundingClientRect();
-			return { x: r.x + r.width / 2, y: r.y + r.height / 2, w: r.width, h: r.height };
-		}`);
-		if (!box || box.w === 0 || box.h === 0) {
-			// Zero-sized elements cannot be clicked at coordinates; ask the DOM to
-			// do it, which is what a keyboard user's Enter does anyway.
-			await callOn(send, objectId, "function () { this.click(); }");
-			return `clicked [${handle}] ${target.role} "${target.name}" (via DOM: it has no size on screen)`;
+	const said = await withHandle(handle, async ({ locator, target }) => {
+		const options = {
+			// --force skips the checks above. It is for the case where something
+			// invisible overlaps the element and the click would still work.
+			force: args.includes("--force"),
+			button: args.includes("--right") ? "right" : "left",
+		};
+
+		// Chrome stops delivering synthetic input after the browser has been up a
+		// while: the click is accepted, the page receives nothing, and every check
+		// above still passes. It is not this code -- raw CDP behaves the same way,
+		// with the debugging restrictions already turned off -- and restarting the
+		// browser is what brings it back. Reporting a click that did nothing is the
+		// worst outcome, so it is checked.
+		await locator.evaluate((element) => {
+			element.addEventListener("click", () => { element.__piClicked = true; }, { once: true, capture: true });
+		}).catch(() => {});
+
+		if (args.includes("--double")) await locator.dblclick(options);
+		else await locator.click(options);
+
+		// A click that navigates takes the element with it; that is a click that
+		// plainly landed, so a missing element here is not a failure.
+		const landed = await locator.evaluate((element) => element.__piClicked === true).catch(() => true);
+		if (!landed) {
+			throw new Error(
+				`the click was accepted but the page did not receive it.\n`
+				+ `  This is Chrome, not the page: restart the browser and try again.\n`
+				+ `    pkill -f remote-debugging-port && node start.mjs`,
+			);
 		}
-		await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: box.x, y: box.y });
-		for (const type of ["mousePressed", "mouseReleased"]) {
-			await send("Input.dispatchMouseEvent", {
-				type, x: box.x, y: box.y, button: "left", buttons: type === "mousePressed" ? 1 : 0,
-				clickCount: double ? 2 : 1,
-			});
-		}
-		return `clicked [${handle}] ${target.role} "${target.name}"`;
+		return `clicked ${describe(handle, target)}`;
 	});
 	console.log(said);
 	console.log("take another snapshot to see what changed");
 } catch (error) {
-	console.error(String(error.message ?? error));
-	process.exit(1);
+	console.error(explain(error));
+	process.exitCode = 1;
 }

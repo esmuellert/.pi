@@ -19,6 +19,7 @@
 !/agent/skills/
 /agent/skills/*
 !/agent/skills/browser/
+/agent/skills/browser/node_modules/
 
 # --- generated themes, plus the scripts for looking at them ---
 !/agent/themes/
@@ -55,6 +56,7 @@
 !/agent/skills/
 /agent/skills/*
 !/agent/skills/browser/
+/agent/skills/browser/node_modules/
 # !/agent/footer.json
 # !/agent/prompts/
 # !/agent/skills/

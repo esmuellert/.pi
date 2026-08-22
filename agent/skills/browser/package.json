@@ -1,0 +1,13 @@
+{
+	"name": "pi-browser-skill",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"description": "A skill that drives a real Chrome window.",
+	"scripts": {
+		"test": "node --test scripts/*.test.mjs"
+	},
+	"dependencies": {
+		"playwright-core": "^1.62.1"
+	}
+}
