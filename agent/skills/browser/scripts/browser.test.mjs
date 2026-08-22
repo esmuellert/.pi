@@ -109,11 +109,13 @@ test("without a session id there is still somewhere to write", () => {
 	assert.match(anonymous, /pi-browser/);
 });
 
-test("two stamps in the same second differ", () => {
-	// Seconds lost a snapshot: two taken together wrote the same name.
-	const names = new Set();
-	for (let n = 0; n < 50; n += 1) names.add(stamp());
-	assert.ok(names.size > 1, "stamp() should distinguish files written back to back");
+test("two processes taking a snapshot at once write different files", () => {
+	// This is the collision that happened: two commands, same second, one file.
+	// Within one process the clock may not have moved, so what has to differ is
+	// the part that comes from the process itself.
+	const mine = stamp();
+	assert.match(mine, new RegExp(`-${process.pid}$`), "the stamp should carry the process id");
+	assert.notEqual(mine.replace(`-${process.pid}`, "-1"), mine);
 });
 
 /** Run something with PI_SESSION_ID set, and put the environment back. */

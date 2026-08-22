@@ -31,13 +31,14 @@ function agentDir() {
 }
 
 /**
- * A name for a file that will not collide with the one written a moment ago.
+ * A name for a file that will not collide with one written at the same moment.
  *
- * Seconds are not enough: two snapshots taken in the same second wrote the same
- * name and one was lost.
+ * Seconds lost a snapshot: two taken together wrote the same name. Milliseconds
+ * are not enough either -- fifty calls in a row here return one value -- so the
+ * process id goes in, and two commands are always two processes.
  */
 export function stamp() {
-	return new Date().toISOString().replace(/[:.]/g, "-").slice(0, 23);
+	return `${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 23)}-${process.pid}`;
 }
 
 /**
