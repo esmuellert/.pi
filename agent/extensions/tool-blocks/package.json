@@ -18,13 +18,14 @@
 		"@earendil-works/pi-coding-agent": "*"
 	},
 	"devDependencies": {
-		"@shikijs/langs": "catalog:",
-		"@shikijs/themes": "catalog:",
-		"shiki": "catalog:",
+		"@earendil-works/pi-ai": "catalog:",
 		"@earendil-works/pi-coding-agent": "catalog:",
 		"@earendil-works/pi-tui": "catalog:",
+		"@shikijs/langs": "catalog:",
+		"@shikijs/themes": "catalog:",
 		"@types/node": "catalog:",
-		"typescript": "catalog:",
-		"frame-budget": "workspace:*"
+		"frame-budget": "workspace:*",
+		"shiki": "catalog:",
+		"typescript": "catalog:"
 	}
 }

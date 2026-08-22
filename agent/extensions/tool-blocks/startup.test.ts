@@ -20,9 +20,11 @@ import extension from "./index.ts";
 function stubPi() {
 	const tools: string[] = [];
 	const commands: string[] = [];
+	const events: string[] = [];
 	return {
 		tools,
 		commands,
+		events,
 		api: {
 			registerTool: (tool: { name: string }) => {
 				// The highlighter must already be usable: pi may draw the very
@@ -31,6 +33,10 @@ function stubPi() {
 				tools.push(tool.name);
 			},
 			registerCommand: (name: string) => commands.push(name),
+			// The summary writer needs a registry, which only arrives with a
+			// session. Without this the extension throws before registering
+			// anything, which is what a missing method on a real host would do.
+			on: (event: string) => events.push(event),
 		} as never,
 	};
 }

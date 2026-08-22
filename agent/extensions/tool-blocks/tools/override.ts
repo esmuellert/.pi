@@ -52,6 +52,21 @@ export type Presentation = {
 		context: RenderContext,
 	) => string[] | undefined;
 	readonly frame?: (inner: Component, args: RenderArgs, theme: Theme, context: RenderContext) => Component;
+	/**
+	 * Lines to add under everything else, after the result has arrived.
+	 *
+	 * A separate hook from `retitle` because the title is the command, and a
+	 * note about the command should not stand where the command was.
+	 *
+	 * Given the width it will be drawn in, because a note long enough to need
+	 * one is exactly the note worth having.
+	 */
+	readonly footnote?: (
+		width: number,
+		args: RenderArgs,
+		theme: Theme,
+		context: RenderContext,
+	) => string[] | undefined;
 };
 
 /**
@@ -85,9 +100,21 @@ export function present(
 ): BuiltIn {
 	const renderCall = definition.renderCall;
 	if (!renderCall) return definition;
+	const renderResult = definition.renderResult;
 
 	return {
 		...definition,
+		...(presentation.footnote && renderResult
+			? {
+				renderResult(result: unknown, options: unknown, theme: Theme, context: RenderContext): Component {
+					const inner = renderResult(result as never, options as never, theme, context as never);
+					// The footnote is asked for on every render rather than once
+					// here, because what it has to say arrives later than this
+					// call and pi may reuse the component it was given.
+					return appending(inner, (width) => presentation.footnote?.(width, context.args as RenderArgs, theme, context));
+				},
+			}
+			: {}),
 		renderCall(args: RenderArgs, theme: Theme, context: RenderContext): Component {
 			const state = context.state as Record<string, unknown>;
 			const inner = renderCall(args, theme, { ...context, lastComponent: state[INNER] as Component | undefined });
@@ -97,6 +124,26 @@ export function present(
 				? replacing(inner, (width, rendered) => presentation.retitle?.(rendered, width, args, theme, context))
 				: inner;
 			return presentation.frame ? presentation.frame(retitled, args, theme, context) : retitled;
+		},
+	};
+}
+
+/**
+ * A component that draws `inner`, then whatever `extra` has to say.
+ *
+ * `extra` is a function so that a footnote which is not ready yet costs one
+ * call returning undefined, and the lines below simply are not there. It is
+ * given the width, because anything it adds has to fit the same column.
+ */
+function appending(inner: Component, extra: (width: number) => string[] | undefined): Component {
+	return {
+		render(width: number): string[] {
+			const lines = inner.render(width);
+			const tail = extra(width);
+			return tail && tail.length > 0 ? [...lines, ...tail] : lines;
+		},
+		invalidate() {
+			inner.invalidate?.();
 		},
 	};
 }

@@ -138,3 +138,39 @@ describe("present", () => {
 		assert.deepEqual(definition.renderCall!({ file_path: "/tmp/a.ts" } as never, probe, context()).render(60), plain);
 	});
 });
+
+describe("footnote", () => {
+	/**
+	 * A stand-in for whatever pi renders, so these stay off the real renderer.
+	 * Calling that needs an initialised theme, which no test here has, and what
+	 * is under test is the wrapper rather than pi's drawing.
+	 */
+	const stub = { render: () => ["block"], invalidate: () => {} };
+	const wrap = (footnote: (width: number) => string[] | undefined) =>
+		present("bash", "/tmp", { footnote }, { renderCall: () => stub, renderResult: () => stub } as never);
+
+	it("asks on every render, not once when the component is built", () => {
+		// What it has to say arrives after renderResult has returned, and pi
+		// reuses the component it was given. Asking once means a sentence that
+		// arrives late is never shown.
+		let asked = 0;
+		const definition = wrap(() => (++asked > 1 ? ["  late"] : undefined));
+		const component = definition.renderResult?.({} as never, {} as never, probe, context() as never);
+		assert.deepEqual(component?.render(40), ["block"]);
+		assert.deepEqual(component?.render(40), ["block", "  late"]);
+	});
+
+	it("leaves the block alone when there is nothing to add", () => {
+		const definition = wrap(() => undefined);
+		const component = definition.renderResult?.({} as never, {} as never, probe, context() as never);
+		assert.deepEqual(component?.render(40), ["block"]);
+	});
+
+	it("is not wrapped at all when no footnote is given", () => {
+		// The wrapper costs a call per render, so a tool without a footnote keeps
+		// pi's own renderer rather than a pass-through around it.
+		const original = () => stub;
+		const plain = present("bash", "/tmp", {}, { renderCall: () => stub, renderResult: original } as never);
+		assert.equal(plain.renderResult, original);
+	});
+});
