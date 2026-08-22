@@ -31,13 +31,34 @@ function agentDir() {
 }
 
 /**
+ * A name for a file that will not collide with the one written a moment ago.
+ *
+ * Seconds are not enough: two snapshots taken in the same second wrote the same
+ * name and one was lost.
+ */
+export function stamp() {
+	return new Date().toISOString().replace(/[:.]/g, "-").slice(0, 23);
+}
+
+/**
  * Where snapshots and screenshots go.
  *
  * The system temp directory, because these are readable once and then stale --
  * a snapshot describes a page as it was, and the page has since been clicked.
+ *
+ * Per session, because two agents sharing one browser otherwise share one
+ * uids.json: the second snapshot overwrites the first, and the first agent's
+ * next click lands on an element it never saw, reported as though it were the
+ * one it asked for. Verified by doing it -- a fill aimed at a combobox on one
+ * tab went into a textbox on another.
+ *
+ * pi sets PI_SESSION_ID, so this costs the caller nothing. Without it -- run
+ * by hand, or by something else -- the shared directory is used, which is the
+ * old behaviour and fine for one user at a time.
  */
 export function outputDir() {
-	const dir = join(tmpdir(), "pi-browser");
+	const session = process.env.PI_SESSION_ID;
+	const dir = join(tmpdir(), "pi-browser", session ? session.slice(0, 8) : "shared");
 	mkdirSync(dir, { recursive: true });
 	return dir;
 }

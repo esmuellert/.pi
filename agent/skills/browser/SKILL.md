@@ -126,6 +126,21 @@ Console output, uncaught errors and failed requests exist only while something
 is listening, and every command here is a separate process. So this runs the
 action itself, with the listeners already on.
 
+## More than one agent
+
+They share the browser — there is one window, and one of them navigating a tab
+takes it away from the other. Snapshots and handles do not collide: each pi
+session gets its own, keyed on `PI_SESSION_ID`. A handle whose page has moved
+on says so rather than acting on whatever is now there, because the number is
+written onto the element and a navigation takes it with it.
+
+So open a tab of your own for anything long:
+
+```bash
+node nav.mjs example.com --new    # prints the tab number
+node snapshot.mjs --tab 2
+```
+
 ## Notes
 
 An accessible name can contain characters you cannot see — icon fonts put

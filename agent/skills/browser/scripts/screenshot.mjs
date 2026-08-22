@@ -9,13 +9,13 @@ import { statSync } from "node:fs";
 import { join } from "node:path";
 
 import { withHandle } from "./act.mjs";
-import { connect, explain, outputDir } from "./browser.mjs";
+import { connect, explain, outputDir, stamp } from "./browser.mjs";
 
 const args = process.argv.slice(2);
 const at = (name) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : undefined; };
 const handle = at("--handle");
 const tab = at("--tab");
-const file = join(outputDir(), `shot-${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}.png`);
+const file = join(outputDir(), `shot-${stamp()}.png`);
 
 try {
 	if (handle) {

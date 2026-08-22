@@ -11,7 +11,7 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { explain, runnable } from "./browser.mjs";
+import { explain, outputDir, runnable, stamp } from "./browser.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const scripts = readdirSync(HERE).filter((name) => name.endsWith(".mjs") && !name.endsWith(".test.mjs"));
@@ -93,3 +93,38 @@ test("the uid attribute is a single source of truth", () => {
 		);
 	}
 });
+
+test("snapshots are kept apart per session", () => {
+	// Two agents share one browser. They must not share one uids.json: the
+	// second snapshot would overwrite the first, and the first agent's next
+	// click would land on an element it never saw. Checked by doing it once --
+	// a fill aimed at a combobox went into a textbox on another tab.
+	const mine = withSession("aaaaaaaa-1111", () => outputDir());
+	const theirs = withSession("bbbbbbbb-2222", () => outputDir());
+	assert.notEqual(mine, theirs);
+});
+
+test("without a session id there is still somewhere to write", () => {
+	const anonymous = withSession(undefined, () => outputDir());
+	assert.match(anonymous, /pi-browser/);
+});
+
+test("two stamps in the same second differ", () => {
+	// Seconds lost a snapshot: two taken together wrote the same name.
+	const names = new Set();
+	for (let n = 0; n < 50; n += 1) names.add(stamp());
+	assert.ok(names.size > 1, "stamp() should distinguish files written back to back");
+});
+
+/** Run something with PI_SESSION_ID set, and put the environment back. */
+function withSession(id, work) {
+	const before = process.env.PI_SESSION_ID;
+	if (id === undefined) delete process.env.PI_SESSION_ID;
+	else process.env.PI_SESSION_ID = id;
+	try {
+		return work();
+	} finally {
+		if (before === undefined) delete process.env.PI_SESSION_ID;
+		else process.env.PI_SESSION_ID = before;
+	}
+}

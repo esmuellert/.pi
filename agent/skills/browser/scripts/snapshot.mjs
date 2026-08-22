@@ -37,7 +37,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { UID_ATTRIBUTE } from "./act.mjs";
-import { connect, explain, outputDir } from "./browser.mjs";
+import { connect, explain, outputDir, stamp } from "./browser.mjs";
 
 /** Node properties worth reporting: the ones that change what an element does. */
 const STATES = new Set(["disabled", "checked", "expanded", "selected", "required", "invalid", "level", "focused"]);
@@ -184,8 +184,7 @@ try {
 	];
 	const body = [...header, "", ...lines].join("\n");
 
-	const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-	const file = join(outputDir(), `snapshot-${stamp}.txt`);
+	const file = join(outputDir(), `snapshot-${stamp()}.txt`);
 	writeFileSync(file, `${body}\n`, "utf-8");
 	writeFileSync(join(outputDir(), "uids.json"), JSON.stringify({ url: session.page.url(), uids }, null, "\t"), "utf-8");
 
