@@ -25,6 +25,7 @@ export const ICON = {
 	folder: "\uF07B",
 	branch: "\uE0A0",
 	cache: "\uF1C0",
+	compact: "\uF066",
 } as const;
 
 export interface FooterState {
@@ -34,6 +35,15 @@ export interface FooterState {
 	contextPercent: number | null;
 	contextTokens: number | null;
 	contextWindow: number;
+	/**
+	 * How many times this branch has been compacted.
+	 *
+	 * Not a flag. Each round summarises the previous summary, so three is three
+	 * layers of loss between now and the beginning -- on the session that
+	 * prompted this, the summaries grew 11K, 20K, 22K characters as they took on
+	 * more of the past. The number is what says how far the early history is.
+	 */
+	compactions: number;
 	input: number;
 	output: number;
 	cacheRead: number;
@@ -55,6 +65,7 @@ export const EMPTY_STATE: FooterState = {
 	contextPercent: null,
 	contextTokens: null,
 	contextWindow: 0,
+	compactions: 0,
 	input: 0,
 	output: 0,
 	cacheRead: 0,
@@ -101,6 +112,11 @@ export function makeBuilder(state: FooterState, cfg: FooterConfig): SegmentBuild
 		: folder;
 	const cacheText = `${formatCount(state.cacheRead)}/${formatCount(state.cacheWrite)}`;
 	const cache = cfg.icons ? `${ICON.cache} ${cacheText}` : `cache ${cacheText}`;
+	// Nothing until it has happened: most sessions never compact, and a standing
+	// zero is the kind of field that is read once and then never again.
+	const compactText = state.compactions > 0
+		? cfg.icons ? `${ICON.compact} ${state.compactions}` : `compacted ${state.compactions}`
+		: "";
 
 	return (barCells: number): Segment[] => {
 		// Display order is by stability: left-aligned text means a field that
@@ -116,6 +132,10 @@ export function makeBuilder(state: FooterState, cfg: FooterConfig): SegmentBuild
 				text: `ctx ${progressBar(state.contextPercent ?? 0, barCells)} ${pctText} ${ctxNums}`,
 				color: ctxColor
 			},
+			// Beside the context bar, because they are the same subject read in two
+			// directions: the bar says how close the next compaction is, this says
+			// how many have already been.
+			{ id: "compact", text: compactText, color: "muted" },
 			{ id: "queue", text: state.queued ? "queued" : "", color: "warning" },
 			{ id: "in", text: `in ${formatCount(state.input)}`, color: "muted" },
 			{ id: "out", text: `out ${formatCount(state.output)}`, color: "muted" },

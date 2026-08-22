@@ -457,3 +457,39 @@ describe("degenerate inputs", () => {
 
 
 });
+
+describe("compaction count", () => {
+	// Long sessions compact repeatedly, and each round summarises the previous
+	// summary. On the session that prompted this field the summaries grew
+	// 11K, 20K, 22K characters across three rounds -- so the number is a depth
+	// of loss, not a flag, which is why it is shown rather than a mark.
+	const compacted = (n: number): FooterState => ({ ...EMPTY_STATE, compactions: n });
+
+	it("says nothing until a session has compacted", () => {
+		const ids = makeBuilder(compacted(0), DEFAULT_CONFIG)(8).map((s) => s.id);
+		assert.ok(!ids.includes("compact"), "a standing zero is a field nobody reads twice");
+	});
+
+	it("shows the count once there is one", () => {
+		const seg = makeBuilder(compacted(3), DEFAULT_CONFIG)(8).find((s) => s.id === "compact");
+		assert.ok(seg, "the segment should appear");
+		assert.match(seg.text, /3$/);
+	});
+
+	it("falls back to a word when icons are off", () => {
+		const seg = makeBuilder(compacted(3), { ...DEFAULT_CONFIG, icons: false })(8).find((s) => s.id === "compact");
+		assert.equal(seg?.text, "compacted 3");
+	});
+
+	it("sits beside the context bar", () => {
+		// The bar says how close the next one is; this says how many have been.
+		const ids = makeBuilder(compacted(2), DEFAULT_CONFIG)(8).map((s) => s.id);
+		assert.equal(ids[ids.indexOf("compact") - 1], "ctx");
+	});
+
+	it("costs three columns, not nine", () => {
+		// The terminal this is read on is 53 columns wide.
+		const seg = makeBuilder(compacted(3), DEFAULT_CONFIG)(8).find((s) => s.id === "compact");
+		assert.equal(measureText(seg!.text), 3);
+	});
+});
