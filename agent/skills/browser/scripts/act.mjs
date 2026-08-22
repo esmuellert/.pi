@@ -58,7 +58,7 @@ export function lookup(uid) {
  */
 export async function withHandle(uid, work) {
 	const target = lookup(uid);
-	const session = await connect({ pageIndex: target.pageIndex });
+	const session = await connect({ tab: target.tab });
 	try {
 		const selector = `[${UID_ATTRIBUTE}="${target.uid}"]`;
 		let locator;

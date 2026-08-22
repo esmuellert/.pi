@@ -77,12 +77,16 @@ carry. The snapshot is better for everything else.
 
 ```bash
 node tabs.mjs                          # * marks where commands go
-node nav.mjs example.com --new
-node snapshot.mjs --tab 1
-node tabs.mjs --close 1
+node nav.mjs example.com --new         # prints this tab's id
+node snapshot.mjs --tab 5B2CA09708EF
+node tabs.mjs --close 5B2CA09708EF
 ```
 
 Without `--tab`, commands act on the tab that is in front.
+
+`--tab` takes the id `tabs.mjs` prints. A position works too, but do not keep
+one: closing a tab moves every tab after it down, so a remembered position
+starts pointing at a different page.
 
 ## Dialogs
 
@@ -134,12 +138,16 @@ session gets its own, keyed on `PI_SESSION_ID`. A handle whose page has moved
 on says so rather than acting on whatever is now there, because the number is
 written onto the element and a navigation takes it with it.
 
-So open a tab of your own for anything long:
+So open a tab of your own and work in it:
 
 ```bash
-node nav.mjs example.com --new    # prints the tab number
-node snapshot.mjs --tab 2
+node nav.mjs example.com --new         # prints an id
+node snapshot.mjs --tab <that id>
+node click.mjs 4                       # handles remember their own tab
 ```
+
+The id survives other agents opening and closing tabs. Handles carry it, so
+after a snapshot you can leave `--tab` off entirely.
 
 ## Notes
 

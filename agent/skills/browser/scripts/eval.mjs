@@ -17,7 +17,7 @@ import { connect, explain, runnable } from "./browser.mjs";
 
 const args = process.argv.slice(2);
 const tabAt = args.indexOf("--tab");
-const pageIndex = tabAt >= 0 ? Number(args[tabAt + 1]) : undefined;
+const tab = tabAt >= 0 ? args[tabAt + 1] : undefined;
 const frameAt = args.indexOf("--frame");
 const frameIndex = frameAt >= 0 ? Number(args[frameAt + 1]) : undefined;
 const expression = args.find((argument, index) => !argument.startsWith("--")
@@ -30,7 +30,7 @@ if (!expression) {
 
 let session;
 try {
-	session = await connect({ pageIndex });
+	session = await connect({ tab });
 	const frames = session.page.frames();
 	if (frameIndex !== undefined && !frames[frameIndex]) {
 		throw new Error(`no frame ${frameIndex} — the page has ${frames.length}: ${frames.map((f, n) => `${n}=${f.url()}`).join(", ")}`);

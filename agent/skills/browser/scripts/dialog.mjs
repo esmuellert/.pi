@@ -30,7 +30,7 @@ if (!handle && !expression) {
 
 let session;
 try {
-	session = await connect({ pageIndex: handle ? lookup(handle).pageIndex : undefined });
+	session = await connect({ tab: handle ? lookup(handle).tab : undefined });
 	const seen = [];
 	session.page.on("dialog", async (dialog) => {
 		seen.push({ type: dialog.type(), message: dialog.message() });
@@ -52,6 +52,11 @@ try {
 			}
 		}
 		if (!locator) throw new Error(`[${handle}] is no longer on the page — take another snapshot`);
+		// Marked so a click that reports success but arrives nowhere can be told
+		// apart from a click that simply opens no dialog.
+		await locator.evaluate((element) => {
+			element.addEventListener("click", () => { element.__piClicked = true; }, { once: true, capture: true });
+		}).catch(() => {});
 		// A click that opens a dialog does not return until the dialog has been
 		// answered, so it is left running while the handler above answers it.
 		// Awaiting it here first would deadlock.
@@ -66,7 +71,21 @@ try {
 	}
 
 	await session.page.waitForTimeout(600);
-	if (seen.length === 0) console.log("no dialog appeared");
+	if (seen.length === 0) {
+		// Distinguish "that click opens no dialog" from Chrome having stopped
+		// delivering input, which looks identical from here and is the more
+		// likely of the two when it has been running a while.
+		const landed = handle
+			? await session.page.evaluate(
+				`document.querySelector('[${UID_ATTRIBUTE}="${lookup(handle).uid}"]')?.__piClicked === true`,
+			).catch(() => true)
+			: true;
+		console.log(landed
+			? "no dialog appeared"
+			: "the click was accepted but the page did not receive it.\n"
+				+ "  This is Chrome, not the page: restart the browser and try again.\n"
+				+ "    pkill -f remote-debugging-port && node start.mjs");
+	}
 	for (const dialog of seen) {
 		console.log(`${dialog.type}: ${JSON.stringify(dialog.message)} → ${accept ? "accepted" : "dismissed"}`);
 	}

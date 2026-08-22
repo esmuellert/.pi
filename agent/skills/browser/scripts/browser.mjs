@@ -201,9 +201,12 @@ export async function ensure({ launch = true } = {}) {
 /**
  * Connect, and hand back the page to act on.
  *
- * `pageIndex` names a tab as `tabs.mjs` numbers them. Without one this is the
- * tab that was most recently brought to the front, which is what "the page"
- * means to someone looking at the window.
+ * `tab` is a target id, as `tabs.mjs` prints it. A position in the list is
+ * accepted too, since that is what a person reads off the screen, but it is
+ * resolved at once and never stored -- see targetIds below for why.
+ *
+ * Without one this is the tab that was most recently brought to the front,
+ * which is what "the page" means to someone looking at the window.
  */
 /**
  * How long an action waits for an element to become usable.
@@ -215,7 +218,7 @@ export async function ensure({ launch = true } = {}) {
  */
 export const ACTION_TIMEOUT_MS = Number(process.env.BROWSER_TIMEOUT_MS) || 10_000;
 
-export async function connect({ pageIndex } = {}) {
+export async function connect({ tab } = {}) {
 	const { chromium } = await playwright();
 	await ensure();
 	const browser = await chromium.connectOverCDP(`http://127.0.0.1:${PORT}`);
@@ -230,12 +233,42 @@ export async function connect({ pageIndex } = {}) {
 		throw new Error("the browser has no pages open — run nav.mjs <url>");
 	}
 	for (const candidate of open) candidate.setDefaultTimeout(ACTION_TIMEOUT_MS);
-	const page = pageIndex === undefined ? await frontmost(open) : open[Number(pageIndex)];
+
+	let page;
+	if (tab === undefined) page = await frontmost(open);
+	else if (/^\d+$/.test(String(tab))) page = open[Number(tab)];
+	else page = open[(await targetIds(context, open)).indexOf(String(tab))];
+
 	if (!page) {
 		await browser.close();
-		throw new Error(`no tab ${pageIndex} — there are ${open.length}; run tabs.mjs to see them`);
+		throw new Error(`no tab ${tab} — the browser has ${open.length}; run tabs.mjs to see them`);
 	}
 	return { browser, context, page, pages: open, done: () => browser.close() };
+}
+
+/**
+ * The browser's own id for each page, in the order `pages()` returns them.
+ *
+ * Playwright does not expose it, and it is the only name for a tab that
+ * survives another one being closed. Positions do not: close tab 1 and every
+ * tab after it moves down, so an agent that remembered "tab 2" quietly starts
+ * acting on somebody else's page -- and with several agents sharing one
+ * browser, somebody else closing a tab is ordinary.
+ */
+export async function targetIds(context, pages) {
+	const ids = [];
+	for (const page of pages) {
+		try {
+			const cdp = await context.newCDPSession(page);
+			const { targetInfo } = await cdp.send("Target.getTargetInfo");
+			await cdp.detach();
+			ids.push(targetInfo.targetId);
+		} catch {
+			// A tab that is closing cannot answer; it keeps its place in the list.
+			ids.push("");
+		}
+	}
+	return ids;
 }
 
 /**

@@ -128,3 +128,12 @@ function withSession(id, work) {
 		else process.env.PI_SESSION_ID = before;
 	}
 }
+
+test("a handle records a tab id, not a position", () => {
+	// Closing a tab moves every later tab down by one. A handle that stored a
+	// position would start naming a different page, silently -- and with more
+	// than one agent, another closing a tab is ordinary.
+	const source = readFileSync(join(HERE, "snapshot.mjs"), "utf-8");
+	assert.match(source, /tab: pageId/, "snapshot should store the target id with each handle");
+	assert.doesNotMatch(source, /pages\.indexOf\(session\.page\)/, "a position must not be stored");
+});

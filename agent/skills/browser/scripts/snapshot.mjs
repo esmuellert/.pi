@@ -51,12 +51,14 @@ const INTERACTIVE = new Set([
 
 const args = process.argv.slice(2);
 const tabAt = args.indexOf("--tab");
-const pageIndex = tabAt >= 0 ? Number(args[tabAt + 1]) : undefined;
+const tab = tabAt >= 0 ? args[tabAt + 1] : undefined;
 
 let session;
 try {
-	session = await connect({ pageIndex });
+	session = await connect({ tab });
 	const cdp = await session.context.newCDPSession(session.page);
+	// The tab's own id, so a handle still names this tab after another is closed.
+	const pageId = (await cdp.send("Target.getTargetInfo")).targetInfo.targetId;
 	await cdp.send("Accessibility.enable");
 	const { frameTree } = await cdp.send("Page.getFrameTree");
 
@@ -130,7 +132,7 @@ try {
 			if (INTERACTIVE.has(role) && !node.ignored && node.backendDOMNodeId !== undefined) {
 				uid += 1;
 				handle = `[${uid}] `;
-				uids.push({ uid, role, name, pageIndex: session.pages.indexOf(session.page) });
+				uids.push({ uid, role, name, tab: pageId });
 				tagging.push({ uid, backendDOMNodeId: node.backendDOMNodeId });
 			}
 

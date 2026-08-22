@@ -21,7 +21,7 @@ try {
 	if (handle) {
 		await withHandle(handle, async ({ locator }) => locator.screenshot({ path: file }));
 	} else {
-		const session = await connect({ pageIndex: tab === undefined ? undefined : Number(tab) });
+		const session = await connect({ tab });
 		try {
 			await session.page.screenshot({ path: file, fullPage: args.includes("--full") });
 		} finally {

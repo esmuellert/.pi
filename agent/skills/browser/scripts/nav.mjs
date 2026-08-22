@@ -6,11 +6,11 @@
  *   node nav.mjs <url> [--new] [--tab <n>]
  *   node nav.mjs --back | --forward [--tab <n>]
  */
-import { connect, explain } from "./browser.mjs";
+import { connect, explain, targetIds } from "./browser.mjs";
 
 const args = process.argv.slice(2);
 const tabAt = args.indexOf("--tab");
-const pageIndex = tabAt >= 0 ? Number(args[tabAt + 1]) : undefined;
+const tab = tabAt >= 0 ? args[tabAt + 1] : undefined;
 // A flag is not the url, and neither is the value that follows --tab. Guard on
 // tabAt first: without it, index !== -1 + 1 excludes the first argument, which
 // is exactly where the url usually is.
@@ -25,7 +25,7 @@ if (!url && !back && !forward) {
 
 let session;
 try {
-	session = await connect({ pageIndex });
+	session = await connect({ tab });
 	let page = session.page;
 	if (args.includes("--new")) {
 		page = await session.context.newPage();
@@ -63,7 +63,8 @@ try {
 	console.log(title || "(untitled)");
 	console.log(page.url());
 	if (args.includes("--new")) {
-		console.log(`opened as tab ${session.context.pages().indexOf(page)}`);
+		const ids = await targetIds(session.context, session.context.pages());
+		console.log(`this tab is ${ids[session.context.pages().indexOf(page)]} — pass it to --tab`);
 	}
 } catch (error) {
 	console.error(explain(error));
