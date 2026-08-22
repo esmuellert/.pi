@@ -24,8 +24,9 @@ if (!text && !gone && !args.includes("--idle")) {
 }
 
 const started = Date.now();
-const session = await connect();
+let session;
 try {
+	session = await connect();
 	if (text) {
 		await session.page.getByText(text, { exact: false }).first().waitFor({ state: "visible", timeout });
 		console.log(`"${text}" appeared after ${Date.now() - started}ms`);
@@ -41,5 +42,5 @@ try {
 	console.error(`still waiting after ${Date.now() - started}ms: ${explain(error)}`);
 	process.exitCode = 1;
 } finally {
-	await session.done();
+	await session?.done();
 }

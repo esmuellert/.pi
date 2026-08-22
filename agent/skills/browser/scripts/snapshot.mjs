@@ -53,8 +53,9 @@ const args = process.argv.slice(2);
 const tabAt = args.indexOf("--tab");
 const pageIndex = tabAt >= 0 ? Number(args[tabAt + 1]) : undefined;
 
-const session = await connect({ pageIndex });
+let session;
 try {
+	session = await connect({ pageIndex });
 	const cdp = await session.context.newCDPSession(session.page);
 	await cdp.send("Accessibility.enable");
 	const { frameTree } = await cdp.send("Page.getFrameTree");
@@ -196,7 +197,7 @@ try {
 	console.error(explain(error));
 	process.exitCode = 1;
 } finally {
-	await session.done();
+	await session?.done();
 }
 
 function clean(value) {

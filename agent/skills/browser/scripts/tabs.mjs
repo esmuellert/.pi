@@ -12,8 +12,9 @@ import { connect, explain } from "./browser.mjs";
 const args = process.argv.slice(2);
 const closeAt = args.indexOf("--close");
 
-const session = await connect();
+let session;
 try {
+	session = await connect();
 	if (closeAt >= 0) {
 		const victim = session.pages[Number(args[closeAt + 1])];
 		if (!victim) throw new Error(`no tab ${args[closeAt + 1]}`);
@@ -32,5 +33,5 @@ try {
 	console.error(explain(error));
 	process.exitCode = 1;
 } finally {
-	await session.done();
+	await session?.done();
 }

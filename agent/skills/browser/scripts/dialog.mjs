@@ -28,8 +28,9 @@ if (!handle && !expression) {
 	process.exit(1);
 }
 
-const session = await connect({ pageIndex: handle ? lookup(handle).pageIndex : undefined });
+let session;
 try {
+	session = await connect({ pageIndex: handle ? lookup(handle).pageIndex : undefined });
 	const seen = [];
 	session.page.on("dialog", async (dialog) => {
 		seen.push({ type: dialog.type(), message: dialog.message() });
@@ -73,5 +74,5 @@ try {
 	console.error(explain(error));
 	process.exitCode = 1;
 } finally {
-	await session.done();
+	await session?.done();
 }

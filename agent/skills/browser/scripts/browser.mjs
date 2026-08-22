@@ -63,21 +63,59 @@ export function browserBinary() {
 }
 
 /**
- * Load Playwright, or explain how to get it.
+ * Load Playwright, installing it on first use.
  *
- * These scripts are run by a model through a shell, and ERR_MODULE_NOT_FOUND
- * names a file it has never heard of. This turns that into an instruction.
+ * A skill is not part of the workspace and nothing installs it in advance --
+ * deliberately. It is used occasionally, weighs 13MB, and a machine that never
+ * opens a browser should never carry it. So the agent that reaches for it is
+ * the one that pays, once, and every machine after that is the same machine
+ * whether or not it was set up first.
+ *
+ * This is why `setup.mjs bootstrap` does not install skills, and why the tests
+ * import nothing from here that needs the package: `playwright-core` is loaded
+ * dynamically, so `pnpm verify` checks this code on a machine that has never
+ * installed it.
  */
 export async function playwright() {
 	try {
 		return await import("playwright-core");
 	} catch (error) {
 		if (error?.code !== "ERR_MODULE_NOT_FOUND") throw error;
-		const workspace = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "extensions");
+	}
+
+	const skill = dirname(dirname(fileURLToPath(import.meta.url)));
+	console.error("installing playwright-core (first run, about 13MB)...");
+	const installed = await install(skill);
+	if (!installed) {
 		throw new Error(
-			`playwright-core is not installed. Run:\n  cd ${workspace} && pnpm install`,
+			`playwright-core is not installed and installing it failed. Run:\n  cd ${skill} && npm install`,
 		);
 	}
+	try {
+		return await import("playwright-core");
+	} catch {
+		throw new Error(`installed playwright-core into ${skill} but it still cannot be loaded`);
+	}
+}
+
+/**
+ * Run an install in the skill's own directory.
+ *
+ * pnpm if it is there, npm otherwise: npm ships with node, so this works on a
+ * machine that has nothing else. Both are given the same directory explicitly
+ * rather than relying on the current one, which belongs to whoever ran the
+ * command.
+ */
+async function install(dir) {
+	for (const [command, args] of [["pnpm", ["install"]], ["npm", ["install", "--no-audit", "--no-fund"]]]) {
+		const finished = await new Promise((resolve) => {
+			const child = spawn(command, args, { cwd: dir, stdio: "ignore", shell: process.platform === "win32" });
+			child.on("error", () => resolve(false));
+			child.on("exit", (code) => resolve(code === 0));
+		});
+		if (finished) return true;
+	}
+	return false;
 }
 
 /** Ask the browser what it is. Undefined when nothing is listening. */

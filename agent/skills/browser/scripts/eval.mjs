@@ -28,8 +28,9 @@ if (!expression) {
 	process.exit(1);
 }
 
-const session = await connect({ pageIndex });
+let session;
 try {
+	session = await connect({ pageIndex });
 	const frames = session.page.frames();
 	if (frameIndex !== undefined && !frames[frameIndex]) {
 		throw new Error(`no frame ${frameIndex} — the page has ${frames.length}: ${frames.map((f, n) => `${n}=${f.url()}`).join(", ")}`);
@@ -41,5 +42,5 @@ try {
 	console.error(explain(error));
 	process.exitCode = 1;
 } finally {
-	await session.done();
+	await session?.done();
 }

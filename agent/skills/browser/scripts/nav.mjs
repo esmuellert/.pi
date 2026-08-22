@@ -23,8 +23,9 @@ if (!url && !back && !forward) {
 	process.exit(1);
 }
 
-const session = await connect({ pageIndex });
+let session;
 try {
+	session = await connect({ pageIndex });
 	let page = session.page;
 	if (args.includes("--new")) {
 		page = await session.context.newPage();
@@ -68,5 +69,5 @@ try {
 	console.error(explain(error));
 	process.exitCode = 1;
 } finally {
-	await session.done();
+	await session?.done();
 }

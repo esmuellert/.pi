@@ -17,8 +17,9 @@ const at = (name) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1]
 const expression = at("--eval");
 const duration = Number(at("--for") ?? 3000);
 
-const session = await connect();
+let session;
 try {
+	session = await connect();
 	const lines = [];
 	session.page.on("console", (message) => lines.push(`${message.type()}: ${message.text()}`));
 	session.page.on("pageerror", (error) => lines.push(`uncaught: ${error.message}`));
@@ -38,5 +39,5 @@ try {
 	console.error(explain(error));
 	process.exitCode = 1;
 } finally {
-	await session.done();
+	await session?.done();
 }
