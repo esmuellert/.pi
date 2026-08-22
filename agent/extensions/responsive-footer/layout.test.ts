@@ -108,7 +108,11 @@ describe("format helpers", () => {
 		assert.equal(formatCount(1000), "1.0k");
 		assert.equal(formatCount(12_345), "12.3k");
 		assert.equal(formatCount(1_234_567), "1.2M");
-		assert.equal(formatCount(9_876_543_210), "9.9G");
+		// B for billion. G is for gigabytes and gigahertz; a count of 1.2 billion
+		// tokens shown as "1.2G" reads as a size, and was reported as a bug.
+		assert.equal(formatCount(1_000_000_000), "1.0B");
+		assert.equal(formatCount(1_177_546_244), "1.2B");
+		assert.equal(formatCount(9_876_543_210), "9.9B");
 		assert.equal(formatCount(Number.NaN), "—");
 		assert.equal(formatCount(-5), "0");
 	});

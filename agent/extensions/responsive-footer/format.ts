@@ -4,14 +4,20 @@
 
 export const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 
-/** Compact token/byte counts: 999 -> "999", 12345 -> "12.3k", 1234567 -> "1.2M". */
+/**
+ * Compact counts: 999 -> "999", 12345 -> "12.3k", 1234567 -> "1.2M".
+ *
+ * B for billion, not G. G is a unit for data and frequency -- gigabytes,
+ * gigahertz -- and these are counts of things. Every model is described as 70B
+ * parameters, never 70G.
+ */
 export function formatCount(n: number): string {
 	if (!Number.isFinite(n)) return "—";
 	const v = Math.max(0, n);
 	if (v < 1000) return `${Math.round(v)}`;
 	if (v < 1_000_000) return `${(v / 1000).toFixed(1)}k`;
 	if (v < 1_000_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-	return `${(v / 1_000_000_000).toFixed(1)}G`;
+	return `${(v / 1_000_000_000).toFixed(1)}B`;
 }
 
 /** Fixed-width progress bar. */
