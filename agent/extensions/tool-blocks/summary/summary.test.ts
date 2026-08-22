@@ -3,9 +3,9 @@
  *
  * Run: pnpm test
  *
- * Every one of these was a bug first: the sentence was asked for again on every
- * redraw, asked for again after a failure, and asked for one-line commands that
- * already say what they do.
+ * Every one of these was a bug first. There is no rule about which commands
+ * deserve a sentence: two were written, one wrong, and both were one more thing
+ * to get wrong.
  */
 
 import assert from "node:assert/strict";
@@ -20,7 +20,6 @@ import {
 	WRITER,
 	tidy,
 	useRegistry,
-	worthSummarising,
 } from "./summary.ts";
 
 /** A registry that answers instantly and counts what it was asked. */
@@ -40,12 +39,6 @@ function stubRegistry(answer = "generates test data") {
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("when a sentence is asked for", () => {
-	it("leaves a one-line command alone", () => {
-		// `ls -la | tail` is its own summary.
-		assert.equal(worthSummarising("ls -la | tail -4"), false);
-		assert.equal(worthSummarising("cat > f <<'EOF'\nbody\nEOF"), true);
-	});
-
 	it("asks once, however many times the block is drawn", async () => {
 		const { registry, asked } = stubRegistry();
 		useRegistry(registry as never);

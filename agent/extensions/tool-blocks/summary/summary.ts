@@ -24,8 +24,7 @@ import type { Api, AssistantMessage, Model } from "@earendil-works/pi-ai";
 /** How long a sentence may take before the block gives up on it. */
 export const DEADLINE_MS = 6_000;
 
-/** Long enough to be worth a sentence. One line explains itself. */
-export const MIN_LINES = 2;
+
 
 /** What the model is told. Kept here so a test can assert on it. */
 export const INSTRUCTION =
@@ -59,19 +58,16 @@ export function useRegistry(found: ModelRegistry | undefined): void {
 /**
  * Who writes the sentences.
  *
- * Pinned to one model on purpose. Each writes in a recognisably different way,
- * and a note whose voice changes when an account gains a model is worse than a
- * note written by a slightly weaker one.
+ * Pinned rather than chosen at runtime: each model writes in a recognisably
+ * different way, and a note whose voice changes when an account gains a model
+ * is worse than one written by something weaker.
  *
- * Which one was measured rather than assumed: twelve real commands from a
- * session's own history, four instructions, eight models, ranked blind by a
- * stronger model. sonnet-4.6 scored 6.4 and haiku-4.5 5.2, against 4.8 to 5.8
- * for every gemini, gpt-mini and mai model available -- which also answered
- * three to seven times slower.
+ * Which one was measured -- twelve real commands, four instructions, eight
+ * models, ranked blind. sonnet-4.6 led at 6.4, haiku-4.5 next at 5.2, and every
+ * gemini, gpt-mini and mai model scored lower and answered slower.
  *
- * The fallback exists so an account without it gets sentences rather than
- * silence. Output rate stands in for "small and quick"; a sentence is thirty
- * tokens, so input price barely enters into it.
+ * The price fallback is there so a machine without it gets sentences rather
+ * than silence.
  */
 export const WRITER = "claude-sonnet-4.6";
 
@@ -80,11 +76,6 @@ export function pick(available: readonly Model<Api>[]): Model<Api> | undefined {
 	if (preferred) return preferred;
 	const priced = available.filter((model) => typeof model.cost?.output === "number");
 	return [...priced].sort((a, b) => (a.cost?.output ?? 0) - (b.cost?.output ?? 0))[0];
-}
-
-/** True when a command is long enough that its first line does not say enough. */
-export function worthSummarising(command: string): boolean {
-	return command.split("\n").length >= MIN_LINES;
 }
 
 /**
@@ -103,7 +94,6 @@ export function summaryFor(
 	slot: Slot,
 	invalidate: () => void,
 ): string | undefined {
-	if (!worthSummarising(command)) return undefined;
 	if (slot.summaryFor !== command) {
 		slot.summaryFor = command;
 		slot.summary = undefined;
