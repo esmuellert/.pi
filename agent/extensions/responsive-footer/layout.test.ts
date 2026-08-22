@@ -22,6 +22,7 @@ const WIDTHS = Array.from({ length: 397 }, (_, i) => i + 4); // 4 .. 400
 const NOMINAL: FooterState = {
 	modelId: "claude-opus-5",
 	thinkingLevel: "max",
+	compactions: 0,
 	contextPercent: 40,
 	contextTokens: 403_400,
 	contextWindow: 1_000_000,
@@ -457,3 +458,33 @@ describe("degenerate inputs", () => {
 
 
 });
+
+describe("compaction count", () => {
+	const compacted = (n: number): FooterState => ({ ...NOMINAL, compactions: n });
+
+	it("appears only once a session has compacted", () => {
+		assert.ok(!ids(compacted(0)).includes("compact"));
+		assert.ok(ids(compacted(1)).includes("compact"));
+	});
+
+	it("shows the count, and a word when icons are off", () => {
+		assert.equal(text(compacted(3), DEFAULT_CONFIG), `${ICON.compact} 3`);
+		assert.equal(text(compacted(3), CONFIGS.noIcons), "compacted 3");
+		// Three columns rather than nine: this is read on a 53-column terminal,
+		// and the count is a depth of loss, not a number anyone acts on.
+		assert.equal(measureText(text(compacted(3), DEFAULT_CONFIG)), 3);
+	});
+
+	it("follows the context bar", () => {
+		const order = ids(compacted(2));
+		assert.equal(order[order.indexOf("compact") - 1], "ctx");
+	});
+});
+
+function ids(state: FooterState): string[] {
+	return makeBuilder(state, DEFAULT_CONFIG)(8).map((s) => s.id);
+}
+
+function text(state: FooterState, cfg: FooterConfig): string {
+	return makeBuilder(state, cfg)(8).find((s) => s.id === "compact")?.text ?? "";
+}

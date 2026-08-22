@@ -48,8 +48,10 @@ function readState(ctx: ExtensionContext): FooterState {
 	let cacheWrite = 0;
 	let cost = 0;
 	let hitRate: number | null = null;
+	let compactions = 0;
 
 	for (const entry of ctx.sessionManager.getBranch()) {
+		if (entry.type === "compaction") compactions += 1;
 		let u: Usage | undefined;
 		if (entry.type === "message" && entry.message.role === "assistant") u = (entry.message as AssistantMessage).usage;
 		else if (entry.type === "message" && entry.message.role === "toolResult") u = (entry.message as any).usage;
@@ -75,6 +77,7 @@ function readState(ctx: ExtensionContext): FooterState {
 		contextPercent: usage?.percent ?? null,
 		contextTokens: usage?.tokens ?? null,
 		contextWindow: usage?.contextWindow ?? (ctx.model as any)?.contextWindow ?? 0,
+		compactions,
 		input,
 		output,
 		cacheRead,

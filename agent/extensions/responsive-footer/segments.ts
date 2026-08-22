@@ -25,6 +25,7 @@ export const ICON = {
 	folder: "\uF07B",
 	branch: "\uE0A0",
 	cache: "\uF1C0",
+	compact: "\uF2EA",
 } as const;
 
 export interface FooterState {
@@ -34,6 +35,7 @@ export interface FooterState {
 	contextPercent: number | null;
 	contextTokens: number | null;
 	contextWindow: number;
+	compactions: number;
 	input: number;
 	output: number;
 	cacheRead: number;
@@ -55,6 +57,7 @@ export const EMPTY_STATE: FooterState = {
 	contextPercent: null,
 	contextTokens: null,
 	contextWindow: 0,
+	compactions: 0,
 	input: 0,
 	output: 0,
 	cacheRead: 0,
@@ -101,6 +104,11 @@ export function makeBuilder(state: FooterState, cfg: FooterConfig): SegmentBuild
 		: folder;
 	const cacheText = `${formatCount(state.cacheRead)}/${formatCount(state.cacheWrite)}`;
 	const cache = cfg.icons ? `${ICON.cache} ${cacheText}` : `cache ${cacheText}`;
+	const compactText = state.compactions > 0
+		? cfg.icons
+			? `${ICON.compact} ${state.compactions}`
+			: `compacted ${state.compactions}`
+		: "";
 
 	return (barCells: number): Segment[] => {
 		// Display order is by stability: left-aligned text means a field that
@@ -116,6 +124,7 @@ export function makeBuilder(state: FooterState, cfg: FooterConfig): SegmentBuild
 				text: `ctx ${progressBar(state.contextPercent ?? 0, barCells)} ${pctText} ${ctxNums}`,
 				color: ctxColor
 			},
+			{ id: "compact", text: compactText, color: "muted" },
 			{ id: "queue", text: state.queued ? "queued" : "", color: "warning" },
 			{ id: "in", text: `in ${formatCount(state.input)}`, color: "muted" },
 			{ id: "out", text: `out ${formatCount(state.output)}`, color: "muted" },
