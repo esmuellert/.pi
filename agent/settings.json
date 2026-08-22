@@ -7,5 +7,9 @@
   "packages": [
     "npm:pi-web-access"
   ],
-  "tuiMode": "fullscreen"
+  "tuiMode": "fullscreen",
+  "enabledModels": [
+    "claude-opus-5:max",
+    "claude-opus-4.6:max"
+  ]
 }
