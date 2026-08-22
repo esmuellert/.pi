@@ -19,11 +19,11 @@ try {
 		process.exit(running ? 0 : 1);
 	}
 
-	const { started, browser } = await ensure();
+	const { started, fresh, browser } = await ensure();
 	console.log(`${started ? "started" : "already running"}: ${browser}`);
 	console.log(`profile: ${PROFILE}`);
 	console.log(`port: ${PORT}`);
-	if (started) console.log("\nThis profile is new. Log into anything it needs, once; it is kept.");
+	if (fresh) console.log("\nThis profile is new. Log into anything it needs, once, in that window; it is kept.");
 } catch (error) {
 	console.error(String(error.message ?? error));
 	process.exit(1);

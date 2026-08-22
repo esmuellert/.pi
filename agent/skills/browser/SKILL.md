@@ -13,8 +13,9 @@ cd ~/.pi/agent/skills/browser/scripts
 node start.mjs
 ```
 
-The first run makes a profile of its own. Log into whatever you need, once, by
-hand in that window; it is kept from then on.
+The first run installs Playwright and says so — a few seconds, once per
+machine, nothing to do. It also makes a profile of its own: log into whatever
+you need, once, by hand in that window, and it is kept from then on.
 
 ## The loop
 

@@ -147,6 +147,10 @@ export async function ensure({ launch = true } = {}) {
 	if (!binary) {
 		throw new Error("Google Chrome is not installed. Install it from https://google.com/chrome, or set BROWSER_BIN.");
 	}
+	// Whether anyone has logged into this profile yet, asked before Chrome
+	// creates the directory. `started` only means we launched the browser, which
+	// happens every time it was closed.
+	const fresh = !existsSync(join(PROFILE, "Default"));
 	mkdirSync(PROFILE, { recursive: true });
 	const child = spawn(binary, [
 		`--remote-debugging-port=${PORT}`,
@@ -168,7 +172,7 @@ export async function ensure({ launch = true } = {}) {
 	for (let waited = 0; waited < PORT_WAIT_MS; waited += PORT_POLL_MS) {
 		await new Promise((resolve) => setTimeout(resolve, PORT_POLL_MS));
 		const now = await version();
-		if (now) return { started: true, browser: now.Browser };
+		if (now) return { started: true, fresh, browser: now.Browser };
 	}
 	throw new Error(`Chrome started but never opened port ${PORT}`);
 }
