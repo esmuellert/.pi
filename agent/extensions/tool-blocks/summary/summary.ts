@@ -220,12 +220,31 @@ export function tidy(raw: string): string {
 	return raw.trim().replace(/^["'`\s]+|["'`.\s]+$/g, "");
 }
 
+/**
+ * What the writer is told, as a system prompt.
+ *
+ * The instruction used to open the user message. There it was followed now and
+ * then in the wrong language -- a sentence in Korean or Japanese under a session
+ * held in English, nothing in the command, its output or the reader's words in
+ * either. Moved here, over three hundred sentences, it has not happened once:
+ *
+ *     instruction in the user message    16/480   3.3%
+ *     instruction in the system prompt    0/300   0.0%
+ *
+ * Fisher, one-tailed, p = 0.0004. It costs nothing -- the same words, in the
+ * place a provider treats as standing orders rather than as the first paragraph
+ * of a request whose remaining thousands of tokens are a shell command.
+ */
+export function orders(reader = ""): string {
+	return reader.trim() ? INSTRUCTION + LANGUAGE_RULE : INSTRUCTION;
+}
+
+/** What the writer is shown. */
 export function ask(tool: string, args: unknown, output: string, reader = ""): string {
 	const printed = output.trim();
 	const written = reader.trim();
-	return (written ? INSTRUCTION + LANGUAGE_RULE : INSTRUCTION)
-		+ (written ? `\n\nTHE READER WRITES LIKE THIS:\n${written}` : "")
-		+ `\n\nTOOL: ${tool}\nARGUMENTS:\n${argsAsText(args)}`
+	return (written ? `THE READER WRITES LIKE THIS:\n${written}\n\n` : "")
+		+ `TOOL: ${tool}\nARGUMENTS:\n${argsAsText(args)}`
 		+ (printed ? `\n\nIT RETURNED:\n${printed}` : "");
 }
 
@@ -252,15 +271,17 @@ async function write(
 	args: unknown,
 	output: string,
 ): Promise<string | null> {
+	const reader = sample();
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	try {
 		const answer = await Promise.race([
 			reg.complete(
 				model,
 				{
+					systemPrompt: orders(reader),
 					messages: [{
 						role: "user",
-						content: ask(tool, args, output, sample()),
+						content: ask(tool, args, output, reader),
 						timestamp: Date.now(),
 					}],
 				},

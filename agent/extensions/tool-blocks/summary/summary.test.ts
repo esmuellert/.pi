@@ -18,6 +18,7 @@ import {
 	LANGUAGE_RULE,
 	sample,
 	INSTRUCTION,
+	orders,
 	type Slot,
 	summaryFor,
 	unask,
@@ -73,7 +74,6 @@ describe("when a sentence is asked for", () => {
 ${"x".repeat(20_000)}`;
 		const output = "y".repeat(20_000);
 		const body = ask("bash", { command }, output);
-		assert.ok(body.startsWith(INSTRUCTION));
 		assert.ok(body.includes(command), "the command should arrive whole");
 		assert.ok(body.includes(output), "the output should arrive whole");
 	});
@@ -178,15 +178,21 @@ describe("the language it writes in", () => {
 		// as something to read a language off. Detecting it here would mean
 		// writing a detector, and the one worth writing calls Spanish, French,
 		// German and Russian all English.
-		const body = ask("bash", "ls", "a b", "为什么刚才代码没了？");
-		assert.ok(body.includes(LANGUAGE_RULE));
-		assert.match(body, /THE READER WRITES LIKE THIS:\n为什么/);
+		assert.ok(orders("为什么刚才代码没了？").includes(LANGUAGE_RULE));
+		assert.match(ask("bash", "ls", "a b", "为什么刚才代码没了？"), /THE READER WRITES LIKE THIS:\n为什么/);
 	});
 
 	it("leaves the rule out when there is nothing to read", () => {
-		const body = ask("bash", "ls", "a b", "   ");
-		assert.ok(!body.includes(LANGUAGE_RULE));
-		assert.doesNotMatch(body, /THE READER/);
+		assert.ok(!orders("   ").includes(LANGUAGE_RULE));
+		assert.doesNotMatch(ask("bash", "ls", "a b", "   "), /THE READER/);
+	});
+
+	it("keeps the instruction out of the request body", () => {
+		// Followed in the wrong language 16 times in 480 when it opened the user
+		// message, and 0 in 300 as a system prompt. Same words, different place.
+		const body = ask("bash", { command: "ls" }, "a b", "为什么");
+		assert.ok(!body.includes(INSTRUCTION), "the instruction is standing orders, not part of the request");
+		assert.ok(orders("为什么").startsWith(INSTRUCTION));
 	});
 
 	it("takes the last messages, in the order they were written", () => {

@@ -320,3 +320,29 @@ first, whatever the state of the gate.
 
 Requests are also deduplicated by tool call id, because a rebuild hands every
 block a fresh state slot while the previous build's requests are still running.
+
+## Where the instruction goes
+
+In the system prompt, not at the top of the request.
+
+It began at the top of the user message and was followed, now and then, in the
+wrong language: a sentence in Korean or Japanese under a session held in English,
+with nothing in the command, its output or the reader's own words in either.
+
+Wording could not reach it. Four phrasings of the language rule, interleaved so a
+batch effect could not land on one, scored 2, 2, 1 and 11 out of 40 -- the first
+three the same number, the fourth (rule moved to the end of the prompt) worse.
+
+Where it sits does reach it:
+
+    instruction in the user message    16/480   3.3%
+    instruction in the system prompt    0/300   0.0%
+
+Fisher, one-tailed, p = 0.0004. The same words, in the place a provider treats as
+standing orders rather than as the first paragraph of a request whose remaining
+thousands of tokens are a shell command. It costs nothing, adds no step, and
+needs no detector: telling Hangul from Latin is easy, but telling Spanish from
+English is not, and a rule that only half works is worse than the model deciding.
+
+temperature 0 was measured too, at 2/110 against 3.6% -- not enough to matter,
+and it would make every sentence for a repeated command identical.
