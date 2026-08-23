@@ -15,6 +15,8 @@ import type { Theme } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import { resolve } from "node:path";
 
+import { keepBackground } from "../shared/ansi.ts";
+
 /**
  * How much is hidden. Change this line to change every folded title.
  *
@@ -89,11 +91,11 @@ export function fold(
 	// hint goes on the last of them.
 	const first = wrapTextWithAnsi(head, room)[0] ?? "";
 	const rest = lines.slice(1, KEPT_LINES);
-	if (rest.length === 0) return [truncateToWidth(first, room) + tag];
+	if (rest.length === 0) return [keepBackground(truncateToWidth(first, room)) + tag];
 	const last = rest.pop() ?? "";
 	return [
 		wrapTextWithAnsi(head, width)[0] ?? first,
 		...rest,
-		truncateToWidth(last, room) + tag,
+		keepBackground(truncateToWidth(last, room)) + tag,
 	];
 }

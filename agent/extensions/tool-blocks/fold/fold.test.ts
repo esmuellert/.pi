@@ -109,3 +109,20 @@ describe("folding", () => {
 	});
 
 });
+
+describe("what a fold leaves behind", () => {
+	it("never closes with a full reset", () => {
+		// pi-tui's truncateToWidth closes what it cut with `\u001b[0m`, which
+		// clears the background as well as the colour. A block's background is
+		// painted once at the start of the line, so everything after that reset
+		// -- the ellipsis, and the hint after it -- drew on the terminal's own
+		// background as a dark band to the right edge.
+		const long = "x".repeat(200);
+		const lines = [long, ...Array.from({ length: KEPT_LINES + 2 }, () => long)];
+		for (const width of [20, 34, 56, 80]) {
+			for (const line of fold(lines, long, width, probe)) {
+				assert.ok(!line.includes("\u001b[0m"), `width ${width} left a full reset`);
+			}
+		}
+	});
+});

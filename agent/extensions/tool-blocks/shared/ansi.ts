@@ -42,3 +42,18 @@ export function openingBackground(line: string): string | undefined {
 	}
 	return found;
 }
+
+/**
+ * Turn a full reset into a foreground-only one.
+ *
+ * pi-tui's `truncateToWidth` closes what it cut with `\u001b[0m`, which clears
+ * the background as well as the colour. A tool block's background is painted
+ * once at the start of the line by the Box around it, so everything after that
+ * reset -- the ellipsis, and whatever is appended after it -- draws on the
+ * terminal's own background instead of the block's, as a dark band to the right
+ * edge.
+ *
+ * `39` closes the foreground and leaves the background alone, which is what was
+ * meant.
+ */
+export const keepBackground = (text: string): string => text.replaceAll("\u001b[0m", "\u001b[39m");
