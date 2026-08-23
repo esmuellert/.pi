@@ -10,7 +10,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { plain } from "../shared/ansi.ts";
-import { fold, withoutRedundantCd } from "./index.ts";
+import { fold, KEPT_LINES, withoutRedundantCd } from "./index.ts";
 
 const probe = {
 	fg: (_token: string, text: string) => `\u001b[38;2;1;2;3m${text}\u001b[39m`,
@@ -58,20 +58,32 @@ describe("folding", () => {
 		assert.equal(fold(lines, "ls -la", 80, probe), lines);
 	});
 
-	it("returns one line, whatever it was given", () => {
-		const lines = ["a", "b", "c", "d"];
-		assert.equal(fold(lines, "a", 80, probe).length, 1);
+	it("keeps the opening lines and no more", () => {
+		// The first ones, not the last: a command's opening says what it is doing,
+		// while its end is a heredoc terminator.
+		const lines = Array.from({ length: 20 }, (_, at) => `line${at}`);
+		const folded = fold(lines, "line0", 80, probe);
+		assert.equal(folded.length, KEPT_LINES);
+		assert.match(plain(folded[0]!), /^line0/);
+		assert.match(plain(folded[1]!), /^line1/);
+	});
+
+	it("leaves a command that already fits alone", () => {
+		const short = Array.from({ length: KEPT_LINES }, (_, at) => `line${at}`);
+		assert.deepEqual(fold(short, "line0", 80, probe), short);
 	});
 
 	it("says how many lines are hidden, not how many there are", () => {
-		const folded = plain(fold(["a", "b", "c"], "a", 80, probe)[0]!);
+		const lines = Array.from({ length: KEPT_LINES + 2 }, (_, at) => `line${at}`);
+		const folded = plain(fold(lines, "line0", 80, probe).at(-1)!);
 		assert.match(folded, /\+2\b/, folded);
 	});
 
 	it("never runs past the width it is given", () => {
 		const head = "cat > some/quite/long/path/to/a/file.swift <<'EOF'";
+		const lines = Array.from({ length: KEPT_LINES + 3 }, () => "x".repeat(70));
 		for (let width = 10; width <= 60; width += 1) {
-			const folded = fold(["x", "y", "z"], head, width, probe)[0]!;
+			const folded = fold(lines, head, width, probe).at(-1)!;
 			assert.ok(plain(folded).length <= width, `width ${width}: ${plain(folded)}`);
 		}
 	});
@@ -84,7 +96,8 @@ describe("folding", () => {
 	});
 
 	it("names the unit, so a number beside a command is not read as part of it", () => {
-		const folded = plain(fold(["a", "b", "c"], "grep -rn x", 80, probe)[0]!);
+		const lines = Array.from({ length: KEPT_LINES + 2 }, (_, at) => `line${at}`);
+		const folded = plain(fold(lines, "grep -rn x", 80, probe).at(-1)!);
 		assert.match(folded, /\+2 lines$/, folded);
 	});
 

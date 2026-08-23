@@ -59,6 +59,16 @@ export function withoutRedundantCd(command: string, cwd: string): string {
 }
 
 /**
+ * How many rendered lines a folded command keeps.
+ *
+ * The first ones, not the last: a command's opening says what it is doing --
+ * `cat > report.py <<'EOF'` -- while its end is a heredoc terminator. That is
+ * the opposite of output, where the last lines carry the result, and it is why
+ * this is not the same rule pi uses for the output below it.
+ */
+export const KEPT_LINES = 5;
+
+/**
  * One line, or the lines unchanged if they already are one.
  *
  * The head is taken from the command rather than from the rendered lines,
@@ -71,10 +81,19 @@ export function fold(
 	width: number,
 	theme: Theme,
 ): string[] {
-	if (lines.length <= 1) return lines;
-	const tag = hint(lines.length - 1, theme);
+	if (lines.length <= KEPT_LINES) return lines;
+	const tag = hint(lines.length - KEPT_LINES, theme);
 	const room = width - visibleWidth(tag);
 	if (room < 1) return lines;
+	// The head is repainted; the rest are already wrapped to this width, and the
+	// hint goes on the last of them.
 	const first = wrapTextWithAnsi(head, room)[0] ?? "";
-	return [truncateToWidth(first, room) + tag];
+	const rest = lines.slice(1, KEPT_LINES);
+	if (rest.length === 0) return [truncateToWidth(first, room) + tag];
+	const last = rest.pop() ?? "";
+	return [
+		wrapTextWithAnsi(head, width)[0] ?? first,
+		...rest,
+		truncateToWidth(last, room) + tag,
+	];
 }
