@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { ask, type ContextMessage, INSTRUCTION, MAX_CHARS, nameFor, pick, textOf, tidy, transcript, WRITER } from "./name.ts";
+import { ask, type ContextMessage, INSTRUCTION, nameFor, pick, textOf, tidy, transcript, WRITER } from "./name.ts";
 
 const said = (role: string, text: string): ContextMessage => ({ role, content: [{ type: "text", text }] });
 
@@ -66,8 +66,11 @@ describe("the name that comes back", () => {
 		assert.equal(tidy("Tool block\nsummaries"), "Tool block summaries");
 	});
 
-	it("fits pi's selector", () => {
-		assert.equal(tidy("x".repeat(200)).length, MAX_CHARS);
+	it("is not shortened", () => {
+		// pi truncates a name where it draws it, in the footer and in the
+		// session selector, both through truncateToWidth. Cutting one here
+		// would only shorten a name pi was going to fit.
+		assert.equal(tidy("x".repeat(200)).length, 200);
 	});
 
 	it("keeps a name that is already fine", () => {

@@ -39,9 +39,6 @@ export const INSTRUCTION =
  */
 export const WRITER = "claude-sonnet-4.6";
 
-/** Longest a name may be, past which pi's own selector would truncate it. */
-export const MAX_CHARS = 60;
-
 /** The model to ask, preferring the pinned one and falling back on price. */
 export function pick(models: readonly Model<Api>[]): Model<Api> | undefined {
 	const pinned = models.find((model) => model.id === WRITER);
@@ -91,11 +88,22 @@ export function ask(conversation: string): string {
 	return `${INSTRUCTION}\n\nTHE CONVERSATION:\n${conversation}`;
 }
 
-/** A name as it should be stored: one line, unquoted, within pi's width. */
+/**
+ * A name as it should be stored: one line, without the quotes a model puts
+ * round a thing it was asked to name.
+ *
+ * Not shortened. pi truncates a name where it draws it -- in the footer and in
+ * the session selector, both through `truncateToWidth` -- so a long one costs
+ * an ellipsis rather than a broken line, and a cap here would only cut a name
+ * pi was going to fit.
+ *
+ * The collapse and the trim are pi's own treatment of a name, repeated because
+ * the quotes have to come off after them and because an empty result is how
+ * this reports that nothing usable came back.
+ */
 export function tidy(text: string): string {
 	const line = text.replace(/[\r\n]+/g, " ").trim();
-	const unquoted = line.replace(/^["'`«「【]+|["'`».」】]+$/g, "").trim();
-	return unquoted.slice(0, MAX_CHARS).trim();
+	return line.replace(/^["'`«「【]+|["'`».」】]+$/g, "").trim();
 }
 
 /**
