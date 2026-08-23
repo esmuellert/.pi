@@ -310,5 +310,10 @@ Five is chosen, not derived. What a provider accepts depends on the account and
 the hour. Five keeps a normal turn -- one to three tools -- from ever waiting,
 and turns an opening burst into a queue that drains as each sentence lands.
 
+The queue is served newest first. A transcript renders top to bottom, so
+requests arrive oldest block first -- and the oldest blocks are the ones scrolled
+off the top. Drained in that order, the blocks on screen when a session opens are
+filled in last, a minute behind ones nobody is looking at.
+
 Requests are also deduplicated by tool call id, because a rebuild hands every
 block a fresh state slot while the previous build's requests are still running.

@@ -20,7 +20,17 @@ let live = 0;
 const waiting: (() => void)[] = [];
 
 /**
- * Run `work` once there is room, in the order asked.
+ * Run `work` once there is room, newest waiter first.
+ *
+ * A transcript renders top to bottom, so requests queue oldest block first --
+ * and the oldest blocks are the ones scrolled off the top. Served in that order,
+ * the blocks on screen when a session opens are the last to be filled in, a
+ * minute behind ones nobody is looking at. Taken from the end instead, the note
+ * under the block you are reading arrives first and the queue works backwards up
+ * the transcript.
+ *
+ * It also puts a block that finishes during the drain ahead of the backlog,
+ * which is right for the same reason: it is the one being watched.
  *
  * The slot is released in `finally`, so a request that throws does not take the
  * queue with it.
@@ -32,7 +42,7 @@ export async function through<T>(work: () => Promise<T>): Promise<T> {
 		return await work();
 	} finally {
 		live -= 1;
-		waiting.shift()?.();
+		waiting.pop()?.();
 	}
 }
 

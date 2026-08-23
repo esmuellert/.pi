@@ -32,16 +32,19 @@ describe("how many sentences are asked for at once", () => {
 		assert.equal(ran.length, 40);
 	});
 
-	it("admits waiters in the order they arrived", async () => {
+	it("serves the newest waiter first", async () => {
+		// A transcript renders top to bottom, so requests queue oldest block
+		// first -- and the oldest blocks are the ones scrolled off the top.
+		// Served in that order the blocks on screen are filled in last.
 		const order: number[] = [];
 		const held: (() => void)[] = [];
-		const first = Array.from({ length: LIMIT }, () =>
+		const running = Array.from({ length: LIMIT }, () =>
 			through(() => new Promise<void>((settle) => held.push(settle))),
 		);
 		const queued = [0, 1, 2].map((at) => through(async () => { order.push(at); }));
 		for (const release of held) release();
-		await Promise.all([...first, ...queued]);
-		assert.deepEqual(order, [0, 1, 2]);
+		await Promise.all([...running, ...queued]);
+		assert.deepEqual(order, [2, 1, 0]);
 	});
 
 	it("gives the slot back when a request throws", async () => {
@@ -53,11 +56,14 @@ describe("how many sentences are asked for at once", () => {
 		await through(async () => {});
 	});
 
-	it("does not make a single request wait", async () => {
-		// A normal turn runs one to three tools; the queue must be invisible.
-		assert.equal(pressure().queued, 0);
-		const started = Date.now();
-		await through(async () => {});
-		assert.ok(Date.now() - started < 50);
+	it("does not queue anything while there is room", async () => {
+		// A normal turn runs one to three tools; the gate must be invisible.
+		// Asserted as "nothing waited", not as a number of milliseconds -- the
+		// wait is a microtask, and a timing bound only measures the machine.
+		const seen: { live: number; queued: number }[] = [];
+		await Promise.all(
+			Array.from({ length: LIMIT }, () => through(async () => { seen.push(pressure()); })),
+		);
+		assert.deepEqual(seen.map((at) => at.queued), Array.from({ length: LIMIT }, () => 0));
 	});
 });
