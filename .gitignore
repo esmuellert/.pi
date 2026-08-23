@@ -48,6 +48,7 @@
 !/agent/extensions/wheel/
 !/agent/extensions/behind/
 !/agent/extensions/moshi-push/
+!/agent/extensions/rename/
 
 # --- optional, uncomment when created ---
 # !/agent/keybindings.json

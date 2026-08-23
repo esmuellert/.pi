@@ -1,0 +1,27 @@
+{
+  "name": "pi-rename",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "/rename command for the pi coding agent, with a name written by a model",
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test *.test.ts",
+    "typecheck": "tsc --noEmit",
+    "smoke": "pi --no-extensions -e . --no-tools --no-session -p \"reply with exactly: SMOKE_OK\""
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "catalog:",
+    "@earendil-works/pi-coding-agent": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

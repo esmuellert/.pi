@@ -6,6 +6,7 @@ packages:
   - "themes"
   - "tool-blocks"
   - "moshi-push"
+  - "rename"
   # Shared by the packages that draw, so "fast enough" means the same thing in
   # each of them and is measured the same way.
   - "wheel"
