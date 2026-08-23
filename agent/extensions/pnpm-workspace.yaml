@@ -32,3 +32,13 @@ catalog:
   "@types/node": ^26.2.0
   turbo: ^2.10.11
   typescript: ^7.0.2
+
+# Only this machine's platform. turbo and TypeScript 7 ship one native binary
+# per platform as optional dependencies; without this pnpm installs all of them,
+# which was 770 MB of Windows, Linux, AIX and s390x builds against 66 MB that
+# can run here. Add an entry when this repo has to install somewhere else.
+supportedArchitectures:
+  os:
+    - darwin
+  cpu:
+    - arm64
