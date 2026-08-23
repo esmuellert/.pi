@@ -83,9 +83,19 @@ export function transcript(messages: readonly ContextMessage[]): string {
 	return said.join("\n\n");
 }
 
-/** The request body, kept here so a test can read it without a model. */
+/**
+ * The request body, kept here so a test can read it without a model.
+ *
+ * The instruction is not in it. It goes in the system prompt, where a provider
+ * treats it as standing orders rather than as the first paragraph of a request
+ * whose remaining ten thousand tokens are a transcript. Measured on the
+ * tool-block summaries, which had the same shape and drifted into another
+ * language 16 times in 480 with the instruction here and 0 in 300 with it in the
+ * system prompt -- Fisher, one-tailed, p = 0.0004. The conversation this reads
+ * is longer than theirs, so the instruction was buried deeper.
+ */
 export function ask(conversation: string): string {
-	return `${INSTRUCTION}\n\nTHE CONVERSATION:\n${conversation}`;
+	return `THE CONVERSATION:\n${conversation}`;
 }
 
 /**
@@ -120,7 +130,10 @@ export async function nameFor(
 	if (!registry || !model) return undefined;
 	const answer = await registry.complete(
 		model,
-		{ messages: [{ role: "user", timestamp: Date.now(), content: ask(conversation) }] },
+		{
+			systemPrompt: INSTRUCTION,
+			messages: [{ role: "user", timestamp: Date.now(), content: ask(conversation) }],
+		},
 		{ thinkingLevel: "off" },
 	);
 	const text = (answer.content ?? [])

@@ -42,10 +42,14 @@ describe("what the writer is shown", () => {
 		assert.equal(textOf({ role: "user" }), "");
 	});
 
-	it("opens with the instruction", () => {
+	it("keeps the instruction out of the request body", () => {
+		// It goes in the system prompt. The same instruction at the top of a
+		// user message was followed in the wrong language 16 times in 480 on the
+		// tool-block summaries, and 0 in 300 as a system prompt. The transcript
+		// this reads is longer than a command, so it was buried deeper.
 		const body = ask("USER: hi");
-		assert.ok(body.startsWith(INSTRUCTION));
-		assert.match(body, /THE CONVERSATION:\nUSER: hi/);
+		assert.ok(!body.includes(INSTRUCTION));
+		assert.match(body, /^THE CONVERSATION:\nUSER: hi/);
 	});
 
 	it("asks for the user's language rather than deciding one", () => {

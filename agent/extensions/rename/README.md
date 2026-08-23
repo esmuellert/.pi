@@ -34,6 +34,14 @@ not something a rule can decide in advance, and at this size it all fits.
 No name is offered. A session nobody has spoken in has nothing to be named
 after, and `/rename <name>` still works.
 
+## Where the instruction goes
+
+In the system prompt, not at the top of the request. The tool-block summaries had
+the same shape and were followed in the wrong language 16 times in 480 with the
+instruction opening the user message, and 0 in 300 with it in the system prompt
+-- Fisher, one-tailed, p = 0.0004. The transcript this reads is longer than a
+command, so the instruction was buried deeper.
+
 ## The model
 
 Pinned to `claude-sonnet-4.6`, for the reason the tool-block summaries are: a
