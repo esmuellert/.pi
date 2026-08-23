@@ -65,9 +65,8 @@ one cell — so a cursor-position probe cannot tell a missing glyph from a prese
 one. Starship ships a separate `plain-text-symbols` preset for this reason, and
 Oh My Posh documents the same limitation.
 
-So `/footer-icons` asks once and remembers: it prints the three glyphs, you say
-whether they rendered, and the answer is saved to `footer.json`. Set
-`"icons": false` by hand for the same effect.
+So the answer is a line in the config rather than a probe: set `"icons": false`
+in `footer.json` if the glyphs come out as boxes.
 
 ## Fields
 
@@ -143,10 +142,7 @@ asserting:
 
 A malformed config degrades to defaults rather than taking the TUI down.
 
-## Commands
 
-- `/footer` — toggle between this footer and the built-in one
-- `/footer-icons` — check Nerd Font glyphs and save the answer
 - `/reload` — re-read `footer.json` and reinstall
 
 ## Adding a field

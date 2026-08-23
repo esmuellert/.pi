@@ -12,7 +12,6 @@ takes those renderers over and applies features to what they produced.
 ```
 
 ```bash
-/tool-marks            # glyphs, letters, or off
 ```
 
 ## Layout
@@ -84,7 +83,8 @@ error sit about 30 apart perceptually.
 
 Whether the terminal's font has Nerd Font glyphs cannot be detected — a missing
 one still measures a single column, so it renders as a box the layout is happy
-with. `/tool-marks` asks once and remembers, in `~/.pi/agent/tool-blocks.json`.
+with, so it is a line in `~/.pi/agent/tool-blocks.json` -- `"style"`, one of
+`"glyphs"`, `"letters"` or `"off"` -- read at startup and on `/reload`.
 
 ## bash — the command line, in layers
 

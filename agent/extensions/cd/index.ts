@@ -16,11 +16,11 @@
  * CURRENT_SESSION_VERSION and typed as its exported SessionHeader, because pi
  * defers creating the file until a session has an assistant message.
  *
- * The original session is left untouched; /cd-prune removes the ones this
- * command superseded, once you are satisfied the move worked.
+ * The original session is left untouched, and its path is printed: delete it
+ * once you are satisfied the move worked.
  */
 
-import { existsSync, rmSync } from "node:fs";
+import { rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { CURRENT_SESSION_VERSION, type ExtensionAPI, SessionManager } from "@earendil-works/pi-coding-agent";
 import { relocateSession, resolveTarget, type SessionSlotFactory } from "./relocate.ts";
@@ -42,9 +42,6 @@ export const piSessionSlot: SessionSlotFactory = (cwd) => {
 
 
 export default function (pi: ExtensionAPI) {
-	// Sessions this command moved away from, offered to /cd-prune later.
-	const superseded: string[] = [];
-
 	pi.registerCommand("cd", {
 		description: "Move this session to another directory (copies, then switches)",
 		handler: async (args, ctx) => {
@@ -84,34 +81,12 @@ export default function (pi: ExtensionAPI) {
 				ctx.ui.notify("Move cancelled", "warning");
 				return;
 			}
-			superseded.push(source);
-		},
-	});
-
-	pi.registerCommand("cd-prune", {
-		description: "Delete the sessions left behind by /cd in this run",
-		handler: async (_args, ctx) => {
-			const stale = superseded.filter((f) => existsSync(f));
-			if (stale.length === 0) {
-				ctx.ui.notify("Nothing to prune", "info");
-				return;
-			}
-			const ok = await ctx.ui.confirm(
-				"Prune superseded sessions",
-				`Delete ${stale.length} session file(s) this /cd moved away from?\n\n${stale.join("\n")}`,
-			);
-			if (!ok) return;
-			let gone = 0;
-			for (const f of stale) {
-				try {
-					rmSync(f, { force: true });
-					gone++;
-				} catch {
-					// One stubborn file should not abort the rest of the prune.
-				}
-			}
-			superseded.length = 0;
-			ctx.ui.notify(`Pruned ${gone} session file(s)`, "info");
+			// The original is kept, and its path said rather than remembered.
+			// /cd-prune held the list in the extension's closure, which meant it
+			// worked until pi exited and then the file could never be found
+			// again. A path on screen outlives the process, and deleting one is
+			// a line of shell.
+			ctx.ui.notify(`Original left at ${source}`, "info");
 		},
 	});
 }

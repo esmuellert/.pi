@@ -46,7 +46,10 @@ describe("loading the extension", () => {
 		const { api, tools, commands } = stubPi();
 		await extension(api);
 		assert.equal(tools.length, 7, "every built-in tool should be taken over");
-		assert.deepEqual(commands, ["tool-marks"]);
+		// No commands: the mark style is a line in ~/.pi/agent/tool-blocks.json,
+		// read at startup and on /reload. A command to write it was a menu, a
+		// handler and a test for a value nobody changed twice.
+		assert.deepEqual(commands, []);
 	});
 
 	it("returns a promise, so pi waits for it", () => {

@@ -13,7 +13,7 @@ import { homedir } from "node:os";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import { loadConfig, saveConfigKey } from "./config.ts";
+import { loadConfig } from "./config.ts";
 import { lineText, planLayout } from "./layout.ts";
 import { type FooterState, ICON, makeBuilder } from "./segments.ts";
 
@@ -94,8 +94,6 @@ function readState(ctx: ExtensionContext): FooterState {
 }
 
 export default function (pi: ExtensionAPI) {
-	let enabled = true;
-
 	const factory = (ctx: ExtensionContext) => (tui: any, theme: any, footerData: any) => {
 		const cfg = loadConfig();
 		const unsub = footerData.onBranchChange(() => tui.requestRender());
@@ -138,35 +136,8 @@ export default function (pi: ExtensionAPI) {
 	// handler covers both. There is no separate "reload" event.
 	const apply = (ctx: ExtensionContext) => {
 		if (ctx.mode !== "tui") return;
-		ctx.ui.setFooter(enabled ? factory(ctx) : undefined);
+		ctx.ui.setFooter(factory(ctx));
 	};
 
 	pi.on("session_start", async (_e, ctx) => apply(ctx));
-
-	pi.registerCommand("footer-icons", {
-		description: "Check Nerd Font glyphs and remember whether to use them",
-		handler: async (_args, ctx) => {
-			// Terminals do not expose their font, and a missing glyph renders as a
-			// box that still measures one cell — so no probe can tell. The user can
-			// see the answer; we just record it.
-			const probe = `${ICON.folder}  ${ICON.branch}  ${ICON.cache}`;
-			const ok = await ctx.ui.confirm(
-				"Nerd Font check",
-				`Do these render as a folder, a branch and a database?\n\n    ${probe}\n\n` +
-					"Yes keeps the icons. No falls back to the words 'cache' and '(branch)'.",
-			);
-			saveConfigKey("icons", ok);
-			apply(ctx);
-			ctx.ui.notify(ok ? "Icons enabled and saved" : "Icons off, words restored", "info");
-		},
-	});
-
-	pi.registerCommand("footer", {
-		description: "Toggle responsive footer / built-in footer",
-		handler: async (_args, ctx) => {
-			enabled = !enabled;
-			apply(ctx);
-			ctx.ui.notify(enabled ? "Responsive footer enabled" : "Built-in footer restored", "info");
-		},
-	});
 }

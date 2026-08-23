@@ -8,23 +8,22 @@
  *   mark/   a glyph per block: which tool ran, and how it went
  *   bash/   the command line, layered the way pi's other six titles are
  *
- * Config:   ~/.pi/agent/tool-blocks.json
- * Command:  /tool-marks  glyphs | letters | off
+ * Config:   ~/.pi/agent/tool-blocks.json  ("glyphs" | "letters" | "off"), read at
+ *           startup and on /reload.
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 import { prepare } from "./bash/engine.ts";
 import { retitling } from "./bash/title.ts";
-import { loadConfig, saveConfig, type MarkStyle } from "./mark/config.ts";
-import { ICON, LETTER } from "./mark/icons.ts";
+import { loadConfig } from "./mark/config.ts";
 import { marking } from "./mark/index.ts";
 import { noting, useRegistry, useSession } from "./summary/noting.ts";
 import { TOOLS } from "./tools/builtins.ts";
 import { present } from "./tools/override.ts";
 
 export default async function (pi: ExtensionAPI) {
-	let style = loadConfig().style;
+	const style = loadConfig().style;
 	const cwd = process.cwd();
 
 	// Awaited, not fired and forgotten. pi awaits the extension factory, and
@@ -52,23 +51,4 @@ export default async function (pi: ExtensionAPI) {
 			}) as never,
 		);
 	}
-
-	pi.registerCommand("tool-marks", {
-		description: "Mark tool blocks with glyphs, letters, or nothing",
-		async handler(args, ctx) {
-			const wanted = args.trim().toLowerCase();
-			const choices: MarkStyle[] = ["glyphs", "letters", "off"];
-			const next = choices.includes(wanted as MarkStyle)
-				? (wanted as MarkStyle)
-				: await ctx.ui.select("Mark tool blocks with", [
-						{ label: `glyphs   ${ICON.read} ${ICON.bash} ${ICON.edit}  (needs a Nerd Font)`, value: "glyphs" },
-						{ label: `letters  ${LETTER.read} ${LETTER.bash} ${LETTER.edit}  (any font)`, value: "letters" },
-						{ label: "off", value: "off" },
-					] as never);
-			if (!next) return;
-			style = next as MarkStyle;
-			saveConfig({ style });
-			ctx.ui.notify(`Tool marks: ${style}`);
-		},
-	});
 }
