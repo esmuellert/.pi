@@ -15,8 +15,6 @@ import {
 	pick,
 	ask,
 	INSTRUCTION,
-	MAX_COMMAND_CHARS,
-	MAX_OUTPUT_CHARS,
 	type Slot,
 	summaryFor,
 	WRITER,
@@ -65,15 +63,15 @@ describe("when a sentence is asked for", () => {
 		assert.equal(asked.length, 2);
 	});
 
-	it("sends the command, capped, under the instruction", async () => {
-		const { registry, asked } = stubRegistry();
-		useRegistry(registry as never);
-		const command = `head\n${"x".repeat(MAX_COMMAND_CHARS * 2)}`;
-		summaryFor(command, OUTPUT, {}, () => {});
-		await settle();
-		assert.ok(asked[0].startsWith(INSTRUCTION));
-		// The cap is on the command; the output carries its own.
-		assert.ok(asked[0].length < MAX_COMMAND_CHARS + MAX_OUTPUT_CHARS + INSTRUCTION.length + 40);
+	it("sends the whole command and the whole output", () => {
+		// Truncating loses exactly the part a long command needs summarising for.
+		const command = `head
+${"x".repeat(20_000)}`;
+		const output = "y".repeat(20_000);
+		const body = ask(command, output);
+		assert.ok(body.startsWith(INSTRUCTION));
+		assert.ok(body.includes(command), "the command should arrive whole");
+		assert.ok(body.includes(output), "the output should arrive whole");
 	});
 });
 

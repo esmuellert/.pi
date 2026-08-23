@@ -31,24 +31,18 @@ export const INSTRUCTION =
 	"One clause, under nine words, saying what this shell command does. "
 	+ "No preamble, no trailing period, no quotes. Name what it touches.";
 
-/** How much of a command is worth sending. */
-export const MAX_COMMAND_CHARS = 4_000;
-
 /**
- * How much of what the command printed is worth sending.
+ * What the writer is shown: the command, and what it printed.
  *
- * Measured over forty real commands: the command with its output scored 6.30
- * against 5.78 for the command alone, twice the standard error apart. It is
- * what lets a sentence say "Playwright's DialogManager" where the command only
- * said `grep dialogDidOpen`.
+ * Both whole. Measured over forty real commands -- command with output scored
+ * 6.30 against 5.78 for the command alone, twice the standard error apart. It
+ * is what lets a sentence say "Playwright's DialogManager" where the command
+ * only said `grep dialogDidOpen`.
  *
  * Nothing else helped. The assistant's own words just before the call scored
  * 4.58, last of seven shapes, because the sentence starts restating the
- * conversation rather than reading the command; all of it at once scored 4.70
- * and ran three words longer.
+ * conversation rather than reading the command.
  */
-export const MAX_OUTPUT_CHARS = 600;
-
 export interface Summary {
 	/** Undefined while unknown, null once it has failed for good. */
 	text?: string | null;
@@ -135,10 +129,9 @@ export function tidy(raw: string): string {
 	return raw.trim().replace(/^["'`\s]+|["'`.\s]+$/g, "");
 }
 
-/** What the writer is shown. Exported so a test can read it. */
 export function ask(command: string, output: string): string {
-	const printed = output.trim().slice(0, MAX_OUTPUT_CHARS);
-	return `${INSTRUCTION}\n\nCOMMAND:\n${command.slice(0, MAX_COMMAND_CHARS)}`
+	const printed = output.trim();
+	return `${INSTRUCTION}\n\nCOMMAND:\n${command}`
 		+ (printed ? `\n\nIT PRINTED:\n${printed}` : "");
 }
 
