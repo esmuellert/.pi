@@ -320,3 +320,19 @@ first, whatever the state of the gate.
 
 Requests are also deduplicated by tool call id, because a rebuild hands every
 block a fresh state slot while the previous build's requests are still running.
+
+## When a sentence comes back in the wrong language
+
+The writer drifts. Over sixty sentences for one command in an English session,
+five came back in Japanese or Korean -- nothing in the command, its output or the
+reader's words was in either.
+
+Wording does not reach it. Four phrasings of the language rule, interleaved so a
+batch effect could not land on one of them, scored 1, 2, 2 and 11 out of 40: the
+first three are the same number and the fourth, which moved the rule to the end
+of the prompt, is worse.
+
+Asked a second time, all five came back in the reader's own script. So the
+sentence is checked against the reader's script -- not their language, which is
+what a detector cannot tell -- and asked for once more if it changed alphabet.
+The second answer is kept whatever it says. Measured after: 0 in 59.

@@ -21,6 +21,7 @@
 import type { ModelRegistry } from "@earendil-works/pi-coding-agent";
 
 import { through } from "./queue.ts";
+import { driftedFrom } from "./script.ts";
 import { recall, remember } from "./store.ts";
 import type { Api, AssistantMessage, Model } from "@earendil-works/pi-ai";
 
@@ -245,12 +246,41 @@ export function argsAsText(args: unknown): string {
 	}
 }
 
+/**
+ * A sentence for a command, in the reader's own script.
+ *
+ * The writer drifts into another language now and then -- five sentences in
+ * sixty on the block that raised it, Japanese and Korean under a session held in
+ * English. No wording of the rule reached it: four phrasings scored 1, 2, 2 and
+ * 11 out of 40, the differences inside the noise but for the one that made it
+ * worse. Asked a second time, all five came back in the reader's own script, so
+ * the drift is per-request rather than something about the command.
+ *
+ * One retry, and the second answer is kept whatever it says: a sentence in the
+ * wrong language beats no sentence, and a loop here would be a loop against a
+ * paid endpoint.
+ */
 async function write(
 	reg: ModelRegistry,
 	model: Model<Api>,
 	tool: string,
 	args: unknown,
 	output: string,
+): Promise<string | null> {
+	const reader = sample();
+	const first = await once(reg, model, tool, args, output, reader);
+	if (first === null || !driftedFrom(reader, first)) return first;
+	return (await once(reg, model, tool, args, output, reader)) ?? first;
+}
+
+/** One request, with its own deadline. */
+async function once(
+	reg: ModelRegistry,
+	model: Model<Api>,
+	tool: string,
+	args: unknown,
+	output: string,
+	reader: string,
 ): Promise<string | null> {
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	try {
@@ -260,7 +290,7 @@ async function write(
 				{
 					messages: [{
 						role: "user",
-						content: ask(tool, args, output, sample()),
+						content: ask(tool, args, output, reader),
 						timestamp: Date.now(),
 					}],
 				},
