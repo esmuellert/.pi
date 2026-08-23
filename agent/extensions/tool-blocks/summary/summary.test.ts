@@ -20,6 +20,7 @@ import {
 	INSTRUCTION,
 	type Slot,
 	summaryFor,
+	unask,
 	WRITER,
 	tidy,
 	useRegistry,
@@ -215,5 +216,29 @@ describe("the language it writes in", () => {
 
 	it("says nothing when there is no session", () => {
 		assert.equal(sample(undefined), "");
+	});
+});
+
+describe("a transcript rebuilt while requests are in the air", () => {
+	it("does not ask twice for the same block", async () => {
+		// /reload and reopening both clear the chat and build every row again.
+		// The new rows get fresh state while the old rows' requests are still
+		// running, so the slot alone would ask a second time.
+		unask();
+		let asked = 0;
+		const registry = {
+			getAvailable: () => [{ id: WRITER, cost: { output: 15 } }],
+			complete: async () => {
+				asked += 1;
+				await new Promise((settle) => setTimeout(settle, 20));
+				return { content: [{ type: "text", text: "a note" }] };
+			},
+		};
+		useRegistry(registry as never, { getBranch: () => [] } as never);
+
+		summaryFor("bash", { command: "echo hi" }, "hi", {}, () => {}, "call-1");
+		summaryFor("bash", { command: "echo hi" }, "hi", {}, () => {}, "call-1");
+		await new Promise((settle) => setTimeout(settle, 60));
+		assert.equal(asked, 1);
 	});
 });

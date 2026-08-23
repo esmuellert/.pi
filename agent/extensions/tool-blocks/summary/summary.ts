@@ -20,6 +20,7 @@
  */
 import type { ModelRegistry } from "@earendil-works/pi-coding-agent";
 
+import { through } from "./queue.ts";
 import { recall, remember } from "./store.ts";
 import type { Api, AssistantMessage, Model } from "@earendil-works/pi-ai";
 
@@ -174,6 +175,9 @@ export function summaryFor(
 	// slot is empty on every rebuild and this is not.
 	const stored = recall(id);
 	if (stored !== undefined) return stored;
+	// A rebuild gives every block a fresh slot while the previous build's
+	// requests are still in the air, so the slot alone would ask twice.
+	if (id !== undefined && asking.has(id)) return undefined;
 
 	const key = `${tool}\u0000${argsAsText(args)}`;
 	if (slot.summaryFor !== key) {
@@ -185,7 +189,10 @@ export function summaryFor(
 	if (!registry || !writer) return undefined;
 
 	slot.summary = { pending: true };
-	void write(registry, writer, tool, args, output)
+	if (id !== undefined) asking.add(id);
+	const asked = registry;
+	const by = writer;
+	void through(() => write(asked, by, tool, args, output))
 		.then((text) => {
 			slot.summary = { text };
 			if (text) remember(id, text);
@@ -193,8 +200,19 @@ export function summaryFor(
 		.catch(() => {
 			slot.summary = { text: null };
 		})
-		.finally(invalidate);
+		.finally(() => {
+			if (id !== undefined) asking.delete(id);
+			invalidate();
+		});
 	return undefined;
+}
+
+/** Tool calls with a request in the air, so a rebuild does not start a second. */
+const asking = new Set<string>();
+
+/** Forget what is in the air. For tests. */
+export function unask(): void {
+	asking.clear();
 }
 
 /** Strip the quotes and full stop a model adds however firmly it is told not to. */

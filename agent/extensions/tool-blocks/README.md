@@ -299,3 +299,16 @@ They are kept as pi custom entries, one per tool call, keyed by its id.
 `sessionEntryToContextMessages` returns nothing for the `custom` type, so they
 survive a restart and never reach the model. There is a test on that last part:
 the whole design rests on it.
+
+Five at a time. Nothing throttled them before, and a rebuilt transcript renders
+every block, so opening a session with no stored sentences fired one request per
+block at the same instant -- measured at 50 in flight out of 50 blocks. A rate
+limit reached that way is not a delay: a refused request is recorded as a failure
+and not retried in that run, so those blocks stay blank until the next one.
+
+Five is chosen, not derived. What a provider accepts depends on the account and
+the hour. Five keeps a normal turn -- one to three tools -- from ever waiting,
+and turns an opening burst into a queue that drains as each sentence lands.
+
+Requests are also deduplicated by tool call id, because a rebuild hands every
+block a fresh state slot while the previous build's requests are still running.
