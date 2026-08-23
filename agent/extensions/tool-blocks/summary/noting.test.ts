@@ -110,7 +110,7 @@ describe("what it is gated on", () => {
 			getAvailable: () => [{ id: "claude-haiku-4.5", provider: "github-copilot" }],
 			complete: async () => ({ role: "assistant", content: [{ type: "text", text: "does a thing" }] }),
 		} as never);
-		const note = noting();
+		const note = noting("bash");
 		note(
 			60,
 			{ command: "cat > f <<'EOF'\nbody\nEOF" } as never,

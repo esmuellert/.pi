@@ -39,7 +39,7 @@ export const LETTER: Readonly<Record<ToolName, string>> = {
 };
 
 /** The theme colour a mark takes, given where the call has got to. */
-export type Outcome = "running" | "ok" | "failed";
+type Outcome = "running" | "ok" | "failed";
 
 export const OUTCOME_COLOR: Readonly<Record<Outcome, string>> = {
 	running: "muted",

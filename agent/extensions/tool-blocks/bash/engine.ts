@@ -30,7 +30,6 @@ type Highlighter = {
 };
 
 let highlighter: Highlighter | undefined;
-let failure: unknown;
 
 /**
  * A theme must be loaded even though none of its colours are used: without one
@@ -62,8 +61,8 @@ export async function prepare(): Promise<boolean> {
 			engine: createJavaScriptRegexEngine(),
 		})) as unknown as Highlighter;
 		return true;
-	} catch (error) {
-		failure = error;
+	} catch {
+		// The highlighter is optional: the title renders unstyled without it.
 		return false;
 	}
 }
@@ -72,7 +71,6 @@ export async function prepare(): Promise<boolean> {
 const LANGUAGE = "bash";
 
 export const ready = () => highlighter !== undefined;
-export const lastFailure = () => failure;
 
 /**
  * Split a command into pieces carrying pi theme tokens, or undefined when the

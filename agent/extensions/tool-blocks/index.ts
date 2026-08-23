@@ -42,7 +42,8 @@ export default async function (pi: ExtensionAPI) {
 		pi.registerTool(
 			present(tool, cwd, {
 				frame: marking(tool, () => style),
-				...(tool === "bash" ? { retitle: retitling(), footnote: noting() } : {}),
+				footnote: noting(tool),
+				...(tool === "bash" ? { retitle: retitling() } : {}),
 			}) as never,
 		);
 	}

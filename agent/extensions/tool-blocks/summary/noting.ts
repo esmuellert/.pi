@@ -61,7 +61,7 @@ export function layout(text: string, width: number, theme: Theme, isError = fals
 	}
 }
 
-export function noting() {
+export function noting(tool: string) {
 	return (
 		width: number,
 		args: RenderArgs,
@@ -69,9 +69,7 @@ export function noting() {
 		theme: Theme,
 		context: RenderContext,
 	): string[] | undefined => {
-		const command = (args as { command?: unknown }).command;
-		if (typeof command !== "string") return undefined;
-		const text = summaryFor(command, output, context.state as Slot, context.invalidate);
+		const text = summaryFor(tool, args, output, context.state as Slot, context.invalidate);
 		return text ? layout(text, width, theme, context.isError === true) : undefined;
 	};
 }

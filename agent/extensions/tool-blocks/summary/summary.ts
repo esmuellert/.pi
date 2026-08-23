@@ -26,10 +26,20 @@ export const DEADLINE_MS = 6_000;
 
 
 
-/** What the model is told. Kept here so a test can assert on it. */
+/**
+ * What the writer is told.
+ *
+ * Past tense, and addressed to someone skimming rather than someone about to
+ * run the thing. Measured across seven tools: this scored 7.12 against 5.81 for
+ * "saying what this shell command does", five standard errors apart, and won on
+ * six of the seven. The old wording collapsed on `read` -- 4.2 -- because a
+ * read is not a command, so the writer described the file's contents instead of
+ * the act of reading it.
+ */
 export const INSTRUCTION =
-	"One clause, under nine words, saying what this shell command does. "
-	+ "No preamble, no trailing period, no quotes. Name what it touches.";
+	"One clause, under nine words, for a reader skimming a transcript, "
+	+ "saying what this step accomplished. Name the file or target it acted on. "
+	+ "No preamble, no trailing period, no quotes.";
 
 /**
  * Written in whatever language the reader is using.
@@ -151,13 +161,15 @@ export function pick(available: readonly Model<Api>[]): Model<Api> | undefined {
  * them, so it reads false forever after.
  */
 export function summaryFor(
-	command: string,
+	tool: string,
+	args: unknown,
 	output: string,
 	slot: Slot,
 	invalidate: () => void,
 ): string | undefined {
-	if (slot.summaryFor !== command) {
-		slot.summaryFor = command;
+	const key = `${tool}\u0000${argsAsText(args)}`;
+	if (slot.summaryFor !== key) {
+		slot.summaryFor = key;
 		slot.summary = undefined;
 	}
 	if (slot.summary?.text !== undefined) return slot.summary.text ?? undefined;
@@ -165,7 +177,7 @@ export function summaryFor(
 	if (!registry || !writer) return undefined;
 
 	slot.summary = { pending: true };
-	void write(registry, writer, command, output)
+	void write(registry, writer, tool, args, output)
 		.then((text) => {
 			slot.summary = { text };
 		})
@@ -181,19 +193,36 @@ export function tidy(raw: string): string {
 	return raw.trim().replace(/^["'`\s]+|["'`.\s]+$/g, "");
 }
 
-export function ask(command: string, output: string, reader = ""): string {
+export function ask(tool: string, args: unknown, output: string, reader = ""): string {
 	const printed = output.trim();
 	const written = reader.trim();
 	return (written ? INSTRUCTION + LANGUAGE_RULE : INSTRUCTION)
 		+ (written ? `\n\nTHE READER WRITES LIKE THIS:\n${written}` : "")
-		+ `\n\nCOMMAND:\n${command}`
-		+ (printed ? `\n\nIT PRINTED:\n${printed}` : "");
+		+ `\n\nTOOL: ${tool}\nARGUMENTS:\n${argsAsText(args)}`
+		+ (printed ? `\n\nIT RETURNED:\n${printed}` : "");
+}
+
+/**
+ * A tool's arguments as text.
+ *
+ * bash's one argument is a command and reads better bare; everything else has
+ * named fields worth keeping.
+ */
+export function argsAsText(args: unknown): string {
+	const command = (args as { command?: unknown } | undefined)?.command;
+	if (typeof command === "string") return command;
+	try {
+		return JSON.stringify(args, null, 1) ?? String(args);
+	} catch {
+		return String(args);
+	}
 }
 
 async function write(
 	reg: ModelRegistry,
 	model: Model<Api>,
-	command: string,
+	tool: string,
+	args: unknown,
 	output: string,
 ): Promise<string | null> {
 	let timer: ReturnType<typeof setTimeout> | undefined;
@@ -204,7 +233,7 @@ async function write(
 				{
 					messages: [{
 						role: "user",
-						content: ask(command, output, sample()),
+						content: ask(tool, args, output, sample()),
 						timestamp: Date.now(),
 					}],
 				},

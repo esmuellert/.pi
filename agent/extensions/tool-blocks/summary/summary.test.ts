@@ -14,6 +14,7 @@ import { describe, it } from "node:test";
 import {
 	pick,
 	ask,
+	argsAsText,
 	LANGUAGE_RULE,
 	sample,
 	INSTRUCTION,
@@ -48,9 +49,9 @@ describe("when a sentence is asked for", () => {
 		useRegistry(registry as never);
 		const slot: Slot = {};
 		const command = "cat > f <<'EOF'\nbody\nEOF";
-		for (let draw = 0; draw < 5; draw += 1) summaryFor(command, OUTPUT, slot, () => {});
+		for (let draw = 0; draw < 5; draw += 1) summaryFor("bash", command, OUTPUT, slot, () => {});
 		await settle();
-		for (let draw = 0; draw < 5; draw += 1) summaryFor(command, OUTPUT, slot, () => {});
+		for (let draw = 0; draw < 5; draw += 1) summaryFor("bash", command, OUTPUT, slot, () => {});
 		assert.equal(asked.length, 1);
 	});
 
@@ -58,9 +59,9 @@ describe("when a sentence is asked for", () => {
 		const { registry, asked } = stubRegistry();
 		useRegistry(registry as never);
 		const slot: Slot = {};
-		summaryFor("cat > a <<'EOF'\nx\nEOF", OUTPUT, slot, () => {});
+		summaryFor("bash", "cat > a <<'EOF'\nx\nEOF", OUTPUT, slot, () => {});
 		await settle();
-		summaryFor("cat > b <<'EOF'\ny\nEOF", OUTPUT, slot, () => {});
+		summaryFor("bash", "cat > b <<'EOF'\ny\nEOF", OUTPUT, slot, () => {});
 		await settle();
 		assert.equal(asked.length, 2);
 	});
@@ -70,7 +71,7 @@ describe("when a sentence is asked for", () => {
 		const command = `head
 ${"x".repeat(20_000)}`;
 		const output = "y".repeat(20_000);
-		const body = ask(command, output);
+		const body = ask("bash", { command }, output);
 		assert.ok(body.startsWith(INSTRUCTION));
 		assert.ok(body.includes(command), "the command should arrive whole");
 		assert.ok(body.includes(output), "the output should arrive whole");
@@ -84,10 +85,10 @@ describe("what comes back", () => {
 		let redraws = 0;
 		const slot: Slot = {};
 		const command = "cat > f <<'EOF'\nbody\nEOF";
-		assert.equal(summaryFor(command, OUTPUT, slot, () => { redraws += 1; }), undefined);
+		assert.equal(summaryFor("bash", command, OUTPUT, slot, () => { redraws += 1; }), undefined);
 		await settle();
 		assert.equal(redraws, 1);
-		assert.equal(summaryFor(command, OUTPUT, slot, () => {}), "generates test data");
+		assert.equal(summaryFor("bash", command, OUTPUT, slot, () => {}), "generates test data");
 	});
 
 	it("gives up quietly when the model fails", async () => {
@@ -98,10 +99,10 @@ describe("what comes back", () => {
 		useRegistry(registry as never);
 		const slot: Slot = {};
 		const command = "cat > f <<'EOF'\nbody\nEOF";
-		summaryFor(command, OUTPUT, slot, () => {});
+		summaryFor("bash", command, OUTPUT, slot, () => {});
 		await settle();
 		// Undefined means the line is simply absent, not an error in the block.
-		assert.equal(summaryFor(command, OUTPUT, slot, () => {}), undefined);
+		assert.equal(summaryFor("bash", command, OUTPUT, slot, () => {}), undefined);
 		assert.equal(slot.summary?.text, null);
 	});
 
@@ -113,16 +114,16 @@ describe("what comes back", () => {
 		} as never);
 		const slot: Slot = {};
 		const command = "cat > f <<'EOF'\nbody\nEOF";
-		summaryFor(command, OUTPUT, slot, () => {});
+		summaryFor("bash", command, OUTPUT, slot, () => {});
 		await settle();
-		for (let draw = 0; draw < 3; draw += 1) summaryFor(command, OUTPUT, slot, () => {});
+		for (let draw = 0; draw < 3; draw += 1) summaryFor("bash", command, OUTPUT, slot, () => {});
 		await settle();
 		assert.equal(calls, 1);
 	});
 
 	it("says nothing when there is no model to ask", () => {
 		useRegistry(undefined);
-		assert.equal(summaryFor("cat > f <<'EOF'\nx\nEOF", OUTPUT, {}, () => {}), undefined);
+		assert.equal(summaryFor("bash", "cat > f <<'EOF'\nx\nEOF", OUTPUT, {}, () => {}), undefined);
 	});
 });
 
@@ -176,13 +177,13 @@ describe("the language it writes in", () => {
 		// as something to read a language off. Detecting it here would mean
 		// writing a detector, and the one worth writing calls Spanish, French,
 		// German and Russian all English.
-		const body = ask("ls", "a b", "为什么刚才代码没了？");
+		const body = ask("bash", "ls", "a b", "为什么刚才代码没了？");
 		assert.ok(body.includes(LANGUAGE_RULE));
 		assert.match(body, /THE READER WRITES LIKE THIS:\n为什么/);
 	});
 
 	it("leaves the rule out when there is nothing to read", () => {
-		const body = ask("ls", "a b", "   ");
+		const body = ask("bash", "ls", "a b", "   ");
 		assert.ok(!body.includes(LANGUAGE_RULE));
 		assert.doesNotMatch(body, /THE READER/);
 	});

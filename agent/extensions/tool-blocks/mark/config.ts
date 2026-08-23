@@ -28,7 +28,7 @@ export function parseConfig(raw: unknown): Config {
 	return STYLES.includes(style as MarkStyle) ? { style: style as MarkStyle } : DEFAULT_CONFIG;
 }
 
-export function configPath(): string {
+function configPath(): string {
 	// PI_CODING_AGENT_DIR is how pi itself finds this directory.
 	const dir = process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent");
 	return join(dir, "tool-blocks.json");
