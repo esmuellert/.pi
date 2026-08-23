@@ -11,11 +11,11 @@ import { describe, it } from "node:test";
 
 import { visibleWidth } from "@earendil-works/pi-tui";
 
-import { ICON, LETTER } from "../mark/icons.ts";
-import { GUTTER, MARK_COLUMNS, MARK_GAP } from "../mark/frame.ts";
-import { SCOPE_TOKENS } from "../bash/scopes.ts";
-import { TOOLS } from "../tools/builtins.ts";
-import { blank, plain } from "./ansi.ts";
+import { ICON, LETTER } from "./mark/icons.ts";
+import { GUTTER, MARK_COLUMNS, MARK_GAP } from "./mark/frame.ts";
+import { SCOPE_TOKENS } from "./bash/scopes.ts";
+import { TOOLS } from "./tools/builtins.ts";
+import { blank, plain } from "./shared/ansi.ts";
 
 describe("the mark's gutter", () => {
 	it("is as wide as the mark plus its gap, not a number of its own", () => {
