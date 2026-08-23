@@ -13,8 +13,10 @@ import { describe, it } from "node:test";
 
 import {
 	pick,
+	ask,
 	INSTRUCTION,
 	MAX_COMMAND_CHARS,
+	MAX_OUTPUT_CHARS,
 	type Slot,
 	summaryFor,
 	WRITER,
@@ -36,6 +38,8 @@ function stubRegistry(answer = "generates test data") {
 }
 
 /** Wait for the promise chain inside summaryFor to settle. */
+const OUTPUT = "wrote 3 files";
+
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("when a sentence is asked for", () => {
@@ -44,9 +48,9 @@ describe("when a sentence is asked for", () => {
 		useRegistry(registry as never);
 		const slot: Slot = {};
 		const command = "cat > f <<'EOF'\nbody\nEOF";
-		for (let draw = 0; draw < 5; draw += 1) summaryFor(command, slot, () => {});
+		for (let draw = 0; draw < 5; draw += 1) summaryFor(command, OUTPUT, slot, () => {});
 		await settle();
-		for (let draw = 0; draw < 5; draw += 1) summaryFor(command, slot, () => {});
+		for (let draw = 0; draw < 5; draw += 1) summaryFor(command, OUTPUT, slot, () => {});
 		assert.equal(asked.length, 1);
 	});
 
@@ -54,9 +58,9 @@ describe("when a sentence is asked for", () => {
 		const { registry, asked } = stubRegistry();
 		useRegistry(registry as never);
 		const slot: Slot = {};
-		summaryFor("cat > a <<'EOF'\nx\nEOF", slot, () => {});
+		summaryFor("cat > a <<'EOF'\nx\nEOF", OUTPUT, slot, () => {});
 		await settle();
-		summaryFor("cat > b <<'EOF'\ny\nEOF", slot, () => {});
+		summaryFor("cat > b <<'EOF'\ny\nEOF", OUTPUT, slot, () => {});
 		await settle();
 		assert.equal(asked.length, 2);
 	});
@@ -65,10 +69,11 @@ describe("when a sentence is asked for", () => {
 		const { registry, asked } = stubRegistry();
 		useRegistry(registry as never);
 		const command = `head\n${"x".repeat(MAX_COMMAND_CHARS * 2)}`;
-		summaryFor(command, {}, () => {});
+		summaryFor(command, OUTPUT, {}, () => {});
 		await settle();
 		assert.ok(asked[0].startsWith(INSTRUCTION));
-		assert.ok(asked[0].length < MAX_COMMAND_CHARS + INSTRUCTION.length + 8);
+		// The cap is on the command; the output carries its own.
+		assert.ok(asked[0].length < MAX_COMMAND_CHARS + MAX_OUTPUT_CHARS + INSTRUCTION.length + 40);
 	});
 });
 
@@ -79,10 +84,10 @@ describe("what comes back", () => {
 		let redraws = 0;
 		const slot: Slot = {};
 		const command = "cat > f <<'EOF'\nbody\nEOF";
-		assert.equal(summaryFor(command, slot, () => { redraws += 1; }), undefined);
+		assert.equal(summaryFor(command, OUTPUT, slot, () => { redraws += 1; }), undefined);
 		await settle();
 		assert.equal(redraws, 1);
-		assert.equal(summaryFor(command, slot, () => {}), "generates test data");
+		assert.equal(summaryFor(command, OUTPUT, slot, () => {}), "generates test data");
 	});
 
 	it("gives up quietly when the model fails", async () => {
@@ -93,10 +98,10 @@ describe("what comes back", () => {
 		useRegistry(registry as never);
 		const slot: Slot = {};
 		const command = "cat > f <<'EOF'\nbody\nEOF";
-		summaryFor(command, slot, () => {});
+		summaryFor(command, OUTPUT, slot, () => {});
 		await settle();
 		// Undefined means the line is simply absent, not an error in the block.
-		assert.equal(summaryFor(command, slot, () => {}), undefined);
+		assert.equal(summaryFor(command, OUTPUT, slot, () => {}), undefined);
 		assert.equal(slot.summary?.text, null);
 	});
 
@@ -108,16 +113,16 @@ describe("what comes back", () => {
 		} as never);
 		const slot: Slot = {};
 		const command = "cat > f <<'EOF'\nbody\nEOF";
-		summaryFor(command, slot, () => {});
+		summaryFor(command, OUTPUT, slot, () => {});
 		await settle();
-		for (let draw = 0; draw < 3; draw += 1) summaryFor(command, slot, () => {});
+		for (let draw = 0; draw < 3; draw += 1) summaryFor(command, OUTPUT, slot, () => {});
 		await settle();
 		assert.equal(calls, 1);
 	});
 
 	it("says nothing when there is no model to ask", () => {
 		useRegistry(undefined);
-		assert.equal(summaryFor("cat > f <<'EOF'\nx\nEOF", {}, () => {}), undefined);
+		assert.equal(summaryFor("cat > f <<'EOF'\nx\nEOF", OUTPUT, {}, () => {}), undefined);
 	});
 });
 

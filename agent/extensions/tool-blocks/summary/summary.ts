@@ -34,6 +34,21 @@ export const INSTRUCTION =
 /** How much of a command is worth sending. */
 export const MAX_COMMAND_CHARS = 4_000;
 
+/**
+ * How much of what the command printed is worth sending.
+ *
+ * Measured over forty real commands: the command with its output scored 6.30
+ * against 5.78 for the command alone, twice the standard error apart. It is
+ * what lets a sentence say "Playwright's DialogManager" where the command only
+ * said `grep dialogDidOpen`.
+ *
+ * Nothing else helped. The assistant's own words just before the call scored
+ * 4.58, last of seven shapes, because the sentence starts restating the
+ * conversation rather than reading the command; all of it at once scored 4.70
+ * and ran three words longer.
+ */
+export const MAX_OUTPUT_CHARS = 600;
+
 export interface Summary {
 	/** Undefined while unknown, null once it has failed for good. */
 	text?: string | null;
@@ -91,6 +106,7 @@ export function pick(available: readonly Model<Api>[]): Model<Api> | undefined {
  */
 export function summaryFor(
 	command: string,
+	output: string,
 	slot: Slot,
 	invalidate: () => void,
 ): string | undefined {
@@ -103,7 +119,7 @@ export function summaryFor(
 	if (!registry || !writer) return undefined;
 
 	slot.summary = { pending: true };
-	void write(registry, writer, command)
+	void write(registry, writer, command, output)
 		.then((text) => {
 			slot.summary = { text };
 		})
@@ -119,10 +135,18 @@ export function tidy(raw: string): string {
 	return raw.trim().replace(/^["'`\s]+|["'`.\s]+$/g, "");
 }
 
+/** What the writer is shown. Exported so a test can read it. */
+export function ask(command: string, output: string): string {
+	const printed = output.trim().slice(0, MAX_OUTPUT_CHARS);
+	return `${INSTRUCTION}\n\nCOMMAND:\n${command.slice(0, MAX_COMMAND_CHARS)}`
+		+ (printed ? `\n\nIT PRINTED:\n${printed}` : "");
+}
+
 async function write(
 	reg: ModelRegistry,
 	model: Model<Api>,
 	command: string,
+	output: string,
 ): Promise<string | null> {
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	try {
@@ -132,7 +156,7 @@ async function write(
 				{
 					messages: [{
 						role: "user",
-						content: `${INSTRUCTION}\n\n${command.slice(0, MAX_COMMAND_CHARS)}`,
+						content: ask(command, output),
 						timestamp: Date.now(),
 					}],
 				},

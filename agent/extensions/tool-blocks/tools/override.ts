@@ -64,6 +64,7 @@ export type Presentation = {
 	readonly footnote?: (
 		width: number,
 		args: RenderArgs,
+		output: string,
 		theme: Theme,
 		context: RenderContext,
 	) => string[] | undefined;
@@ -122,7 +123,7 @@ export function present(
 					// The footnote is asked for on every render rather than once
 					// here, because what it has to say arrives later than this
 					// call and pi may reuse the component it was given.
-					return appending(inner, (width) => presentation.footnote?.(width, context.args as RenderArgs, theme, context));
+					return appending(inner, (width) => presentation.footnote?.(width, context.args as RenderArgs, printed(result), theme, context));
 				},
 			}
 			: {}),
@@ -176,4 +177,12 @@ const WRAPPED = Symbol("toolBlocksWrapped");
 /** The component inside a wrapper, or whatever was passed if it is not one. */
 function unwrap(component: Component | undefined): Component | undefined {
 	return (component as { [WRAPPED]?: Component } | undefined)?.[WRAPPED] ?? component;
+}
+
+/** The text a tool result carries, for a footnote that wants to read it. */
+function printed(result: unknown): string {
+	const parts = (result as { content?: { type?: string; text?: string }[] } | undefined)?.content;
+	return Array.isArray(parts)
+		? parts.filter((part) => part.type === "text").map((part) => part.text ?? "").join("\n")
+		: "";
 }

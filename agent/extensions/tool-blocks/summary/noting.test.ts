@@ -114,6 +114,7 @@ describe("what it is gated on", () => {
 		note(
 			60,
 			{ command: "cat > f <<'EOF'\nbody\nEOF" } as never,
+			"",
 			{ fg: (_t: string, x: string) => x } as never,
 			{ argsComplete: false, state: {}, invalidate: () => { asked += 1; } } as never,
 		);

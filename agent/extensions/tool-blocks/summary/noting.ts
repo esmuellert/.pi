@@ -65,12 +65,13 @@ export function noting() {
 	return (
 		width: number,
 		args: RenderArgs,
+		output: string,
 		theme: Theme,
 		context: RenderContext,
 	): string[] | undefined => {
 		const command = (args as { command?: unknown }).command;
 		if (typeof command !== "string") return undefined;
-		const text = summaryFor(command, context.state as Slot, context.invalidate);
+		const text = summaryFor(command, output, context.state as Slot, context.invalidate);
 		return text ? layout(text, width, theme, context.isError === true) : undefined;
 	};
 }
