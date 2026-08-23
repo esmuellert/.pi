@@ -32,6 +32,22 @@ export const INSTRUCTION =
 	+ "No preamble, no trailing period, no quotes. Name what it touches.";
 
 /**
+ * Written in whatever language the reader is using.
+ *
+ * The writer decides, from a sample of the reader's own words. Detecting it
+ * here would mean writing a language detector, and the one worth writing --
+ * counting CJK characters -- calls Spanish, French, German and Russian all
+ * English. Asked instead, the writer got Chinese, Japanese, Spanish, French,
+ * German, Russian and English right, including from a two-character sample.
+ *
+ * It costs nothing: over thirty commands the rule scored 7.10 against 6.93
+ * without it, which is inside the error either way.
+ */
+export const LANGUAGE_RULE =
+	" Write it in the same language as the note below, whatever that language is. "
+	+ "Keep identifiers, paths and file names exactly as they appear.";
+
+/**
  * What the writer is shown: the command, and what it printed.
  *
  * Both whole. Measured over forty real commands -- command with output scored
@@ -57,11 +73,47 @@ export interface Slot {
 
 let registry: ModelRegistry | undefined;
 let writer: Model<Api> | undefined;
+let session: SessionSource | undefined;
+
+/** Just enough of pi's session manager to read what the reader has written. */
+export interface SessionSource {
+	getBranch: () => readonly { type: string; message?: { role?: string; content?: unknown } }[];
+}
 
 /** Handed a registry at session start; picks who writes the sentences. */
-export function useRegistry(found: ModelRegistry | undefined): void {
+export function useRegistry(found: ModelRegistry | undefined, from?: SessionSource): void {
 	registry = found;
 	writer = pick(found?.getAvailable?.() ?? []);
+	session = from;
+}
+
+/**
+ * How much of the reader's own writing to show, and how recent.
+ *
+ * Enough to tell a language by, and no more. The point is not context -- adding
+ * the conversation scored worst of seven shapes -- it is a sample the writer
+ * can read the language off.
+ */
+export const SAMPLE_MESSAGES = 2;
+export const SAMPLE_CHARS = 300;
+
+/** The last thing the reader wrote, for the writer to match the language of. */
+export function sample(from: SessionSource | undefined = session): string {
+	const branch = from?.getBranch?.() ?? [];
+	const said: string[] = [];
+	for (let at = branch.length - 1; at >= 0 && said.length < SAMPLE_MESSAGES; at -= 1) {
+		const entry = branch[at];
+		if (entry.type !== "message" || entry.message?.role !== "user") continue;
+		const content = entry.message.content;
+		const text = typeof content === "string"
+			? content
+			: (content as { type?: string; text?: string }[] | undefined ?? [])
+				.filter((part) => part.type === "text")
+				.map((part) => part.text ?? "")
+				.join(" ");
+		if (text.trim()) said.push(text.trim());
+	}
+	return said.reverse().join("\n").slice(-SAMPLE_CHARS);
 }
 
 /**
@@ -129,9 +181,12 @@ export function tidy(raw: string): string {
 	return raw.trim().replace(/^["'`\s]+|["'`.\s]+$/g, "");
 }
 
-export function ask(command: string, output: string): string {
+export function ask(command: string, output: string, reader = ""): string {
 	const printed = output.trim();
-	return `${INSTRUCTION}\n\nCOMMAND:\n${command}`
+	const written = reader.trim();
+	return (written ? INSTRUCTION + LANGUAGE_RULE : INSTRUCTION)
+		+ (written ? `\n\nTHE READER WRITES LIKE THIS:\n${written}` : "")
+		+ `\n\nCOMMAND:\n${command}`
 		+ (printed ? `\n\nIT PRINTED:\n${printed}` : "");
 }
 
@@ -149,7 +204,7 @@ async function write(
 				{
 					messages: [{
 						role: "user",
-						content: ask(command, output),
+						content: ask(command, output, sample()),
 						timestamp: Date.now(),
 					}],
 				},

@@ -14,6 +14,8 @@ import { describe, it } from "node:test";
 import {
 	pick,
 	ask,
+	LANGUAGE_RULE,
+	sample,
 	INSTRUCTION,
 	type Slot,
 	summaryFor,
@@ -160,5 +162,57 @@ describe("choosing who writes them", () => {
 
 	it("says nothing when there is nothing at all", () => {
 		assert.equal(pick([]), undefined);
+	});
+});
+
+describe("the language it writes in", () => {
+	/** A session holding the given user messages, newest last. */
+	const spoke = (...said: string[]) => ({
+		getBranch: () => said.map((text) => ({ type: "message", message: { role: "user", content: text } })),
+	});
+
+	it("shows the writer what the reader wrote", () => {
+		// Not as context -- the conversation scored worst of seven shapes -- but
+		// as something to read a language off. Detecting it here would mean
+		// writing a detector, and the one worth writing calls Spanish, French,
+		// German and Russian all English.
+		const body = ask("ls", "a b", "为什么刚才代码没了？");
+		assert.ok(body.includes(LANGUAGE_RULE));
+		assert.match(body, /THE READER WRITES LIKE THIS:\n为什么/);
+	});
+
+	it("leaves the rule out when there is nothing to read", () => {
+		const body = ask("ls", "a b", "   ");
+		assert.ok(!body.includes(LANGUAGE_RULE));
+		assert.doesNotMatch(body, /THE READER/);
+	});
+
+	it("takes the last messages, in the order they were written", () => {
+		assert.equal(sample(spoke("first", "second", "third")), "second\nthird");
+	});
+
+	it("ignores the assistant and the tools", () => {
+		const mixed = {
+			getBranch: () => [
+				{ type: "message", message: { role: "user", content: "mine" } },
+				{ type: "message", message: { role: "assistant", content: "not mine" } },
+				{ type: "compaction" },
+			],
+		};
+		assert.equal(sample(mixed as never), "mine");
+	});
+
+	it("reads text out of a content array", () => {
+		const rich = {
+			getBranch: () => [{
+				type: "message",
+				message: { role: "user", content: [{ type: "text", text: "typed" }, { type: "image" }] },
+			}],
+		};
+		assert.equal(sample(rich as never), "typed");
+	});
+
+	it("says nothing when there is no session", () => {
+		assert.equal(sample(undefined), "");
 	});
 });

@@ -36,7 +36,7 @@ export default async function (pi: ExtensionAPI) {
 
 	// The sentence under a bash block is written by a second, cheaper model, and
 	// reaching one needs a registry that only exists once a session does.
-	pi.on("session_start", async (_event, ctx) => useRegistry(ctx.modelRegistry));
+	pi.on("session_start", async (_event, ctx) => useRegistry(ctx.modelRegistry, ctx.sessionManager));
 
 	for (const tool of TOOLS) {
 		pi.registerTool(
