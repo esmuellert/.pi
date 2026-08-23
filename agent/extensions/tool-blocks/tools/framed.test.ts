@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { initTheme } from "@earendil-works/pi-coding-agent";
 
 import { blank, plain } from "../shared/ansi.ts";
+import { TOOLS, type ToolName } from "./builtins.ts";
 import { present } from "./override.ts";
 
 initTheme("rose-pine");
@@ -24,53 +25,79 @@ type Block = {
 
 const NOTE = "removed the divider prop";
 const WIDTH = 56;
-const DIFF = ["  30      <p>", "- 31        const { divider } = props;", "+ 31        const [d, setD] = useState(50);"].join("\n");
+const DIFF = "  30      <p>\n- 31        const { divider } = props;\n+ 31        const [d, setD] = useState(50);";
+
+const ARGS: Readonly<Record<ToolName, object>> = {
+	read: { path: "a.ts" },
+	bash: { command: "echo hi" },
+	edit: { path: "a.ts", edits: [{ oldText: "a", newText: "b" }] },
+	write: { path: "a.ts", content: "x\n" },
+	ls: { path: "." },
+	grep: { pattern: "divider" },
+	find: { pattern: "*.ts" },
+};
+
+const OUTPUT: Readonly<Partial<Record<ToolName, string>>> = {
+	read: "  1  const { divider } = props;",
+	ls: "a.ts\nb.ts",
+	grep: "a.ts:31:const { divider } = props;",
+	find: "a.ts",
+};
 
 /** A real block: pi's component, pi's frame, our presentation. */
-function block(tool: string, args: object, details: unknown): string[] {
-	const definition = present(tool as never, process.cwd(), { footnote: () => [NOTE] });
+function block(tool: ToolName): string[] {
+	const definition = present(tool, process.cwd(), { footnote: () => [NOTE] });
 	const ui = { requestRender: () => {}, invalidate: () => {} };
-	const component = new ToolExecutionComponent(tool, "id", args, { showImages: false }, definition, ui, process.cwd());
+	const component = new ToolExecutionComponent(tool, "id", ARGS[tool], { showImages: false }, definition, ui, process.cwd());
 	component.setArgsComplete();
-	component.updateResult({ content: [{ type: "text", text: "Successfully replaced 1 block(s)" }], details, isError: false }, false);
+	component.updateResult(
+		{
+			content: [{ type: "text", text: OUTPUT[tool] ?? "Successfully replaced 1 block(s)" }],
+			details: tool === "edit" ? { diff: DIFF, patch: DIFF } : undefined,
+			isError: false,
+		},
+		false,
+	);
 	return component.render(WIDTH);
 }
 
 /** Where the note landed, and what the line around it looks like. */
 function note(lines: string[]) {
 	const index = lines.findIndex((line) => plain(line).includes(NOTE));
+	const line = lines[index] ?? "";
 	return {
 		index,
-		line: lines[index],
-		background: /^(?:\u001b\[[0-9;]*m)*?\u001b\[48[;0-9]*m/.test(lines[index] ?? ""),
-		indent: plain(lines[index] ?? "").length - plain(lines[index] ?? "").trimStart().length,
-		trailing: lines.slice(index + 1).every(blank),
+		background: /^(?:\u001b\[[0-9;]*m)*?\u001b\[48[;0-9]*m/.test(line),
+		indent: plain(line).length - plain(line).trimStart().length,
+		last: index >= 0 && lines.slice(index + 1).every(blank),
 	};
 }
 
-describe("a footnote on a tool that frames itself", () => {
-	it("lands inside the frame, like one on a tool that does not", () => {
+describe("where a footnote lands", () => {
+	it("is inside the block, for every tool", () => {
 		// `edit` declares renderShell "self" and draws its whole block from
 		// renderCall, reading what renderResult left in `context.state`; its own
 		// renderResult contributes no lines at all. A note appended there was
 		// appended to nothing, and drew at column zero on the terminal's own
 		// background, below the block rather than in it.
-		const framed = note(block("edit", { path: "a.tsx", edits: [{ oldText: "a", newText: "b" }] }, { diff: DIFF, patch: DIFF }));
-		const boxed = note(block("bash", { command: "echo hi" }, undefined));
-
-		for (const [name, found] of [["edit", framed], ["bash", boxed]] as const) {
-			assert.ok(found.index >= 0, `${name} lost the note`);
-			assert.ok(found.background, `${name} drew the note outside the block's background`);
-			assert.equal(found.indent, boxed.indent, `${name} drew the note at a different indent`);
-			assert.ok(found.trailing, `${name} drew the note before the end of the block`);
+		//
+		// Every tool is checked rather than the one that broke, because the fix
+		// assumes a self-framing tool keeps its frame in renderCall -- true of
+		// edit, and worth failing loudly for anything that arrives later.
+		const boxed = note(block("bash"));
+		for (const tool of TOOLS) {
+			const found = note(block(tool));
+			assert.ok(found.index >= 0, `${tool} lost the note`);
+			assert.ok(found.background, `${tool} drew the note outside the block's background`);
+			assert.equal(found.indent, boxed.indent, `${tool} drew the note at a different indent`);
+			assert.ok(found.last, `${tool} drew the note before the end of the block`);
 		}
 	});
 
-	it("keeps the block's own lines", () => {
+	it("does not displace what the block already drew", () => {
 		// The note is inserted, not substituted: the diff has to survive it.
-		const lines = block("edit", { path: "a.tsx", edits: [{ oldText: "a", newText: "b" }] }, { diff: DIFF, patch: DIFF });
-		const text = lines.map(plain).join("\n");
-		for (const wanted of ["edit a.tsx", "const { divider } = props;", "useState(50)"]) {
+		const text = block("edit").map(plain).join("\n");
+		for (const wanted of ["edit a.ts", "const { divider } = props;", "useState(50)"]) {
 			assert.ok(text.includes(wanted), `lost ${JSON.stringify(wanted)}`);
 		}
 	});
