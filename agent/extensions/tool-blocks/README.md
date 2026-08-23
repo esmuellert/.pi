@@ -310,10 +310,13 @@ Five is chosen, not derived. What a provider accepts depends on the account and
 the hour. Five keeps a normal turn -- one to three tools -- from ever waiting,
 and turns an opening burst into a queue that drains as each sentence lands.
 
-The queue is served newest first. A transcript renders top to bottom, so
-requests arrive oldest block first -- and the oldest blocks are the ones scrolled
-off the top. Drained in that order, the blocks on screen when a session opens are
-filled in last, a minute behind ones nobody is looking at.
+Requests go on a stack and are taken from the top. A transcript renders top to
+bottom in one synchronous pass, so the oldest block asks first -- and the oldest
+blocks are the ones scrolled off the top. Admitting each caller as it arrives
+would hand the five open slots to those five before the block being looked at has
+asked at all. Pushing first and starting on the next microtask puts the whole
+pass on the stack before anything runs, so the last block asked for is served
+first, whatever the state of the gate.
 
 Requests are also deduplicated by tool call id, because a rebuild hands every
 block a fresh state slot while the previous build's requests are still running.

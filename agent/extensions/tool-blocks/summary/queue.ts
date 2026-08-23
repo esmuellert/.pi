@@ -1,5 +1,5 @@
 /**
- * How many sentences may be asked for at once.
+ * How many sentences may be asked for at once, and which ones first.
  *
  * Nothing throttled them before. A rebuilt transcript renders every block, so
  * opening a session with no stored sentences fired one request per block at the
@@ -17,42 +17,54 @@
 export const LIMIT = 5;
 
 let live = 0;
-const waiting: (() => void)[] = [];
+const stack: (() => void)[] = [];
 
 /**
- * Run `work` once there is room, newest waiter first.
+ * Run `work`, newest first, five at a time.
  *
- * A transcript renders top to bottom, so requests queue oldest block first --
- * and the oldest blocks are the ones scrolled off the top. Served in that order,
- * the blocks on screen when a session opens are the last to be filled in, a
- * minute behind ones nobody is looking at. Taken from the end instead, the note
- * under the block you are reading arrives first and the queue works backwards up
- * the transcript.
+ * Everything goes on the stack, including the first request while the gate is
+ * wide open. That is the whole point: a transcript renders top to bottom in one
+ * synchronous pass, so admitting each caller as it arrives hands the first five
+ * slots to the five oldest blocks -- the ones scrolled off the top -- before any
+ * of the rest have asked. Pushing first and starting on the next microtask means
+ * the whole pass is on the stack before anything runs, and the block at the
+ * bottom of the transcript, the one being looked at, is served first.
  *
- * It also puts a block that finishes during the drain ahead of the backlog,
- * which is right for the same reason: it is the one being watched.
- *
- * The slot is released in `finally`, so a request that throws does not take the
- * queue with it.
+ * A block that finishes later lands on top of the backlog, ahead of it, for the
+ * same reason.
  */
-export async function through<T>(work: () => Promise<T>): Promise<T> {
-	if (live >= LIMIT) await new Promise<void>((admit) => waiting.push(admit));
-	live += 1;
-	try {
-		return await work();
-	} finally {
-		live -= 1;
-		waiting.pop()?.();
+export function through<T>(work: () => Promise<T>): Promise<T> {
+	return new Promise<T>((settle, fail) => {
+		stack.push(() => {
+			void work().then(settle, fail).finally(release);
+		});
+		// After the synchronous caller, so a whole render pass is on the stack
+		// before the first item is taken off it.
+		queueMicrotask(pump);
+	});
+}
+
+/** Give a slot back and start whatever is on top. */
+function release(): void {
+	live -= 1;
+	pump();
+}
+
+/** Start as many as there is room for, from the top. */
+function pump(): void {
+	while (live < LIMIT && stack.length > 0) {
+		live += 1;
+		stack.pop()?.();
 	}
 }
 
-/** How many are running and how many are queued. For tests. */
-export function pressure(): { live: number; queued: number } {
-	return { live, queued: waiting.length };
+/** How many are running and how many are waiting. For tests. */
+export function pressure(): { live: number; waiting: number } {
+	return { live, waiting: stack.length };
 }
 
-/** Let every waiter through. For tests, which must not inherit a full queue. */
-export function drain(): void {
+/** Drop everything. For tests, which must not inherit each other's backlog. */
+export function forgetQueue(): void {
 	live = 0;
-	while (waiting.length > 0) waiting.shift()?.();
+	stack.length = 0;
 }
