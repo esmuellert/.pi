@@ -284,3 +284,18 @@ pnpm --filter pi-tool-blocks test
 | `bash/bash.test.ts` | the scope map, and the highlighter against real commands |
 | `startup.test.ts` | the highlighter is ready before any tool is registered |
 | `shared/constants.test.ts` | the few constants nothing derives, pinned to what they claim |
+
+## Where a summary lives
+
+A sentence used to live only in `context.state`, which pi keeps per rendered
+row. Both `/reload` and reopening a session call `rebuildChatFromMessages`,
+which clears the chat container and builds every row again -- so the state went
+with it and every block asked for its sentence a second time. pi renders the
+whole transcript and slices the viewport out afterwards, so that is all of them:
+194 blocks past the last compaction in the session this was written in.
+
+They are kept as pi custom entries, one per tool call, keyed by its id.
+`appendEntry` writes them into the session file and
+`sessionEntryToContextMessages` returns nothing for the `custom` type, so they
+survive a restart and never reach the model. There is a test on that last part:
+the whole design rests on it.

@@ -11,6 +11,7 @@ import type { RenderArgs, RenderContext } from "../tools/builtins.ts";
 import { type Slot, summaryFor } from "./summary.ts";
 
 export { useRegistry } from "./summary.ts";
+export { useSession } from "./store.ts";
 
 /**
  * No indent.
@@ -69,7 +70,7 @@ export function noting(tool: string) {
 		theme: Theme,
 		context: RenderContext,
 	): string[] | undefined => {
-		const text = summaryFor(tool, args, output, context.state as Slot, context.invalidate);
+		const text = summaryFor(tool, args, output, context.state as Slot, context.invalidate, context.toolCallId);
 		return text ? layout(text, width, theme, context.isError === true) : undefined;
 	};
 }

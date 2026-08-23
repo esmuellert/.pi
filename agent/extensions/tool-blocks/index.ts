@@ -19,7 +19,7 @@ import { retitling } from "./bash/title.ts";
 import { loadConfig, saveConfig, type MarkStyle } from "./mark/config.ts";
 import { ICON, LETTER } from "./mark/icons.ts";
 import { marking } from "./mark/index.ts";
-import { noting, useRegistry } from "./summary/noting.ts";
+import { noting, useRegistry, useSession } from "./summary/noting.ts";
 import { TOOLS } from "./tools/builtins.ts";
 import { present } from "./tools/override.ts";
 
@@ -36,7 +36,12 @@ export default async function (pi: ExtensionAPI) {
 
 	// The sentence under a bash block is written by a second, cheaper model, and
 	// reaching one needs a registry that only exists once a session does.
-	pi.on("session_start", async (_event, ctx) => useRegistry(ctx.modelRegistry, ctx.sessionManager));
+	pi.on("session_start", async (_event, ctx) => {
+		useRegistry(ctx.modelRegistry, ctx.sessionManager);
+		// Sentences a previous run wrote. Without this, `/reload` and reopening
+		// both clear the chat and rebuild it, and every block asks again.
+		useSession(pi, ctx.sessionManager);
+	});
 
 	for (const tool of TOOLS) {
 		pi.registerTool(

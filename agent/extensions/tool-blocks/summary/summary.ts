@@ -19,6 +19,8 @@
  * than "displays repository status".
  */
 import type { ModelRegistry } from "@earendil-works/pi-coding-agent";
+
+import { recall, remember } from "./store.ts";
 import type { Api, AssistantMessage, Model } from "@earendil-works/pi-ai";
 
 /** How long a sentence may take before the block gives up on it. */
@@ -166,7 +168,13 @@ export function summaryFor(
 	output: string,
 	slot: Slot,
 	invalidate: () => void,
+	id?: string,
 ): string | undefined {
+	// What a previous run already paid for. Read before the slot, because the
+	// slot is empty on every rebuild and this is not.
+	const stored = recall(id);
+	if (stored !== undefined) return stored;
+
 	const key = `${tool}\u0000${argsAsText(args)}`;
 	if (slot.summaryFor !== key) {
 		slot.summaryFor = key;
@@ -180,6 +188,7 @@ export function summaryFor(
 	void write(registry, writer, tool, args, output)
 		.then((text) => {
 			slot.summary = { text };
+			if (text) remember(id, text);
 		})
 		.catch(() => {
 			slot.summary = { text: null };
