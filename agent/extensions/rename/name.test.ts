@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { ask, type ContextMessage, INSTRUCTION, nameFor, pick, textOf, tidy, transcript, WRITER } from "./name.ts";
+import { ask, type ContextMessage, fromBranch, INSTRUCTION, nameFor, pick, textOf, tidy, transcript, WRITER } from "./name.ts";
 
 const said = (role: string, text: string): ContextMessage => ({ role, content: [{ type: "text", text }] });
 
@@ -99,6 +99,38 @@ describe("choosing who writes it", () => {
 	it("takes what there is when nothing is priced", () => {
 		assert.equal(pick([model("mystery")])?.id, "mystery");
 		assert.equal(pick([]), undefined);
+	});
+});
+
+describe("reading a session that was reopened", () => {
+	it("finds the conversation in the session file", () => {
+		// `context` fires only while a request is being built. A session opened
+		// with /resume and renamed before anything is sent has never seen the
+		// event, and reported having nothing said in it while holding hundreds
+		// of turns.
+		const entries = [
+			{ type: "message", message: said("user", "why does docker cache bust") },
+			{ type: "model_change" },
+			{ type: "message", message: said("assistant", "COPY . . invalidates every layer") },
+		];
+		const found = fromBranch({ buildContextEntries: () => entries });
+		assert.equal(found.length, 2);
+		assert.match(transcript(found), /USER: why does docker cache bust/);
+	});
+
+	it("leaves the compaction summary out", () => {
+		// Naming a session after work already behind it is worse than naming it
+		// after the turns pi kept.
+		const entries = [
+			{ type: "compaction", summary: "## Goal\nSomething long finished days ago" },
+			{ type: "message", message: said("user", "now the browser skill") },
+		];
+		assert.equal(fromBranch({ buildContextEntries: () => entries }).length, 1);
+	});
+
+	it("says nothing when the session really is empty", () => {
+		assert.deepEqual(fromBranch({ buildContextEntries: () => [] }), []);
+		assert.deepEqual(fromBranch(undefined), []);
 	});
 });
 

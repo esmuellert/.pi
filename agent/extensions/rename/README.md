@@ -29,6 +29,17 @@ about, and they are 90% of its bytes. A tool call arrives as its name alone.
 Nothing is sampled or truncated: which part of a session gives it its name is
 not something a rule can decide in advance, and at this size it all fits.
 
+## A session that was reopened
+
+`context` fires only while a request is being built, so a session opened with
+`/resume` and renamed before anything is sent has never seen the event. It read
+as empty and refused to name a session holding hundreds of turns.
+
+The fallback is `buildContextEntries()`, which is what pi itself calls to rebuild
+a context, so both paths see the same turns. `getBranch()` would return the whole
+file instead -- 3478 messages against 1255 on one real session here, most of them
+already replaced by a compaction summary.
+
 ## Before anything is said
 
 No name is offered. A session nobody has spoken in has nothing to be named

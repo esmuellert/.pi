@@ -16,6 +16,31 @@ export interface ContextMessage {
 	content?: unknown;
 }
 
+/** Just enough of pi's session manager to read a conversation back. */
+export interface Branch {
+	buildContextEntries: () => readonly { type?: string; message?: ContextMessage }[];
+}
+
+/**
+ * The conversation as stored, for when no request has been built yet.
+ *
+ * `buildContextEntries` is what pi itself calls to rebuild a context, so this
+ * path and the `context` event see the same turns. `getBranch` would return the
+ * whole file instead -- 3478 messages against 1255 on one real session here,
+ * most of them already replaced by a compaction summary, which would name the
+ * session after work that is days behind it.
+ *
+ * Compaction entries are skipped rather than unpacked, for the same reason.
+ */
+export function fromBranch(branch: Branch | undefined): readonly ContextMessage[] {
+	const out: ContextMessage[] = [];
+	for (const entry of branch?.buildContextEntries?.() ?? []) {
+		if (entry.type !== "message" || !entry.message) continue;
+		out.push(entry.message);
+	}
+	return out;
+}
+
 /**
  * What the model is told.
  *
