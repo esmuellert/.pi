@@ -248,3 +248,15 @@ describe("a transcript rebuilt while requests are in the air", () => {
 		assert.equal(asked, 1);
 	});
 });
+
+describe("the language rule names a default", () => {
+	it("supplies English as the answer rather than leaving it open", () => {
+		// "whatever that language is" leaves the language an open question even
+		// when the reader is writing English, and an open question is where a
+		// sentence in Korean comes from: 17 of 192 real drifting calls against
+		// 0 with this wording. Naming the condition without supplying the answer
+		// was measured too, and drifted as much as leaving it open.
+		assert.match(LANGUAGE_RULE, /English unless their words are in another language/);
+		assert.doesNotMatch(LANGUAGE_RULE, /whatever that language is/);
+	});
+});

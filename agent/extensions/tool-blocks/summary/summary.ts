@@ -45,20 +45,34 @@ export const INSTRUCTION =
 	+ "No preamble, no trailing period, no quotes.";
 
 /**
- * Written in whatever language the reader is using.
+ * Written in the reader's language, with English named as the default.
  *
- * The writer decides, from a sample of the reader's own words. Detecting it
- * here would mean writing a language detector, and the one worth writing --
- * counting CJK characters -- calls Spanish, French, German and Russian all
- * English. Asked instead, the writer got Chinese, Japanese, Spanish, French,
- * German, Russian and English right, including from a two-character sample.
+ * The writer decides, from a sample of the reader's own words. Detecting it here
+ * would mean writing a language detector, and the one worth writing -- counting
+ * CJK characters -- calls Spanish, French, German and Russian all English.
  *
- * It costs nothing: over thirty commands the rule scored 7.10 against 6.93
- * without it, which is inside the error either way.
+ * Naming English as the default is what stops the drift. The rule used to end
+ * "whatever that language is", which leaves the language an open question even
+ * when the reader is writing English -- and an open question is where a sentence
+ * in Korean or Russian comes from. Measured on the 192 calls whose stored
+ * summaries had actually drifted, in sessions held in English:
+ *
+ *     whatever that language is                       17/192   8.9%
+ *     only when the reader writes another language    14/192   7.3%
+ *     English unless their words are in another        0/192   0.0%
+ *
+ * Fisher, one-tailed, p = 5.3e-06. Naming the condition is not enough: the
+ * second variant still asks the writer to decide, and drifts as much as the
+ * first. Only supplying the answer works.
+ *
+ * Dropping the rule entirely also gives 0/192 there, and is wrong: on 192 calls
+ * from a session held in Chinese it kept Chinese 43% of the time against 100%
+ * with the rule. This wording keeps 95%, and the ten it loses come out in
+ * English rather than in a third language -- a failure the reader can read.
  */
 export const LANGUAGE_RULE =
-	" Write it in the same language as the note below, whatever that language is. "
-	+ "Keep identifiers, paths and file names exactly as they appear.";
+	" Write it in the same language the reader writes in -- English unless their words "
+	+ "are in another language. Keep identifiers, paths and file names exactly as they appear.";
 
 /**
  * What the writer is shown: the command, and what it printed.

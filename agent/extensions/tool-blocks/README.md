@@ -346,3 +346,24 @@ English is not, and a rule that only half works is worse than the model deciding
 
 temperature 0 was measured too, at 2/110 against 3.6% -- not enough to matter,
 and it would make every sentence for a repeated command identical.
+
+## The language rule names English as the default
+
+Summaries in a session held in English kept coming out in Korean, Russian or
+Japanese. The rule ended "whatever that language is", which leaves the language
+an open question even when the reader is writing English -- and that is where a
+sentence in a third language comes from.
+
+Measured on the 192 calls whose stored summaries had actually drifted:
+
+    whatever that language is                       17/192   8.9%
+    only when the reader writes another language    14/192   7.3%
+    English unless their words are in another        0/192   0.0%
+
+Fisher, one-tailed, p = 5.3e-06. Naming the condition is not enough -- the second
+variant still asks the writer to decide. Only supplying the answer works.
+
+Dropping the rule gives 0/192 there too, and is wrong: on 192 calls from a
+session held in Chinese it kept Chinese 43% of the time against 100% with the
+rule. This wording keeps 95%, and the ten it loses come out in English rather
+than in a third language -- a failure the reader can read.
