@@ -13,6 +13,7 @@
 !/agent/
 /agent/*
 !/agent/settings.json
+!/agent/AGENTS.md
 !/agent/keybindings.json
 
 # --- skills: ours, but not the state they accumulate ---
@@ -50,8 +51,6 @@
 !/agent/extensions/moshi-push/
 !/agent/extensions/rename/
 
-# --- optional, uncomment when created ---
-# !/agent/keybindings.json
 
 # --- skills: ours, but not the state they accumulate ---
 !/agent/skills/
