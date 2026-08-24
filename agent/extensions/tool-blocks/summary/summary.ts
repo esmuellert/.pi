@@ -51,24 +51,17 @@ export const INSTRUCTION =
  * would mean writing a language detector, and the one worth writing -- counting
  * CJK characters -- calls Spanish, French, German and Russian all English.
  *
- * Naming English as the default is what stops the drift. The rule used to end
- * "whatever that language is", which leaves the language an open question even
- * when the reader is writing English -- and an open question is where a sentence
- * in Korean or Russian comes from. Measured on the 192 calls whose stored
- * summaries had actually drifted, in sessions held in English:
+ * English is named rather than left implied. Ending the rule "whatever that
+ * language is" leaves the language an open question even when the reader is
+ * writing English, and an open question is where a summary in Korean comes from.
+ * Naming the condition instead -- "if the reader writes something other than
+ * English" -- does not help: it still asks the writer to decide. Only supplying
+ * the answer does.
  *
- *     whatever that language is                       17/192   8.9%
- *     only when the reader writes another language    14/192   7.3%
- *     English unless their words are in another        0/192   0.0%
- *
- * Fisher, one-tailed, p = 5.3e-06. Naming the condition is not enough: the
- * second variant still asks the writer to decide, and drifts as much as the
- * first. Only supplying the answer works.
- *
- * Dropping the rule entirely also gives 0/192 there, and is wrong: on 192 calls
- * from a session held in Chinese it kept Chinese 43% of the time against 100%
- * with the rule. This wording keeps 95%, and the ten it loses come out in
- * English rather than in a third language -- a failure the reader can read.
+ * The rule is not free. A reader writing Chinese gets some summaries in English
+ * that the older wording would have kept in Chinese. That trade is deliberate:
+ * its failures are readable, and a summary in a language the reader never used
+ * is not.
  */
 export const LANGUAGE_RULE =
 	" Write it in the same language the reader writes in -- English unless their words "

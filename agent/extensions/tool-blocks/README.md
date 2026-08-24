@@ -352,18 +352,18 @@ and it would make every sentence for a repeated command identical.
 Summaries in a session held in English kept coming out in Korean, Russian or
 Japanese. The rule ended "whatever that language is", which leaves the language
 an open question even when the reader is writing English -- and that is where a
-sentence in a third language comes from.
+summary in a third language comes from.
 
-Measured on the 192 calls whose stored summaries had actually drifted:
+Naming the condition instead ("if the reader writes something other than
+English") does not help: it still asks the writer to decide. Only supplying the
+answer does.
 
-    whatever that language is                       17/192   8.9%
-    only when the reader writes another language    14/192   7.3%
-    English unless their words are in another        0/192   0.0%
+The rule is not free. A reader writing Chinese gets some summaries in English
+that the older wording would have kept in Chinese. That trade is deliberate: its
+failures are readable, and a summary in a language the reader never used is not.
 
-Fisher, one-tailed, p = 5.3e-06. Naming the condition is not enough -- the second
-variant still asks the writer to decide. Only supplying the answer works.
+Variants were compared on the calls whose stored summaries had actually
+drifted, replayed with the command, the output and the reader's words as they
+stood at the time. The numbers moved when the sample was built differently, so
+they are in the commits rather than here.
 
-Dropping the rule gives 0/192 there too, and is wrong: on 192 calls from a
-session held in Chinese it kept Chinese 43% of the time against 100% with the
-rule. This wording keeps 95%, and the ten it loses come out in English rather
-than in a third language -- a failure the reader can read.
