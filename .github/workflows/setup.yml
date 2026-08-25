@@ -9,13 +9,11 @@ name: setup
 # -- no PNPM_HOME, no pi, no credentials -- which is the state a new machine is
 # in and the state that kept breaking.
 
+# Every push. bootstrap runs the whole test suite, so any package can be the
+# one that breaks it -- the first version of this filtered to the setup scripts
+# and then missed a timing assertion that only failed on Windows.
 on:
   push:
-    paths:
-      - "agent/extensions/scripts/**"
-      - "agent/extensions/pnpm-workspace.yaml"
-      - "agent/extensions/package.json"
-      - ".github/workflows/setup.yml"
   pull_request:
   workflow_dispatch:
 
