@@ -10,7 +10,13 @@
 
 import type { Stats } from "./stats.ts";
 
-export const SEPARATOR = "  ·  ";
+/**
+ * Two spaces, the same as the statusline uses.
+ *
+ * A dot between fields is a character spent saying what the gap already says,
+ * and it made the line read as a sentence rather than as a row of figures.
+ */
+export const SEPARATOR = "  ";
 
 /** Seconds, then minutes, then hours -- never more than three characters of number. */
 export function duration(ms: number): string {

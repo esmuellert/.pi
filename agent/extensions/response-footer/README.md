@@ -3,16 +3,16 @@
 One line under each reply, right-aligned.
 
 ```
-              1 tool  ·  39s  ·  $0.897  ·  cache 100%  ·  ↑1.7M ↓1.3k
-           10 tools  ·  2m22s  ·  $4.58  ·  cache 100%  ·  ↑8.6M ↓9.4k
-           36 tools  ·  4m37s  ·  $8.08  ·  cache 100%  ·  ↑15.1M ↓15k
+                  1 tool  39s  $0.897  cache 100%  ↑1.7M ↓1.3k
+               10 tools  2m22s  $4.58  cache 100%  ↑8.6M ↓9.4k
+               36 tools  4m37s  $8.08  cache 100%  ↑15.1M ↓15k
 ```
 
 Narrow terminals drop from the end, so the leading figures stay put:
 
 ```
 53 columns
-     1 tool  ·  39s  ·  $0.897  ·  cache 100%
+     1 tool  39s  $0.897  cache 100%  ↑1.7M ↓1.3k
 ```
 
 See it without writing anything:
