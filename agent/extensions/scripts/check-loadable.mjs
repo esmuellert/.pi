@@ -53,7 +53,17 @@ console.log(`  ${extensions.length} extensions load: ${names.join(", ")}`);
  */
 const workspace = readFileSync(join(here, "..", "pnpm-workspace.yaml"), "utf-8");
 const declared = [...workspace.matchAll(/^\s*-\s*"([^"]+)"/gm)].map((m) => m[1]);
-const untracked = declared.filter((name) => {
+
+// Whether a package is committed is a fact about the repository, not about the
+// machine. A checkout without git history -- an archive, a container, a copy --
+// answers "untracked" for every package, which is a report about the copy rather
+// than about anything anyone can fix.
+const insideGitRepo = spawnSync("git", ["rev-parse", "--git-dir"], {
+	cwd: join(here, ".."),
+	stdio: "ignore",
+}).status === 0;
+
+const untracked = !insideGitRepo ? [] : declared.filter((name) => {
 	const result = spawnSync("git", ["ls-files", "--error-unmatch", `${name}/package.json`], {
 		cwd: join(here, ".."),
 		stdio: "ignore",
@@ -66,4 +76,8 @@ if (untracked.length > 0) {
 	console.error("    third-party extensions out of the repository.");
 	process.exit(1);
 }
-console.log(`  ${declared.length} workspace packages are all tracked`);
+console.log(
+	insideGitRepo
+		? `  ${declared.length} workspace packages are all tracked`
+		: `  ${declared.length} workspace packages declared (no git history here, so tracking is not checked)`,
+);

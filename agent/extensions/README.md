@@ -8,6 +8,37 @@ packages here are loaded straight from source — nothing is ever built. The
 workspace exists for the tooling around them: one dependency set, one command to
 verify everything, and type checking against the pi that is actually installed.
 
+## Upgrading
+
+One machine moves the repo forward:
+
+```bash
+pnpm upgrade-pi            # latest, or pass a version
+git commit -am "pin pi X"
+git push
+```
+
+Every other machine follows:
+
+```bash
+git pull
+pnpm bootstrap
+```
+
+Both install pi globally, install the workspace, prune the version they
+replaced, and verify. `pnpm check` reports the three things that can drift --
+the catalog pin, the installed pi, the unpacked dependencies -- and changes
+nothing.
+
+node and pnpm are yours to install. `bootstrap` and `upgrade-pi` refuse to start
+when they are missing or misconfigured, and print the command that fixes it;
+they do not edit a shell profile, because a script that does has to guess which
+one is read and what else is in it.
+
+Smoke tests start pi and call a real model, so they run only where credentials
+exist. A machine that has not run `pi login` still gets tests, typechecks and a
+load check, and is told the smoke tests were skipped rather than passed.
+
 ## Packages
 
 | Package | What it does |

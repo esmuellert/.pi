@@ -34,12 +34,16 @@ catalog:
   turbo: ^2.10.11
   typescript: ^7.0.2
 
-# Only this machine's platform. turbo and TypeScript 7 ship one native binary
-# per platform as optional dependencies; without this pnpm installs all of them,
-# which was 770 MB of Windows, Linux, AIX and s390x builds against 66 MB that
-# can run here. Add an entry when this repo has to install somewhere else.
+# Whichever platform is installing, and no others. turbo and TypeScript 7 ship
+# one native binary per platform as optional dependencies; without this pnpm
+# unpacks all of them, which was 770 MB of Windows, Linux, AIX and s390x builds
+# against the 66 MB that can actually run.
+#
+# `current` rather than a named platform: pinning darwin/arm64 made the repo
+# installable on one machine and broken on every other, which is what a config
+# repo cannot be. A Windows or Linux checkout resolves its own binaries here.
 supportedArchitectures:
   os:
-    - darwin
+    - current
   cpu:
-    - arm64
+    - current
