@@ -13,10 +13,19 @@ import type { Stats } from "./stats.ts";
 /**
  * Two spaces, the same as the statusline uses.
  *
- * A dot between fields is a character spent saying what the gap already says,
- * and it made the line read as a sentence rather than as a row of figures.
+ * A dot between fields spends a character saying what the gap already says, and
+ * made the line read as a sentence rather than as a row of figures. One space is
+ * not enough: several parts contain a space of their own, so the eye has nothing
+ * to group by, and the line is short enough that the four columns saved buy
+ * nothing -- even the worst reply here fits a 53-column terminal either way.
+ *
+ * The line looks tighter on a wide terminal than on a narrow one, and that is
+ * not the separator: the line is the same length in both, so on 78 columns it
+ * is a small cluster against 39 columns of empty space, and on 53 it nearly
+ * spans the width. Varying the separator by width would fix the look and break
+ * the rule that resizing stays continuous.
  */
-export const SEPARATOR = " ";
+export const SEPARATOR = "  ";
 
 /**
  * The glyphs, both Nerd Font.

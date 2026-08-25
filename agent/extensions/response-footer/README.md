@@ -3,9 +3,9 @@
 One line under each reply, right-aligned.
 
 ```
-                         1 39s $0.897  100% ↑1.7M ↓1.3k
-                      10 2m22s $4.58  100% ↑8.6M ↓9.4k
-                      36 4m37s $8.08  100% ↑15.1M ↓15k
+                        1  39s  $0.897   100%  ↑1.7M ↓1.3k
+                     10  2m22s  $4.58   100%  ↑8.6M ↓9.4k
+                     36  4m37s  $8.08   100%  ↑15.1M ↓15k
 
 (a wrench and a database glyph; both Nerd Font, one column each)
 ```
@@ -14,7 +14,7 @@ Narrow terminals drop from the end, so the leading figures stay put:
 
 ```
 53 columns
-      1 39s $0.897  100% ↑1.7M ↓1.3k
+      1  39s  $0.897   100%  ↑1.7M ↓1.3k
 ```
 
 See it without writing anything:
