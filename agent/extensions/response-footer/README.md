@@ -3,16 +3,18 @@
 One line under each reply, right-aligned.
 
 ```
-                  1 tool  39s  $0.897  cache 100%  ↑1.7M ↓1.3k
-               10 tools  2m22s  $4.58  cache 100%  ↑8.6M ↓9.4k
-               36 tools  4m37s  $8.08  cache 100%  ↑15.1M ↓15k
+                         1 39s $0.897  100% ↑1.7M ↓1.3k
+                      10 2m22s $4.58  100% ↑8.6M ↓9.4k
+                      36 4m37s $8.08  100% ↑15.1M ↓15k
+
+(a wrench and a database glyph; both Nerd Font, one column each)
 ```
 
 Narrow terminals drop from the end, so the leading figures stay put:
 
 ```
 53 columns
-     1 tool  39s  $0.897  cache 100%  ↑1.7M ↓1.3k
+      1 39s $0.897  100% ↑1.7M ↓1.3k
 ```
 
 See it without writing anything:
@@ -52,6 +54,16 @@ replies here hit 99% or better, and the ones that miss cost several times more.
 ## Not backfilled
 
 Only new replies get a line. The file is not rewritten to give older ones one.
+
+## Glyphs
+
+A wrench for the tool count and the database the statusline already uses for the
+cache. A cog was the obvious alternative and reads as settings in most
+interfaces. tool-blocks has an icon per tool, but this counts every kind, so it
+needs the category rather than one member of it.
+
+Both measure one column, and a font without them draws a box that measures one
+column too, so the line stays aligned either way.
 
 ## What breaks if this changes
 

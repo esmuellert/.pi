@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { duration, fit, layout, money, parts, SEPARATOR, tokens } from "./format.ts";
+import { duration, fit, ICON, layout, money, parts, SEPARATOR, tokens } from "./format.ts";
 import { add, close, empty, type Stats, worthShowing } from "./stats.ts";
 
 const wide = (s: string) => s.length;
@@ -78,11 +78,13 @@ describe("the figures", () => {
 
 describe("what the line carries", () => {
 	it("leads with what a reader scans for", () => {
-		assert.deepEqual(parts(stats()).slice(0, 3), ["6 tools", "1m29s", "$3.03"]);
+		assert.deepEqual(parts(stats()).slice(0, 3), [`${ICON.tools} 6`, "1m29s", "$3.03"]);
 	});
 
-	it("says tool, not tools, for one", () => {
-		assert.equal(parts(stats({ tools: 1 }))[0], "1 tool");
+	it("spends one column on each glyph", () => {
+		// A glyph that measures two would shift everything after it, and a font
+		// without these draws a box that still measures one.
+		for (const glyph of Object.values(ICON)) assert.equal([...glyph].length, 1);
 	});
 
 	it("leaves out what did not happen", () => {
@@ -97,18 +99,20 @@ describe("fitting a narrow terminal", () => {
 		// window is resized.
 		const all = parts(stats());
 		const narrow = fit(all, 24, wide);
-		assert.ok(narrow.startsWith("6 tools"), narrow);
+		assert.ok(narrow.startsWith(`${ICON.tools} 6`), narrow);
 		assert.ok(wide(narrow) <= 24);
 	});
 
 	it("never abbreviates a part to squeeze it in", () => {
-		// A shortened figure is a figure the reader has to decode.
-		for (let width = 6; width <= 80; width += 1) {
-			const line = fit(parts(stats()), width, wide);
+		// A shortened figure is a figure the reader has to decode. Checked as a
+		// prefix rather than by splitting: the separator is a single space and
+		// several parts contain one, so splitting would cut them in half.
+		const all = parts(stats());
+		for (let width = 1; width <= 80; width += 1) {
+			const line = fit(all, width, wide);
 			if (!line) continue;
-			for (const piece of line.split(SEPARATOR)) {
-				assert.ok(parts(stats()).includes(piece), `${piece} at width ${width}`);
-			}
+			const take = all.findIndex((_, i) => all.slice(0, i + 1).join(SEPARATOR) === line);
+			assert.ok(take >= 0, `width ${width} produced ${line}, which is no prefix of the parts`);
 		}
 	});
 
@@ -120,7 +124,9 @@ describe("fitting a narrow terminal", () => {
 	});
 
 	it("returns nothing rather than overflowing", () => {
-		assert.equal(layout(stats(), 3, wide), "");
+		// Narrower than the first part, which is a glyph, a space and a digit.
+		assert.equal(layout(stats(), 2, wide), "");
+		assert.ok(wide(layout(stats(), 40, wide)) <= 40);
 	});
 
 	it("survives an entry written before a field existed", () => {

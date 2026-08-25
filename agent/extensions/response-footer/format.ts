@@ -16,7 +16,23 @@ import type { Stats } from "./stats.ts";
  * A dot between fields is a character spent saying what the gap already says,
  * and it made the line read as a sentence rather than as a row of figures.
  */
-export const SEPARATOR = "  ";
+export const SEPARATOR = " ";
+
+/**
+ * The glyphs, both Nerd Font.
+ *
+ * `cache` is the one the statusline already uses for the same number. `tools` is
+ * a wrench rather than a cog: a cog reads as settings in most interfaces. Per
+ * tool icons exist in tool-blocks, but this counts tools of every kind, so it
+ * needs the category rather than any one member of it.
+ *
+ * A font without them draws a box, which still measures one column, so the line
+ * stays aligned either way.
+ */
+export const ICON = {
+	tools: "\uF0AD",
+	cache: "\uF1C0",
+} as const;
 
 /** Seconds, then minutes, then hours -- never more than three characters of number. */
 export function duration(ms: number): string {
@@ -48,10 +64,10 @@ export function money(cost: number): string {
 /** Every part the line could carry, most useful first. */
 export function parts(s: Stats): string[] {
 	const out: string[] = [];
-	if (s.tools > 0) out.push(`${s.tools} ${s.tools === 1 ? "tool" : "tools"}`);
+	if (s.tools > 0) out.push(`${ICON.tools} ${s.tools}`);
 	out.push(duration(s.ms));
 	if (s.cost > 0) out.push(money(s.cost));
-	if (s.cacheHit !== null) out.push(`cache ${Math.round(s.cacheHit * 100)}%`);
+	if (s.cacheHit !== null) out.push(`${ICON.cache} ${Math.round(s.cacheHit * 100)}%`);
 	if (s.tokensIn > 0 || s.tokensOut > 0) out.push(`↑${tokens(s.tokensIn)} ↓${tokens(s.tokensOut)}`);
 	return out;
 }
