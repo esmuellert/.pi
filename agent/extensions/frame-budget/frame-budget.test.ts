@@ -75,9 +75,8 @@ describe("ratios, which the machine cancels out of", () => {
 		// The regression this file exists for was a cache that stopped being
 		// used. A budget in milliseconds catches it and also fails on a slower
 		// machine; a ratio catches it anywhere.
-		let calls = 0;
-		const ratio = speedup(() => { for (let i = 0; i < 2_000_000; i += 1) calls += 1; }, () => { calls += 1; });
-		assert.ok(ratio > 100, `expected a large speedup, got ${ratio}`);
+		const ratio = speedup(spin(20), spin(1));
+		assert.ok(ratio > 5, `expected a large speedup, got ${ratio.toFixed(1)}`);
 	});
 
 	it("says nothing when repeating is cheap enough", () => {
@@ -92,11 +91,12 @@ describe("ratios, which the machine cancels out of", () => {
 	});
 
 	it("reports how cost grows with the work", () => {
-		const spin = (n: number) => () => { let t = 0; for (let i = 0; i < n; i += 1) t += i; return t; };
-		const ratio = growth(spin(2_000_000), spin(8_000_000));
-		// Four times the work, linearly: generous bounds, since this measures a
-		// real machine and the point is the shape, not the number.
-		assert.ok(ratio > 2 && ratio < 8, `expected roughly 4x, got ${ratio}`);
+		// spin() burns wall time rather than counting, so four times the work
+		// really is four times the work -- a counting loop is the kind of thing
+		// V8 optimises away, and the first version of this test measured 15x on
+		// a CI machine because the smaller loop had been erased.
+		const ratio = growth(spin(5), spin(20));
+		assert.ok(ratio > 2 && ratio < 8, `expected roughly 4x, got ${ratio.toFixed(1)}`);
 	});
 
 	it("says nothing when growth is linear", () => {
