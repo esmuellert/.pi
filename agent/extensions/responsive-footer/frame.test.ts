@@ -17,7 +17,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { visibleWidth } from "@earendil-works/pi-tui";
-import { frame, overBudget } from "frame-budget";
+import { growsTooFast, growth } from "frame-budget";
 
 import { DEFAULT_CONFIG } from "./config.ts";
 import { planLayout } from "./layout.ts";
@@ -65,22 +65,38 @@ const layout = (width: number) =>
 	});
 
 describe("a frame with the footer on it", () => {
-	it("fits the budget at a session larger than any real one", () => {
-		const entries = session(20_000);
-		const draw = () => {
-			// What render() does: read the session's totals, then lay out.
-			let total = 0;
-			for (const entry of branch(entries)) total += entry.usage.input! + entry.usage.cacheRead!;
-			layout(80);
-		};
-		assert.equal(overBudget(frame(draw)), undefined);
+	/** Everything render() does: read the session's totals, then lay out. */
+	const draw = (entries: ReturnType<typeof session>) => () => {
+		let total = 0;
+		for (const entry of branch(entries)) total += entry.usage.input! + entry.usage.cacheRead!;
+		layout(80);
+	};
+
+	it("costs what the session is long, not what it is long squared", () => {
+		// The risk here is the shape, not the constant. Walking the parent chain
+		// on every frame is linear and fine at any length; anything that turns it
+		// quadratic is fine in a test and unusable by evening.
+		//
+		// Asserted as a ratio rather than a millisecond budget: a budget is a
+		// claim about the machine as much as the code, and fails on a slower one
+		// for a reason nobody can act on. Four times the session measured at
+		// 4.7-6.0x the time here; eight is well clear of that and nowhere near
+		// the sixteen that quadratic would give.
+		assert.equal(
+			growsTooFast(growth(draw(session(20_000)), draw(session(80_000))), 4, 8),
+			undefined,
+		);
 	});
 
-	it("fits the budget at the narrowest width, where the layout search is widest", () => {
-		// Narrow terminals give the bar the most sizes to try.
-		const draw = () => {
-			for (let width = 20; width <= 60; width += 1) layout(width);
+	it("costs what the width search is wide, at the narrowest widths", () => {
+		// Narrow terminals give the bar the most sizes to try, so this is where
+		// the layout search is widest.
+		const sweep = (from: number, to: number) => () => {
+			for (let width = from; width <= to; width += 1) layout(width);
 		};
-		assert.equal(overBudget(frame(draw)), undefined);
+		assert.equal(
+			growsTooFast(growth(sweep(20, 30), sweep(20, 60)), 4, 8),
+			undefined,
+		);
 	});
 });

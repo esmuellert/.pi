@@ -61,6 +61,63 @@ export function frame(draw: () => void): number {
 	return best;
 }
 
+/**
+ * How much cheaper repeating work is than doing it the first time.
+ *
+ * The regression this file exists for was a cache that stopped being used: the
+ * same redraw went from remembering its tokens to recomputing them, six hundred
+ * times the cost. Both versions scaled the same way with the number of blocks,
+ * so only the constant moved -- which is why the first assertion written here
+ * was an absolute budget.
+ *
+ * An absolute budget is a claim about the machine as much as about the code, and
+ * it fails on a slower one for no reason anyone can act on. A ratio is the same
+ * claim without that: the machine cancels out, because both halves are measured
+ * on it. A cache that has stopped working cannot be six hundred times cheaper on
+ * any machine, however fast or loaded.
+ *
+ * `cold` must genuinely do the work again -- forget the cache, use a new width,
+ * whatever makes it real -- or the ratio measures nothing.
+ */
+export function speedup(cold: () => void, warm: () => void): number {
+	const first = frame(cold);
+	const again = frame(warm);
+	return again === 0 ? Infinity : first / again;
+}
+
+/**
+ * How the cost grows when the work does.
+ *
+ * The other machine-independent question. A layout that is linear in the session
+ * stays usable however long the session gets; one that is quadratic is fine in
+ * every test and unusable by evening. The ratio of the two measurements answers
+ * that without either of them being a claim about the machine.
+ */
+export function growth(small: () => void, large: () => void): number {
+	const a = frame(small);
+	const b = frame(large);
+	return a === 0 ? Infinity : b / a;
+}
+
+/** The message a superlinear growth should carry. */
+export function growsTooFast(ratio: number, work: number, allowed: number): string | undefined {
+	if (ratio <= allowed) return undefined;
+	return (
+		`${work}x the work cost ${ratio.toFixed(1)}x the time, wanted at most ${allowed}x. ` +
+		`Something here is superlinear, which is fine in a test and unusable in a long session.`
+	);
+}
+
+/** The message a too-small speedup should carry. */
+export function tooSlow(ratio: number, wanted: number): string | undefined {
+	if (ratio >= wanted) return undefined;
+	return (
+		`repeating the work was only ${ratio.toFixed(1)}x cheaper than doing it, wanted ${wanted}x. ` +
+		`Something that should be remembered between frames is being recomputed, ` +
+		`which is what a keystroke waits for.`
+	);
+}
+
 /** The message a failure should carry: the cost, the budget, and the frame it sits in. */
 export function overBudget(cost: number, budget = BUDGET_MS): string | undefined {
 	if (cost <= budget) return undefined;
