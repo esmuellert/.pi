@@ -38,14 +38,21 @@ jobs:
           corepack enable
           corepack prepare pnpm@10.13.1 --activate
 
+      # Written in node rather than shell: on Windows the runner's bash is Git
+      # Bash, whose $HOME is a /c/... path that pnpm and cmd.exe do not accept.
+      # node reports the platform's own form on every runner.
       - name: PNPM_HOME on PATH
-        shell: bash
         run: |
-          home="$(pnpm config get global-bin-dir 2>/dev/null || true)"
-          [ -z "$home" ] || [ "$home" = "undefined" ] && home="$HOME/.pnpm-global"
-          mkdir -p "$home"
-          echo "PNPM_HOME=$home" >> "$GITHUB_ENV"
-          echo "$home" >> "$GITHUB_PATH"
+          node -e "
+            const { homedir } = require('node:os');
+            const { join } = require('node:path');
+            const { mkdirSync, appendFileSync } = require('node:fs');
+            const home = join(homedir(), '.pnpm-global');
+            mkdirSync(home, { recursive: true });
+            appendFileSync(process.env.GITHUB_ENV, 'PNPM_HOME=' + home + '\n');
+            appendFileSync(process.env.GITHUB_PATH, home + '\n');
+            console.log('PNPM_HOME=' + home);
+          "
 
       - name: bootstrap
         working-directory: agent/extensions
@@ -55,22 +62,38 @@ jobs:
         working-directory: agent/extensions
         run: node scripts/setup.mjs check
 
-      - name: pi runs, at the pinned version
-        shell: bash
+      # Also node: `pi` is a .cmd shim on Windows, which bash can start but
+      # execFile cannot, and the checks below have to run identically everywhere.
+      - name: pi runs at the pinned version, and only one is unpacked
         working-directory: agent/extensions
         run: |
-          pinned="$(grep -oE '"@earendil-works/pi-coding-agent":[[:space:]]*[^[:space:]]+' pnpm-workspace.yaml | awk '{print $2}')"
-          installed="$(pi --version)"
-          echo "pinned $pinned, installed $installed"
-          [ "$pinned" = "$installed" ]
+          node -e "
+            const { execFileSync } = require('node:child_process');
+            const { readFileSync, readdirSync } = require('node:fs');
+            const windows = process.platform === 'win32';
+            const run = (cmd, args) => execFileSync(
+              windows ? process.env.ComSpec ?? 'cmd.exe' : cmd,
+              windows ? ['/d', '/s', '/c', cmd, ...args] : args,
+              { encoding: 'utf-8' },
+            ).trim();
 
-      - name: one version of each pi package is unpacked
-        shell: bash
-        working-directory: agent/extensions
-        run: |
-          strays="$(ls node_modules/.pnpm | grep -E 'pi-(coding-agent|tui|ai)@' | sed 's/.*@//; s/_.*//' | sort -u | wc -l)"
-          ls node_modules/.pnpm | grep -E 'pi-(coding-agent|tui|ai)@'
-          [ "$strays" = "1" ]
+            const yaml = readFileSync('pnpm-workspace.yaml', 'utf-8');
+            const pinned = /"@earendil-works\/pi-coding-agent":\s*(\S+)/.exec(yaml)[1];
+            const installed = run('pi', ['--version']);
+            console.log('pinned ' + pinned + ', installed ' + installed);
+            if (pinned !== installed) throw new Error('pi on PATH is not the pinned version');
+
+            const store = readdirSync('node_modules/.pnpm');
+            for (const pkg of ['pi-coding-agent', 'pi-tui', 'pi-ai']) {
+              const found = [...new Set(store
+                .filter((e) => e.startsWith('@earendil-works+' + pkg + '@'))
+                .map((e) => e.split('@').pop().split('_')[0]))];
+              console.log(pkg + ': ' + found.join(', '));
+              if (found.length !== 1 || found[0] !== pinned) {
+                throw new Error(pkg + ' has ' + found.length + ' versions unpacked');
+              }
+            }
+          "
 
   refuses-a-machine-it-cannot-fix:
     # node and pnpm are the user's to configure. The script has to say so and
