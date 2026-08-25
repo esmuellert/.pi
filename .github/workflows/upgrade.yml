@@ -61,12 +61,10 @@ jobs:
       # The repo pins the new version and the machine does not, which is what
       # `check` is for. It must say so and exit non-zero.
       - name: check notices the machine is behind
-        working-directory: agent/extensions
-        run: |
-          if node scripts/setup.mjs check; then
-            echo "check passed on a machine running ${{ env.PI_PREVIOUS }} against a repo pinning ${{ env.PI_TARGET }}"
-            exit 1
-          fi
+        run: >
+          node .github/scripts/must-fail.mjs
+          agent/extensions "bootstrap"
+          -- node scripts/setup.mjs check
 
       - name: bootstrap
         working-directory: agent/extensions
@@ -137,22 +135,33 @@ jobs:
           node-version: 24
       - run: corepack enable && corepack prepare pnpm@10.13.1 --activate
 
+      - name: PNPM_HOME on PATH
+        run: |
+          node -e "
+            const { homedir } = require('node:os');
+            const { join } = require('node:path');
+            const { mkdirSync, appendFileSync } = require('node:fs');
+            const home = join(homedir(), '.pnpm-global');
+            mkdirSync(home, { recursive: true });
+            appendFileSync(process.env.GITHUB_ENV, 'PNPM_HOME=' + home + '\n');
+            appendFileSync(process.env.GITHUB_PATH, home + '\n');
+          "
+
       - name: install what the repo pins
         working-directory: agent/extensions
-        run: pnpm install --frozen-lockfile
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm add -g "@earendil-works/pi-coding-agent@$(node -p "require('node:fs').readFileSync('pnpm-workspace.yaml','utf-8').match(/\"@earendil-works\/pi-coding-agent\":\s*(\S+)/)[1]")"
 
       - name: it passes on a clean workspace
         working-directory: agent/extensions
-        run: node scripts/check-install.mjs || true
+        run: node scripts/check-install.mjs
 
       - name: a second version, unpacked beside the first
         run: node .github/scripts/stray.mjs
 
       - name: and the check says so
-        working-directory: agent/extensions
-        run: |
-          if node scripts/check-install.mjs; then
-            echo "check-install passed with two versions unpacked; it checks nothing"
-            exit 1
-          fi
-          node scripts/check-install.mjs 2>&1 | grep -q "version(s) unpacked"
+        run: >
+          node .github/scripts/must-fail.mjs
+          agent/extensions "version(s) unpacked"
+          -- node scripts/check-install.mjs

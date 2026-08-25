@@ -27,6 +27,18 @@ const run = (command, args) =>
 		{ encoding: "utf-8" },
 	).trim();
 
+/** What pi on PATH reports, or nothing when there is none. */
+function installedVersion() {
+	try {
+		return run("pi", ["--version"]);
+	} catch {
+		// A missing pi is one of the things being checked for, so it is reported
+		// rather than thrown -- execFileSync's ENOENT stack says spawnSync and a
+		// path, and nothing about what the caller wanted.
+		return undefined;
+	}
+}
+
 const PI_PACKAGES = ["pi-coding-agent", "pi-tui", "pi-ai"];
 
 const yaml = readFileSync(join(WORKSPACE, "pnpm-workspace.yaml"), "utf-8");
@@ -50,10 +62,10 @@ for (const pkg of PI_PACKAGES) {
 	}
 }
 
-const installed = run("pi", ["--version"]);
-console.log(`  pinned ${pinned}, on PATH ${installed}`);
+const installed = installedVersion();
+console.log(`  pinned ${pinned}, on PATH ${installed ?? "nothing"}`);
 if (installed !== pinned) {
-	failures.push(`pi on PATH is ${installed}, not the pinned ${pinned}`);
+	failures.push(installed ? `pi on PATH is ${installed}, not the pinned ${pinned}` : "no pi on PATH");
 }
 
 const store = readdirSync(join(WORKSPACE, "node_modules/.pnpm"));

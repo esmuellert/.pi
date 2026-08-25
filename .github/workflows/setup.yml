@@ -78,21 +78,29 @@ jobs:
           node-version: 24
 
       - name: says what is wrong when pnpm is missing
-        working-directory: agent/extensions
-        run: |
-          output="$(node scripts/setup.mjs bootstrap 2>&1 || true)"
-          echo "$output"
-          echo "$output" | grep -q "pnpm is not on PATH"
-          echo "$output" | grep -q "corepack enable"
+        run: >
+          node .github/scripts/must-fail.mjs
+          agent/extensions "pnpm is not on PATH"
+          -- node scripts/setup.mjs bootstrap
+
+      - name: and names the command that fixes it
+        run: >
+          node .github/scripts/must-fail.mjs
+          agent/extensions "corepack enable"
+          -- node scripts/setup.mjs bootstrap
 
       - name: says what is wrong when the global bin directory is not on PATH
-        working-directory: agent/extensions
+        env:
+          PNPM_HOME: ${{ github.workspace }}/.pnpm-global
         run: |
           corepack enable && corepack prepare pnpm@10.13.1 --activate
-          export PNPM_HOME="$HOME/.pnpm-global"
           mkdir -p "$PNPM_HOME/bin"
-          export PATH="$PNPM_HOME/bin:$PATH"
-          output="$(node scripts/setup.mjs bootstrap 2>&1 || true)"
-          echo "$output"
-          echo "$output" | grep -q "not on PATH"
-          echo "$output" | grep -q "pnpm setup --force"
+          echo "$PNPM_HOME/bin" >> "$GITHUB_PATH"
+
+      - name: and names pnpm setup --force
+        env:
+          PNPM_HOME: ${{ github.workspace }}/.pnpm-global
+        run: >
+          node .github/scripts/must-fail.mjs
+          agent/extensions "pnpm setup --force"
+          -- node scripts/setup.mjs bootstrap
