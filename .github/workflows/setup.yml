@@ -62,38 +62,9 @@ jobs:
         working-directory: agent/extensions
         run: node scripts/setup.mjs check
 
-      # Also node: `pi` is a .cmd shim on Windows, which bash can start but
-      # execFile cannot, and the checks below have to run identically everywhere.
       - name: pi runs at the pinned version, and only one is unpacked
         working-directory: agent/extensions
-        run: |
-          node -e "
-            const { execFileSync } = require('node:child_process');
-            const { readFileSync, readdirSync } = require('node:fs');
-            const windows = process.platform === 'win32';
-            const run = (cmd, args) => execFileSync(
-              windows ? process.env.ComSpec ?? 'cmd.exe' : cmd,
-              windows ? ['/d', '/s', '/c', cmd, ...args] : args,
-              { encoding: 'utf-8' },
-            ).trim();
-
-            const yaml = readFileSync('pnpm-workspace.yaml', 'utf-8');
-            const pinned = /"@earendil-works\/pi-coding-agent":\s*(\S+)/.exec(yaml)[1];
-            const installed = run('pi', ['--version']);
-            console.log('pinned ' + pinned + ', installed ' + installed);
-            if (pinned !== installed) throw new Error('pi on PATH is not the pinned version');
-
-            const store = readdirSync('node_modules/.pnpm');
-            for (const pkg of ['pi-coding-agent', 'pi-tui', 'pi-ai']) {
-              const found = [...new Set(store
-                .filter((e) => e.startsWith('@earendil-works+' + pkg + '@'))
-                .map((e) => e.split('@').pop().split('_')[0]))];
-              console.log(pkg + ': ' + found.join(', '));
-              if (found.length !== 1 || found[0] !== pinned) {
-                throw new Error(pkg + ' has ' + found.length + ' versions unpacked');
-              }
-            }
-          "
+        run: node scripts/check-install.mjs
 
   refuses-a-machine-it-cannot-fix:
     # node and pnpm are the user's to configure. The script has to say so and
