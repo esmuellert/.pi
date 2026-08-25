@@ -83,12 +83,15 @@ describe("the highlighter", () => {
 		// A highlighter that changes the text shows something other than what ran.
 		for (const command of COMMANDS) {
 			const pieces = tokenize(command);
-			// Report why, not just that: the fallback path is silent by design,
-			// which once turned one intermittent failure into five opaque ones.
-			assert.ok(pieces, () => {
+			if (!pieces) {
+				// Report why, not just that: the fallback path is silent by
+				// design, which turned one failure into five opaque ones.
+				// Built eagerly because assert.ok prints a function rather than
+				// calling it.
 				const why = whyUntokenised();
-				return `no pieces for ${JSON.stringify(command.slice(0, 80))}: ${why?.error instanceof Error ? `${why.error.name}: ${why.error.message}` : String(why?.error)}`;
-			});
+				const reason = why?.error instanceof Error ? `${why.error.name}: ${why.error.message}` : String(why?.error);
+				assert.fail(`no pieces for ${JSON.stringify(command.slice(0, 120))}\n  ${reason}`);
+			}
 			assert.equal(pieces.map((piece) => piece.text).join(""), command, JSON.stringify(command.slice(0, 60)));
 		}
 	});

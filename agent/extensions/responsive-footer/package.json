@@ -24,7 +24,6 @@
 		"@earendil-works/pi-coding-agent": "catalog:",
 		"@earendil-works/pi-tui": "catalog:",
 		"@types/node": "catalog:",
-		"typescript": "catalog:",
-		"frame-budget": "workspace:*"
+		"typescript": "catalog:"
 	}
 }

@@ -21,7 +21,6 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { visibleWidth } from "@earendil-works/pi-tui";
-import { growsTooFast, growth } from "frame-budget";
 
 import { DEFAULT_CONFIG } from "./config.ts";
 import { planLayout } from "./layout.ts";
@@ -100,14 +99,21 @@ const segments = [
 	{ text: "126k/200k", color: "muted" },
 ];
 
-const layout = (width: number) =>
-	planLayout(() => segments as never, width, {
+/** Lay out at a width, counting what the search measured to get there. */
+const layout = (width: number) => {
+	let measured = 0;
+	const plan = planLayout(() => segments as never, width, {
 		separator: DEFAULT_CONFIG.separator,
 		maxGap: DEFAULT_CONFIG.maxGap,
 		minBar: DEFAULT_CONFIG.minBar,
 		maxBar: DEFAULT_CONFIG.maxBar,
-		measure: visibleWidth,
+		measure: (text: string) => {
+			measured += 1;
+			return visibleWidth(text);
+		},
 	});
+	return { plan, measured };
+};
 
 describe("a frame with the footer on it", () => {
 	it("walks the session once per frame, not once per field", () => {
@@ -136,15 +142,29 @@ describe("a frame with the footer on it", () => {
 		assert.equal(footer.walks(), 0);
 	});
 
-	it("costs what the width search is wide, at the narrowest widths", () => {
-		// Narrow terminals give the bar the most sizes to try, so this is where
-		// the layout search is widest.
-		const sweep = (from: number, to: number) => () => {
-			for (let width = from; width <= to; width += 1) layout(width);
-		};
-		assert.equal(
-			growsTooFast(growth(sweep(20, 30), sweep(20, 60)), 4, 8),
-			undefined,
-		);
+	it("searches hardest where the terminal is narrow, and settles once it is wide", () => {
+		// The search tries bar sizes until the fields fit. A wide terminal fits
+		// them on the first try; a narrow one has the most sizes to consider.
+		//
+		// Counted rather than timed: the count is the search, exactly, and it is
+		// the same number on every machine. The timing version of this failed on
+		// a CI runner at twelve times the budget with nothing having changed.
+		const wide = layout(200).measured;
+		const narrow = layout(40).measured;
+		assert.ok(narrow > wide, `narrow ${narrow} should search more than wide ${wide}`);
+		// Above the width where everything fits on one line, the search stops
+		// growing: the same work at 80 columns as at 200.
+		assert.equal(layout(80).measured, wide);
+	});
+
+	it("keeps the search bounded at every width a terminal can be", () => {
+		// A regression that made the search quadratic in the width would show up
+		// here as a number that climbs with the terminal rather than peaking.
+		let worst = 0;
+		for (let width = 4; width <= 400; width += 1) worst = Math.max(worst, layout(width).measured);
+		// Measured at 829, at a width in the forties. The ceiling is a bound on
+		// the shape, not a reading: quadratic in width would pass ten thousand
+		// before the terminal got wide.
+		assert.ok(worst < 3_000, `the widest search measured ${worst} segments`);
 	});
 });
