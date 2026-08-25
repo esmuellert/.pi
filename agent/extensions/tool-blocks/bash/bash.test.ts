@@ -14,7 +14,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { before, describe, it } from "node:test";
 
-import { prepare, ready, tokenize } from "./engine.ts";
+import { prepare, ready, tokenize, whyUntokenised } from "./engine.ts";
 import { wrapTextWithAnsi } from "@earendil-works/pi-tui";
 
 import { paint, retitling, title } from "./title.ts";
@@ -83,7 +83,12 @@ describe("the highlighter", () => {
 		// A highlighter that changes the text shows something other than what ran.
 		for (const command of COMMANDS) {
 			const pieces = tokenize(command);
-			assert.ok(pieces, "no pieces");
+			// Report why, not just that: the fallback path is silent by design,
+			// which once turned one intermittent failure into five opaque ones.
+			assert.ok(pieces, () => {
+				const why = whyUntokenised();
+				return `no pieces for ${JSON.stringify(command.slice(0, 80))}: ${why?.error instanceof Error ? `${why.error.name}: ${why.error.message}` : String(why?.error)}`;
+			});
 			assert.equal(pieces.map((piece) => piece.text).join(""), command, JSON.stringify(command.slice(0, 60)));
 		}
 	});

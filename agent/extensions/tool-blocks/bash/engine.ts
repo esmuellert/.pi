@@ -112,6 +112,23 @@ export function forget(): void {
 	cache.clear();
 }
 
+/**
+ * Why the last tokenisation that failed, failed.
+ *
+ * Highlighting is optional -- a title renders unstyled without it -- so the
+ * failure path here is a fallback rather than an error, and it is right that
+ * nothing is thrown at a reader mid-render.
+ *
+ * But swallowing the reason as well as the throw made a real one unreadable: a
+ * command that failed intermittently on Windows surfaced as five assertion
+ * failures in three suites, all of them saying a variant of "no pieces", none
+ * of them saying what happened. Kept here so a test can ask.
+ */
+let failure: { command: string; error: unknown } | undefined;
+
+/** The last tokenisation failure, for tests and diagnostics. */
+export const whyUntokenised = () => failure;
+
 function tokenizeUncached(command: string): Piece[] | undefined {
 	if (!highlighter) return undefined;
 	try {
@@ -129,7 +146,8 @@ function tokenizeUncached(command: string): Piece[] | undefined {
 			}
 		});
 		return pieces;
-	} catch {
+	} catch (error) {
+		failure = { command, error };
 		return undefined;
 	}
 }
