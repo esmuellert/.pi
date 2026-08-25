@@ -50,6 +50,7 @@
 !/agent/extensions/behind/
 !/agent/extensions/moshi-push/
 !/agent/extensions/rename/
+!/agent/extensions/response-footer/
 
 
 # --- skills: ours, but not the state they accumulate ---
