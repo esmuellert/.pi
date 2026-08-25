@@ -9,6 +9,11 @@
 # --- search routing (lives above agent/) ---
 !/web-search.json
 
+# --- CI: whether one command still works on a machine that is not this one ---
+!/.github/
+!/.github/workflows/
+!/.github/workflows/*.yml
+
 # --- agent dir: opt in per file ---
 !/agent/
 /agent/*

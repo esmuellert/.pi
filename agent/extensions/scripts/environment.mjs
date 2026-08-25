@@ -22,10 +22,24 @@ import { delimiter, resolve } from "node:path";
  * the fix when the cause is not obvious from the command.
  */
 
+/**
+ * Windows ships node, pnpm and pi as `.cmd` shims rather than as executables,
+ * and execFile cannot start one: it looks for an image to run and reports
+ * ENOENT. Reaching them through the interpreter, named explicitly rather than
+ * through `shell: true`, keeps the arguments a real argv.
+ *
+ * Without this every check here reports the tool as missing on Windows, which
+ * is the opposite of what it is for.
+ */
+const WINDOWS = process.platform === "win32";
+const viaShell = (command, args) =>
+	WINDOWS ? [process.env.ComSpec ?? "cmd.exe", ["/d", "/s", "/c", command, ...args]] : [command, args];
+
 /** What ran, if it ran at all. */
 function version(command, args) {
 	try {
-		return execFileSync(command, args, { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+		const [bin, argv] = viaShell(command, args);
+		return execFileSync(bin, argv, { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }).trim();
 	} catch {
 		return undefined;
 	}

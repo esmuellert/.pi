@@ -1,0 +1,106 @@
+name: setup
+
+# Whether one command brings a machine to a working install, on a machine that
+# is not the one it was written on. Everything here has failed for real: a
+# Windows upgrade needed manual cleanup, and a Linux container found five
+# reasons, four of them in this repo.
+#
+# The runners are deliberately bare. They have node and nothing else configured
+# -- no PNPM_HOME, no pi, no credentials -- which is the state a new machine is
+# in and the state that kept breaking.
+
+on:
+  push:
+    paths:
+      - "agent/extensions/scripts/**"
+      - "agent/extensions/pnpm-workspace.yaml"
+      - "agent/extensions/package.json"
+      - ".github/workflows/setup.yml"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  bootstrap:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # pnpm is the user's to install: setup.mjs reports it missing and stops,
+      # which is checked below before this step would have run.
+      - name: pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.13.1 --activate
+
+      - name: PNPM_HOME on PATH
+        shell: bash
+        run: |
+          home="$(pnpm config get global-bin-dir 2>/dev/null || true)"
+          [ -z "$home" ] || [ "$home" = "undefined" ] && home="$HOME/.pnpm-global"
+          mkdir -p "$home"
+          echo "PNPM_HOME=$home" >> "$GITHUB_ENV"
+          echo "$home" >> "$GITHUB_PATH"
+
+      - name: bootstrap
+        working-directory: agent/extensions
+        run: node scripts/setup.mjs bootstrap
+
+      - name: the machine now matches the repo
+        working-directory: agent/extensions
+        run: node scripts/setup.mjs check
+
+      - name: pi runs, at the pinned version
+        shell: bash
+        working-directory: agent/extensions
+        run: |
+          pinned="$(grep -oE '"@earendil-works/pi-coding-agent":[[:space:]]*[^[:space:]]+' pnpm-workspace.yaml | awk '{print $2}')"
+          installed="$(pi --version)"
+          echo "pinned $pinned, installed $installed"
+          [ "$pinned" = "$installed" ]
+
+      - name: one version of each pi package is unpacked
+        shell: bash
+        working-directory: agent/extensions
+        run: |
+          strays="$(ls node_modules/.pnpm | grep -E 'pi-(coding-agent|tui|ai)@' | sed 's/.*@//; s/_.*//' | sort -u | wc -l)"
+          ls node_modules/.pnpm | grep -E 'pi-(coding-agent|tui|ai)@'
+          [ "$strays" = "1" ]
+
+  refuses-a-machine-it-cannot-fix:
+    # node and pnpm are the user's to configure. The script has to say so and
+    # stop, rather than fail somewhere further in with a message about an
+    # internal condition.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: says what is wrong when pnpm is missing
+        working-directory: agent/extensions
+        run: |
+          output="$(node scripts/setup.mjs bootstrap 2>&1 || true)"
+          echo "$output"
+          echo "$output" | grep -q "pnpm is not on PATH"
+          echo "$output" | grep -q "corepack enable"
+
+      - name: says what is wrong when the global bin directory is not on PATH
+        working-directory: agent/extensions
+        run: |
+          corepack enable && corepack prepare pnpm@10.13.1 --activate
+          export PNPM_HOME="$HOME/.pnpm-global"
+          mkdir -p "$PNPM_HOME/bin"
+          export PATH="$PNPM_HOME/bin:$PATH"
+          output="$(node scripts/setup.mjs bootstrap 2>&1 || true)"
+          echo "$output"
+          echo "$output" | grep -q "not on PATH"
+          echo "$output" | grep -q "pnpm setup --force"
