@@ -14,7 +14,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { before, describe, it } from "node:test";
 
-import { prepare, ready, tokenize, whyUntokenised } from "./engine.ts";
+import { prepare, ready, tokenize, TOKENIZE, whyUntokenised } from "./engine.ts";
 import { wrapTextWithAnsi } from "@earendil-works/pi-tui";
 
 import { paint, retitling, title } from "./title.ts";
@@ -232,5 +232,27 @@ describe("retitling at a width", () => {
 		const painted = paint(pieces, probe);
 		assert.equal(plain(painted), "ab");
 		assert.ok(!painted.startsWith("\u001b"), "the untokenised run should not be painted");
+	});
+});
+
+describe("shiki's time limit, which is off", () => {
+	it("asks for no limit, because the limit splits the two tokenisations", () => {
+		// Scope names cost a second tokenisation of every line, and each call
+		// gets its own copy of the limit. Only the first compiles the grammar's
+		// regexes, so only the first can trip it -- and when it does, shiki
+		// walks the shorter result past its end and throws.
+		//
+		// Asserted on the constant rather than by reproducing it: which limit
+		// splits the two calls is a fact about how fast the machine compiles a
+		// grammar, and a test that depends on that is the kind that only fails
+		// on someone else's machine. Which is how this arrived.
+		assert.equal(TOKENIZE.tokenizeTimeLimit, 0);
+	});
+
+	it("still tokenises the command that used to fail", () => {
+		const command = "sed -n '55,95p' /tmp/ct.log";
+		const pieces = tokenize(command);
+		assert.ok(pieces, "the command that used to fail must tokenise");
+		assert.equal(pieces.map((piece) => piece.text).join(""), command);
 	});
 });

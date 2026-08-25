@@ -70,6 +70,30 @@ export async function prepare(): Promise<boolean> {
 /** The grammar this feature tokenises with, named once. */
 const LANGUAGE = "bash";
 
+/**
+ * How shiki is asked to tokenise, and why the time limit is off.
+ *
+ * Asking for scope names makes shiki tokenise each line twice -- once for
+ * colours, once for scopes -- and each call carries its own copy of the time
+ * limit, which defaults to 500ms. The first call pays to compile the grammar's
+ * regexes and the second reuses them, so the first is the only one that can trip
+ * a limit. When it does, shiki walks the shorter result past its end and throws
+ * on undefined.startIndex, and the block renders unstyled for no reason a reader
+ * could see.
+ *
+ * A command is one short line. There is nothing here for a timeout to protect,
+ * and the machine it runs on is not this one.
+ *
+ * Exported so a test can hold the choice in place. Asserting the constant is the
+ * only deterministic way to check it: whether a given limit actually splits the
+ * two calls depends on how fast the machine compiles a grammar, which is the
+ * thing that made this only ever fail on CI.
+ */
+export const TOKENIZE = {
+	includeExplanation: "scopeName",
+	tokenizeTimeLimit: 0,
+} as const;
+
 export const ready = () => highlighter !== undefined;
 
 /**
@@ -135,7 +159,7 @@ function tokenizeUncached(command: string): Piece[] | undefined {
 		const { tokens } = highlighter.codeToTokens(command, {
 			lang: LANGUAGE,
 			theme: themeName!,
-			includeExplanation: "scopeName",
+			...TOKENIZE,
 		});
 		const pieces: Piece[] = [];
 		tokens.forEach((line, index) => {
