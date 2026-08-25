@@ -3,14 +3,18 @@
  *
  * Run: pnpm test
  *
- * The footer's risk is not the same as a tool block's. A tool block's cost
- * grows with what is on screen; the footer's grows with the session's whole
- * history, because the token counts are summed from it and pi's getBranch()
- * walks the parent chain and builds the array afresh on every call.
+ * The footer's risk is not the same as a tool block's. A tool block's cost grows
+ * with what is on screen; the footer's grows with the session's whole history,
+ * because pi's getBranch() walks the parent chain and builds the array afresh on
+ * every call, and the token totals are summed from it.
  *
- * That is a shape which has already caused one visible stall elsewhere, so it
- * is measured at a session far larger than a real one rather than assumed
- * cheap.
+ * That walk is pi's code and linear whatever this extension does. What this
+ * extension decides is how many times per frame it asks for it -- so that is
+ * what is asserted, by counting the calls rather than timing them. A count is
+ * exact on every machine; a millisecond budget is a claim about the machine, and
+ * this one failed on a CI runner where four times the session cost twelve times
+ * the time for reasons that were allocation and garbage collection rather than
+ * anything anyone could act on.
  */
 
 import assert from "node:assert/strict";
@@ -21,6 +25,7 @@ import { growsTooFast, growth } from "frame-budget";
 
 import { DEFAULT_CONFIG } from "./config.ts";
 import { planLayout } from "./layout.ts";
+import factory from "./index.ts";
 
 /** A session's entries, chained parent to child the way pi stores them. */
 const session = (count: number) => {
@@ -45,6 +50,46 @@ const branch = ({ byId, leafId }: ReturnType<typeof session>) => {
 	return path.reverse();
 };
 
+/** The footer's render(), wired to a session that counts what is asked of it. */
+const mount = (entries: ReturnType<typeof session>) => {
+	let walks = 0;
+	const ctx = {
+		sessionManager: {
+			getBranch() {
+				walks += 1;
+				return branch(entries);
+			},
+			getSessionName: () => undefined,
+		},
+		getContextUsage: () => ({ percent: 63, tokens: 126_000, contextWindow: 200_000 }),
+		hasPendingMessages: () => false,
+		cwd: "/repo",
+		model: { id: "claude-sonnet-4-6", provider: "anthropic", contextWindow: 200_000 },
+		modelRegistry: undefined,
+		thinkingLevel: "off",
+	};
+	// The path pi takes: session_start, then setFooter with a builder it calls
+	// with the tui, the theme and its own footer data.
+	let made: any;
+	const full = {
+		...ctx,
+		mode: "tui",
+		ui: {
+			setFooter(build: any) {
+				made = build(
+					{ requestRender() {} },
+					{ fg: (_colour: string, text: string) => text },
+					{ onBranchChange: () => () => {}, getGitBranch: () => "main" },
+				);
+			},
+		},
+	};
+	const handlers = new Map<string, (event: unknown, ctx: unknown) => unknown>();
+	factory({ on: (name: string, fn: never) => handlers.set(name, fn) } as never);
+	handlers.get("session_start")?.({}, full);
+	return { render: (width: number) => made.render(width), walks: () => walks };
+};
+
 const segments = [
 	{ text: "claude-sonnet-4-6", color: "accent" },
 	{ text: "~/.pi", color: "muted" },
@@ -65,27 +110,30 @@ const layout = (width: number) =>
 	});
 
 describe("a frame with the footer on it", () => {
-	/** Everything render() does: read the session's totals, then lay out. */
-	const draw = (entries: ReturnType<typeof session>) => () => {
-		let total = 0;
-		for (const entry of branch(entries)) total += entry.usage.input! + entry.usage.cacheRead!;
-		layout(80);
-	};
+	it("walks the session once per frame, not once per field", () => {
+		// getBranch() rebuilds the whole branch array, so asking twice costs
+		// twice. The footer has seven fields, and each of them wants a number
+		// that comes out of that walk.
+		const footer = mount(session(2_000));
+		footer.render(80);
+		assert.equal(footer.walks(), 1);
+	});
 
-	it("costs what the session is long, not what it is long squared", () => {
-		// The risk here is the shape, not the constant. Walking the parent chain
-		// on every frame is linear and fine at any length; anything that turns it
-		// quadratic is fine in a test and unusable by evening.
-		//
-		// Asserted as a ratio rather than a millisecond budget: a budget is a
-		// claim about the machine as much as the code, and fails on a slower one
-		// for a reason nobody can act on. Four times the session measured at
-		// 4.7-6.0x the time here; eight is well clear of that and nowhere near
-		// the sixteen that quadratic would give.
-		assert.equal(
-			growsTooFast(growth(draw(session(20_000)), draw(session(80_000))), 4, 8),
-			undefined,
-		);
+	it("walks it the same number of times however long the session is", () => {
+		// A count rather than a duration: the walk itself is pi's and linear,
+		// and what would make the footer quadratic is doing it per entry.
+		const short = mount(session(100));
+		const long = mount(session(20_000));
+		short.render(80);
+		long.render(80);
+		assert.equal(long.walks(), short.walks());
+	});
+
+	it("does not walk it at a width too narrow to draw", () => {
+		// render() gives up before reading anything at all below four columns.
+		const footer = mount(session(100));
+		footer.render(2);
+		assert.equal(footer.walks(), 0);
 	});
 
 	it("costs what the width search is wide, at the narrowest widths", () => {
