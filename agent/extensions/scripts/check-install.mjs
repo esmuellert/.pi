@@ -38,6 +38,18 @@ if (!pinned) {
 
 const failures = [];
 
+// All three or none. pi-coding-agent@X depends on pi-tui@^X and pi-ai@^X, so a
+// catalog naming different versions resolves two of each and the workspace ends
+// up with the ambiguity this file exists to forbid. An upgrade rewrites three
+// lines, and nothing else notices if it rewrites one.
+for (const pkg of PI_PACKAGES) {
+	const line = new RegExp(`"@earendil-works/${pkg}":\\s*(\\S+)`);
+	const says = line.exec(yaml)?.[1];
+	if (says !== pinned) {
+		failures.push(`the catalog pins ${pkg} at ${says ?? "nothing"}, not ${pinned}`);
+	}
+}
+
 const installed = run("pi", ["--version"]);
 console.log(`  pinned ${pinned}, on PATH ${installed}`);
 if (installed !== pinned) {

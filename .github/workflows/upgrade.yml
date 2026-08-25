@@ -1,0 +1,158 @@
+name: upgrade
+
+# Whether a machine that is behind catches up, with nothing left over.
+#
+# The setup workflow covers installing, which on a fresh runner takes the two
+# branches that install from nothing. Catching up takes neither: it replaces a pi
+# that is already there, and it has to remove the version it replaced. pnpm
+# install adds the new one and leaves the old one unpacked, so a workspace comes
+# out of it holding both and resolving to either -- which is what made a Windows
+# upgrade need manual cleanup, and why installDeps() prunes.
+#
+# Two flows, because there are two kinds of machine. Every machine but one pulls
+# a repo somebody else moved forward and runs bootstrap. The remaining one moves
+# the repo, and runs upgrade against a catalog that still names the old version.
+#
+# Both start from an old state taken out of git history rather than constructed
+# by pinning backwards -- see arrange.mjs for why those differ.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pull-then-bootstrap:
+    name: pull-then-bootstrap (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # arrange.mjs reads the catalog out of an older commit.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - run: corepack enable && corepack prepare pnpm@10.13.1 --activate
+
+      # node rather than shell: the runner's bash on Windows is Git Bash, whose
+      # $HOME is a /c/... path that pnpm and cmd.exe do not accept.
+      - name: PNPM_HOME on PATH
+        run: |
+          node -e "
+            const { homedir } = require('node:os');
+            const { join } = require('node:path');
+            const { mkdirSync, appendFileSync } = require('node:fs');
+            const home = join(homedir(), '.pnpm-global');
+            mkdirSync(home, { recursive: true });
+            appendFileSync(process.env.GITHUB_ENV, 'PNPM_HOME=' + home + '\n');
+            appendFileSync(process.env.GITHUB_PATH, home + '\n');
+          "
+
+      - name: a machine that has been running the previous pi
+        run: node .github/scripts/arrange.mjs pull
+
+      # The repo pins the new version and the machine does not, which is what
+      # `check` is for. It must say so and exit non-zero.
+      - name: check notices the machine is behind
+        working-directory: agent/extensions
+        run: |
+          if node scripts/setup.mjs check; then
+            echo "check passed on a machine running ${{ env.PI_PREVIOUS }} against a repo pinning ${{ env.PI_TARGET }}"
+            exit 1
+          fi
+
+      - name: bootstrap
+        working-directory: agent/extensions
+        run: node scripts/setup.mjs bootstrap
+
+      # check-install requires exactly one unpacked version of each pi package,
+      # and arrange proved the previous one was the only one there. So this
+      # passes only if bootstrap removed it.
+      - name: the previous version is gone, not merely outnumbered
+        working-directory: agent/extensions
+        run: |
+          node scripts/setup.mjs check
+          node scripts/check-install.mjs
+
+  upgrade-the-repo:
+    name: upgrade-the-repo (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - run: corepack enable && corepack prepare pnpm@10.13.1 --activate
+
+      - name: PNPM_HOME on PATH
+        run: |
+          node -e "
+            const { homedir } = require('node:os');
+            const { join } = require('node:path');
+            const { mkdirSync, appendFileSync } = require('node:fs');
+            const home = join(homedir(), '.pnpm-global');
+            mkdirSync(home, { recursive: true });
+            appendFileSync(process.env.GITHUB_ENV, 'PNPM_HOME=' + home + '\n');
+            appendFileSync(process.env.GITHUB_PATH, home + '\n');
+          "
+
+      - name: a machine and a catalog still on the previous pi
+        run: node .github/scripts/arrange.mjs upgrade
+
+      - name: upgrade
+        working-directory: agent/extensions
+        run: node scripts/setup.mjs upgrade ${{ env.PI_TARGET }}
+
+      - name: the previous version is gone, not merely outnumbered
+        working-directory: agent/extensions
+        run: |
+          node scripts/setup.mjs check
+          node scripts/check-install.mjs
+
+  the-check-is-not-vacuous:
+    # A machine that never held two versions cannot tell whether the check that
+    # forbids two versions works. So one is put there on purpose.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable && corepack prepare pnpm@10.13.1 --activate
+
+      - name: install what the repo pins
+        working-directory: agent/extensions
+        run: pnpm install --frozen-lockfile
+
+      - name: it passes on a clean workspace
+        working-directory: agent/extensions
+        run: node scripts/check-install.mjs || true
+
+      - name: a second version, unpacked beside the first
+        run: node .github/scripts/stray.mjs
+
+      - name: and the check says so
+        working-directory: agent/extensions
+        run: |
+          if node scripts/check-install.mjs; then
+            echo "check-install passed with two versions unpacked; it checks nothing"
+            exit 1
+          fi
+          node scripts/check-install.mjs 2>&1 | grep -q "version(s) unpacked"

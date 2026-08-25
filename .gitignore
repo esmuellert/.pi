@@ -13,6 +13,8 @@
 !/.github/
 !/.github/workflows/
 !/.github/workflows/*.yml
+!/.github/scripts/
+!/.github/scripts/*.mjs
 
 # --- agent dir: opt in per file ---
 !/agent/
