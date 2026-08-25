@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { sep } from "node:path";
 import { describe, it } from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { initTheme } from "@earendil-works/pi-coding-agent";
 
@@ -13,8 +13,10 @@ initTheme("rose-pine");
 
 const entry = fileURLToPath(import.meta.resolve("@earendil-works/pi-coding-agent"));
 const DIST = `${entry.slice(0, entry.indexOf(`${sep}dist${sep}`))}/dist`;
+// pathToFileURL, because import() takes a URL: a bare Windows path puts the
+// drive letter where the scheme belongs and Node rejects it as protocol 'c:'.
 const { ToolExecutionComponent } = (await import(
-	`${DIST}/modes/interactive/components/tool-execution.js`
+	pathToFileURL(`${DIST}/modes/interactive/components/tool-execution.js`).href
 )) as { ToolExecutionComponent: new (...a: unknown[]) => Block };
 
 type Block = {
@@ -25,6 +27,11 @@ type Block = {
 
 const NOTE = "removed the divider prop";
 const WIDTH = 56;
+
+/** OSC 8 opener and closer, so a linked path reads as the text it draws. */
+const OSC8 = /\u001b\]8;[^;]*;[^\u001b\u0007]*(?:\u001b\\|\u0007)/g;
+const unlinked = (line: string): string => plain(line).replace(OSC8, "");
+
 const DIFF = "  30      <p>\n- 31        const { divider } = props;\n+ 31        const [d, setD] = useState(50);";
 
 const ARGS: Readonly<Record<ToolName, object>> = {
@@ -96,7 +103,12 @@ describe("where a footnote lands", () => {
 
 	it("does not displace what the block already drew", () => {
 		// The note is inserted, not substituted: the diff has to survive it.
-		const text = block("edit").map(plain).join("\n");
+		//
+		// Links are dropped first. `plain` keeps OSC 8 on purpose, because a
+		// title's path is clickable and stripping it would throw the link away --
+		// but that leaves the URI sitting between `edit` and `a.ts`, which no
+		// reader sees and a substring search trips over.
+		const text = block("edit").map(unlinked).join("\n");
 		for (const wanted of ["edit a.ts", "const { divider } = props;", "useState(50)"]) {
 			assert.ok(text.includes(wanted), `lost ${JSON.stringify(wanted)}`);
 		}
