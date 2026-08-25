@@ -9,39 +9,55 @@ import { describe, it } from "node:test";
 
 import { BUDGET_MS, FRAME_MS, frame, growsTooFast, growth, overBudget, speedup, tooSlow } from "./budget.ts";
 
-/** Burn a known amount of time, without sleeping (which a frame cannot do). */
-const spin = (millis: number) => () => {
-	const until = performance.now() + millis;
-	while (performance.now() < until) {
-		/* a frame's work is synchronous */
-	}
+const noop = () => {};
+
+/**
+ * A clock that reports the given costs, one per draw.
+ *
+ * Wall time is not available to assert on: a shared machine descheduled a
+ * five-millisecond busy-wait into twelve, which is larger than the difference
+ * any of these tests is about. What frame() has to get right is arithmetic over
+ * a sequence of readings, so the readings are given.
+ */
+const clock = (...costs: number[]) => {
+	let at = 0;
+	let draw = 0;
+	return () => {
+		// Called twice per attempt: before the draw and after it.
+		const cost = costs[draw]! ?? 0;
+		if (at % 2 === 1) draw += 1;
+		at += 1;
+		return at % 2 === 1 ? 1000 : 1000 + cost;
+	};
 };
 
 describe("measuring a frame", () => {
-	it("reports roughly what the work costs", () => {
-		const measured = frame(spin(5));
-		assert.ok(measured >= 4.5, `5ms of work measured as ${measured.toFixed(1)}ms`);
-		assert.ok(measured < 15, `5ms of work measured as ${measured.toFixed(1)}ms`);
+	it("reports what the work costs", () => {
+		assert.equal(frame(noop, clock(5, 5, 5, 5, 5, 5, 5)), 5);
 	});
 
 	it("ignores a single slow attempt, which is what machine noise looks like", () => {
-		let attempt = 0;
-		const measured = frame(() => {
-			attempt += 1;
-			// One attempt takes far longer, as if something else got the CPU.
-			spin(attempt === 3 ? 40 : 2)();
-		});
-		assert.ok(measured < 10, `noise leaked into the reading: ${measured.toFixed(1)}ms`);
+		// One attempt takes far longer, as if something else got the CPU.
+		assert.equal(frame(noop, clock(2, 2, 40, 2, 2, 2, 2)), 2);
 	});
 
 	it("does not count the first draw, which pays for whatever is cached", () => {
-		let drawn = 0;
-		const measured = frame(() => {
-			drawn += 1;
-			// Only the very first draw is expensive, as a cold cache would be.
-			spin(drawn === 1 ? 40 : 1)();
-		});
-		assert.ok(measured < 10, `the cold draw leaked into the reading: ${measured.toFixed(1)}ms`);
+		// Stated as the thing itself: one more draw happens than is timed. A
+		// cost sequence cannot show this, because the warm-up never reaches the
+		// clock -- which is the property.
+		let draws = 0;
+		let readings = 0;
+		frame(
+			() => {
+				draws += 1;
+			},
+			() => {
+				readings += 1;
+				return readings;
+			},
+		);
+		assert.equal(readings % 2, 0, "the clock is read before and after each timed draw");
+		assert.equal(draws - readings / 2, 1, "exactly one draw goes untimed");
 	});
 
 	it("draws more than once, so a cache has something to be tested against", () => {
@@ -71,12 +87,25 @@ describe("the budget", () => {
 });
 
 describe("ratios, which the machine cancels out of", () => {
+	const noop = () => {};
+
+	// Handed known readings rather than a clock. frame() is what turns work into
+	// a number, and it has its own tests above; what these add is the division
+	// and what it does at zero, which a shared CI machine cannot be asked about.
+	const readings = (...values: number[]) => {
+		let next = 0;
+		return () => values[next++]!;
+	};
+
 	it("reports how much cheaper repeating work is", () => {
 		// The regression this file exists for was a cache that stopped being
 		// used. A budget in milliseconds catches it and also fails on a slower
 		// machine; a ratio catches it anywhere.
-		const ratio = speedup(spin(20), spin(1));
-		assert.ok(ratio > 5, `expected a large speedup, got ${ratio.toFixed(1)}`);
+		assert.equal(speedup(noop, noop, readings(120, 0.2)), 600);
+	});
+
+	it("calls a free repeat infinitely cheaper, rather than dividing by zero", () => {
+		assert.equal(speedup(noop, noop, readings(120, 0)), Infinity);
 	});
 
 	it("says nothing when repeating is cheap enough", () => {
@@ -91,12 +120,7 @@ describe("ratios, which the machine cancels out of", () => {
 	});
 
 	it("reports how cost grows with the work", () => {
-		// spin() burns wall time rather than counting, so four times the work
-		// really is four times the work -- a counting loop is the kind of thing
-		// V8 optimises away, and the first version of this test measured 15x on
-		// a CI machine because the smaller loop had been erased.
-		const ratio = growth(spin(5), spin(20));
-		assert.ok(ratio > 2 && ratio < 8, `expected roughly 4x, got ${ratio.toFixed(1)}`);
+		assert.equal(growth(noop, noop, readings(5, 20)), 4);
 	});
 
 	it("says nothing when growth is linear", () => {

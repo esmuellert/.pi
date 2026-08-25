@@ -49,14 +49,18 @@ const ATTEMPTS = 7;
  *
  * The first attempt is discarded, since it pays for whatever the code caches
  * on first use, and a still frame by definition is not the first one.
+ * `now` is a seam for this function's own tests. What it has to get right --
+ * discard the first draw, keep the smallest of the rest -- is arithmetic over a
+ * sequence of readings, and a shared machine cannot be asked to produce a known
+ * sequence: a CI runner descheduled a five-millisecond busy-wait into twelve.
  */
-export function frame(draw: () => void): number {
+export function frame(draw: () => void, now: () => number = performance.now.bind(performance)): number {
 	draw();
 	let best = Infinity;
 	for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
-		const started = performance.now();
+		const started = now();
 		draw();
-		best = Math.min(best, performance.now() - started);
+		best = Math.min(best, now() - started);
 	}
 	return best;
 }
@@ -78,10 +82,15 @@ export function frame(draw: () => void): number {
  *
  * `cold` must genuinely do the work again -- forget the cache, use a new width,
  * whatever makes it real -- or the ratio measures nothing.
+ *
+ * `measure` exists so this function's own tests can hand it known numbers.
+ * Timing the timer on a shared machine is not reliable: the first version of
+ * those tests busy-waited for 5ms and 20ms, and a CI runner descheduled the
+ * short one into taking twelve, which reads as a ratio of 1.6 rather than 4.
  */
-export function speedup(cold: () => void, warm: () => void): number {
-	const first = frame(cold);
-	const again = frame(warm);
+export function speedup(cold: () => void, warm: () => void, measure = frame): number {
+	const first = measure(cold);
+	const again = measure(warm);
 	return again === 0 ? Infinity : first / again;
 }
 
@@ -92,10 +101,12 @@ export function speedup(cold: () => void, warm: () => void): number {
  * stays usable however long the session gets; one that is quadratic is fine in
  * every test and unusable by evening. The ratio of the two measurements answers
  * that without either of them being a claim about the machine.
+ *
+ * `measure` is a seam for this function's own tests, as in speedup.
  */
-export function growth(small: () => void, large: () => void): number {
-	const a = frame(small);
-	const b = frame(large);
+export function growth(small: () => void, large: () => void, measure = frame): number {
+	const a = measure(small);
+	const b = measure(large);
 	return a === 0 ? Infinity : b / a;
 }
 
