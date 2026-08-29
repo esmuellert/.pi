@@ -15,6 +15,7 @@ import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { globalPi } from "./environment.mjs";
 
 const WORKSPACE = dirname(dirname(fileURLToPath(import.meta.url)));
 
@@ -29,8 +30,14 @@ const run = (command, args) =>
 
 /** What pi on PATH reports, or nothing when there is none. */
 function installedVersion() {
+	// By path, not by name. `pnpm run` puts the workspace's node_modules/.bin
+	// first, and this workspace depends on pi -- so asking PATH from inside a
+	// pnpm script reports the workspace's copy rather than the global one, and
+	// this check would pass on a machine whose `pi` command is still stale.
+	const path = globalPi();
+	if (!path) return undefined;
 	try {
-		return run("pi", ["--version"]);
+		return run(path, ["--version"]);
 	} catch {
 		// A missing pi is one of the things being checked for, so it is reported
 		// rather than thrown -- execFileSync's ENOENT stack says spawnSync and a

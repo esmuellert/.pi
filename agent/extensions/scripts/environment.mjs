@@ -118,9 +118,27 @@ export function inspect() {
 }
 
 /** True when a global pi would actually be the one that runs. */
-export function globalPiIsReachable() {
+/**
+ * The global pi, by path rather than by name.
+ *
+ * Resolving `pi` from PATH gives a different answer depending on who is asking.
+ * `pnpm run` puts the workspace's node_modules/.bin first, and this workspace
+ * depends on pi -- so inside a pnpm script `pi` is the workspace's copy, at the
+ * version the catalog just installed, while in a shell it is the global one.
+ *
+ * An upgrade that asks "is the global pi current?" through PATH therefore reads
+ * the copy it installed a moment earlier, concludes there is nothing to do, and
+ * reports success while the command on the user's PATH stays behind.
+ */
+export function globalPi() {
 	const bin = globalBinDir();
-	if (!bin) return false;
-	const candidate = process.platform === "win32" ? `${bin}\\pi.cmd` : `${bin}/pi`;
-	return existsSync(candidate) && onPath(bin);
+	if (!bin) return undefined;
+	return process.platform === "win32" ? `${bin}\\pi.cmd` : `${bin}/pi`;
+}
+
+/** True when pi is installed where pnpm puts it and that directory is on PATH. */
+export function globalPiIsReachable() {
+	const candidate = globalPi();
+	if (!candidate) return false;
+	return existsSync(candidate) && onPath(globalBinDir());
 }

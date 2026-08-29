@@ -68,16 +68,20 @@ jobs:
 
       - name: bootstrap
         working-directory: agent/extensions
-        run: node scripts/setup.mjs bootstrap
+        run: pnpm bootstrap
 
       # check-install requires exactly one unpacked version of each pi package,
       # and arrange proved the previous one was the only one there. So this
       # passes only if bootstrap removed it.
+      # Both spellings: `pnpm check` and the script directly. They resolved pi
+      # differently once, and only the pnpm one was wrong.
       - name: the previous version is gone, not merely outnumbered
         working-directory: agent/extensions
         run: |
+          pnpm check
           node scripts/setup.mjs check
           node scripts/check-install.mjs
+          pnpm exec node scripts/check-install.mjs
 
   upgrade-the-repo:
     name: upgrade-the-repo (${{ matrix.os }})
@@ -112,15 +116,28 @@ jobs:
       - name: a machine and a catalog still on the previous pi
         run: node .github/scripts/arrange.mjs upgrade
 
+      # Through pnpm, the way a human runs it, not `node scripts/...`.
+      #
+      # These are not the same command. `pnpm run` puts the workspace's
+      # node_modules/.bin ahead of everything on PATH, and this workspace
+      # depends on pi -- so a check that resolves `pi` by name answers with the
+      # copy the upgrade just unpacked rather than the global one. An upgrade
+      # skipped the global install on that reading and still reported success.
+      # Every step in these workflows used `node scripts/...`, so none of them
+      # could see it.
       - name: upgrade
         working-directory: agent/extensions
-        run: node scripts/setup.mjs upgrade ${{ env.PI_TARGET }}
+        run: pnpm upgrade-pi ${{ env.PI_TARGET }}
 
+      # Both spellings: `pnpm check` and the script directly. They resolved pi
+      # differently once, and only the pnpm one was wrong.
       - name: the previous version is gone, not merely outnumbered
         working-directory: agent/extensions
         run: |
+          pnpm check
           node scripts/setup.mjs check
           node scripts/check-install.mjs
+          pnpm exec node scripts/check-install.mjs
 
   the-check-is-not-vacuous:
     # A machine that never held two versions cannot tell whether the check that

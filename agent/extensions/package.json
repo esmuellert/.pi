@@ -9,10 +9,10 @@
 		"check": "node scripts/setup.mjs check",
 		"bootstrap": "node scripts/setup.mjs bootstrap",
 		"upgrade-pi": "node scripts/setup.mjs upgrade",
-		"test": "turbo run test",
+		"test": "turbo run test && node --test scripts/scripts.test.mjs",
 		"typecheck": "turbo run typecheck",
 		"smoke": "turbo run smoke",
-		"verify": "turbo run test typecheck smoke && pnpm loadable",
+		"verify": "turbo run test typecheck smoke && node --test scripts/scripts.test.mjs && pnpm loadable",
 		"loadable": "node scripts/check-loadable.mjs"
 	},
 	"devDependencies": {

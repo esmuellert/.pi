@@ -19,7 +19,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { globalPiIsReachable, inspect } from "./environment.mjs";
+import { globalPi, globalPiIsReachable, inspect } from "./environment.mjs";
 
 const WORKSPACE = dirname(dirname(fileURLToPath(import.meta.url)));
 const CATALOG = join(WORKSPACE, "pnpm-workspace.yaml");
@@ -78,7 +78,20 @@ function capture(command, args) {
 // ------------------------------------------------------------------- state
 
 const readPinned = () => /"@earendil-works\/pi-coding-agent":\s*(\S+)/.exec(readFileSync(CATALOG, "utf-8"))?.[1];
-const readInstalled = () => capture("pi", ["--version"]);
+
+/**
+ * The global pi's version, read from the global binary by path.
+ *
+ * Not `capture("pi", ...)`: `pnpm run` puts this workspace's node_modules/.bin
+ * ahead of everything else, and this workspace depends on pi. Asking PATH inside
+ * a pnpm script answers with the copy installDeps() just unpacked, so an upgrade
+ * skipped the global install and still reported success -- while `pi` in the
+ * user's shell stayed on the old version.
+ */
+const readInstalled = () => {
+	const path = globalPi();
+	return path ? capture(path, ["--version"]) : undefined;
+};
 
 /**
  * node_modules is in step with the catalog when every pi package is unpacked at

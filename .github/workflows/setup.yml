@@ -54,13 +54,18 @@ jobs:
             console.log('PNPM_HOME=' + home);
           "
 
+      # Through pnpm, the way a human runs it. It is not the same command:
+      # pnpm run puts node_modules/.bin first on PATH, which once made a check
+      # read the workspace's pi instead of the global one.
       - name: bootstrap
         working-directory: agent/extensions
-        run: node scripts/setup.mjs bootstrap
+        run: pnpm bootstrap
 
       - name: the machine now matches the repo
         working-directory: agent/extensions
-        run: node scripts/setup.mjs check
+        run: |
+          pnpm check
+          node scripts/setup.mjs check
 
       - name: pi runs at the pinned version, and only one is unpacked
         working-directory: agent/extensions
