@@ -18,6 +18,7 @@
 
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { existsSync, realpathSync } from "node:fs";
 import { describe, it } from "node:test";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -47,12 +48,28 @@ function attempt(command, args, options = {}) {
 const strip = (text) => text.replace(/\u001b\[[0-9;]*m/g, "");
 
 describe("the scripts read the same pi whoever asks", () => {
-	it("puts the workspace's pi ahead of the global one inside a pnpm script", () => {
-		// The condition the rest of this file is about. If pnpm ever stopped
-		// doing this, these tests would pass for the wrong reason.
-		const local = attempt("pnpm", ["exec", "node", "-e", "console.log(process.env.PATH.split(require('node:path').delimiter)[0])"]);
-		assert.equal(local.status, 0, local.stdout);
-		assert.match(local.stdout.trim(), /node_modules[\\/]\.bin$/);
+	it("has a workspace pi that is not the global one", async () => {
+		// The condition the rest of this file is about: pnpm run puts
+		// node_modules/.bin first, so `pi` resolved by name inside a pnpm script
+		// is this file, not the command the user has. If the workspace ever stops
+		// depending on pi, the tests below would pass for the wrong reason.
+		//
+		// Asserted from the filesystem rather than by printing PATH from a
+		// subprocess: passing code as a string means passing it through cmd.exe on
+		// Windows, which eats the parentheses. That is the fourth thing in this
+		// repository to break that way.
+		const local = join(WORKSPACE, "node_modules", ".bin", process.platform === "win32" ? "pi.cmd" : "pi");
+		assert.ok(existsSync(local), `${local} does not exist; the workspace no longer depends on pi`);
+
+		const { globalPi } = await import("./environment.mjs");
+		const global = globalPi();
+		if (global && existsSync(global)) {
+			assert.notEqual(
+				realpathSync(local),
+				realpathSync(global),
+				"the workspace and global pi are the same file, so nothing here can disagree",
+			);
+		}
 	});
 
 	it("reports the same installed version through pnpm as directly", () => {
