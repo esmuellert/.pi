@@ -14,7 +14,7 @@ abbreviating.
 | Step | Mechanism | Why |
 |---|---|---|
 | 1 | **Wrapping** | Segments flow like words in a paragraph. Rows are cheap on a phone. |
-| 2 | **Context bar** | Sized within a small absolute range (6–14 cells), chosen for the evenest wrap rather than the widest fit. Growing the bar adds ink without adding information, so a slack-based score would always max it out — and the extra width can push a field onto the next line. Candidates are judged by line-length spread, which ink cannot inflate; ties favour the wider bar. |
+| 2 | **Context bar** | Sized within a small absolute range (6–14 cells), then grown into otherwise unused width. A candidate is rejected if it adds a line, and narrow terminals cap the bar at 40% of their width (or the configured minimum), so fill never makes the footer taller or lets the graphic dominate a line. |
 | 3 | **Balanced wrap** | Lines are re-wrapped to even out their lengths, so the block never strands a lone segment on the last line. |
 
 **Nothing is ever dropped.** Every visible field renders at every width. The
@@ -94,7 +94,7 @@ layout.ts       Pure layout engine: flow, balance, plan
 segments.ts     Session snapshot -> ordered segment list
 config.ts       footer.json loading and validation
 format.ts       Counts, progress bar, display width, path shortening
-layout.test.ts  221 assertions
+layout.test.ts  260 assertions
 ```
 
 `index.ts` is the only file that touches pi APIs; everything else is pure and
@@ -115,7 +115,7 @@ asserting:
 - wording is byte-identical at 20 and 200 columns
 - lines are left aligned by default, and still spread when `maxGap` is raised
 - line count and drop count are monotone in width, changing by at most one per column
-- the context bar stays inside its configured range, never scales with width, and is never widened at the cost of a more ragged block
+- the context bar stays inside its configured range and narrow-width share, fills the terminal as well as any valid candidate, and never adds a line
 - wrapping stays balanced (line-length evenness: min 33%, mean 72%)
 - display order is by stability
 - optional fields appear only when unhidden, and vanish when their value is empty

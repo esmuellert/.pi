@@ -42,6 +42,15 @@ export interface LayoutOptions {
 	measure?: (s: string) => number;
 }
 
+/**
+ * Largest share of the terminal the context bar may occupy.
+ *
+ * Scoring the bar by fill would otherwise take `maxBar` at every width, and on
+ * a narrow terminal that is most of a line spent on a graphic that carries one
+ * number. Below roughly 35 columns this binds before `maxBar` does.
+ */
+const BAR_WIDTH_SHARE = 0.4;
+
 export const DEFAULT_LAYOUT_OPTIONS: LayoutOptions = {
 	separator: "  ",
 	maxGap: 0,
@@ -173,17 +182,27 @@ export function gapFor(texts: string[], line: number[], c: Ctx, maxGap: number):
 	return Math.max(0, Math.min(cap, Math.floor(slack / gaps)));
 }
 
-/** Longest minus shortest line: a balance measure that ink volume cannot inflate. */
-function spread(texts: string[], lines: number[][], c: Ctx): number {
-	if (lines.length < 2) return 0;
-	let lo = Number.POSITIVE_INFINITY;
+/**
+ * Terminal width the longest line leaves unused.
+ *
+ * The bar is judged by how well the block fills the terminal, not by how even
+ * the lines are. Evenness is `balance`'s job and it has already run; asking the
+ * bar to even things too gave the wrong answer whenever the bar sat on the
+ * longest line, which is the common case. Growing it could then only widen that
+ * line and worsen the spread, so the minimum bar always won -- a six-cell bar
+ * beside fifty-seven empty columns.
+ *
+ * Filling cannot run away with it the way a general slack score would: the loop
+ * rejects any bar that adds a line, so the bar grows into space nothing else
+ * wants and stops there.
+ */
+function unused(texts: string[], lines: number[][], c: Ctx): number {
 	let hi = 0;
 	for (const line of lines) {
 		const w = span(texts, line[0], line[line.length - 1] + 1, c);
-		if (w < lo) lo = w;
 		if (w > hi) hi = w;
 	}
-	return hi - lo;
+	return c.width - hi;
 }
 
 export function planLayout(build: SegmentBuilder, width: number, options: Partial<LayoutOptions> = {}): Layout {
@@ -193,6 +212,14 @@ export function planLayout(build: SegmentBuilder, width: number, options: Partia
 	const maxBar = Math.max(minBar, Math.floor(opts.maxBar));
 	const c: Ctx = { measure, sep: measure(opts.separator), width: Math.max(1, Math.floor(width)) };
 
+	// The bar is elastic, but it must not scale with the terminal: on a narrow
+	// one a full-width bar is most of the line and reads as decoration rather
+	// than a reading. Scoring by fill would take the ceiling every time, so the
+	// ceiling is also held to a share of the width -- the same bound the
+	// "keeps the bar from dominating a line" test asserts.
+	const barCeiling = Math.max(minBar, Math.floor(c.width * BAR_WIDTH_SHARE));
+	const topBar = Math.min(maxBar, barCeiling);
+
 	// Every visible segment is always rendered. Narrow terminals get more lines,
 	// never fewer fields: the line count is naturally capped at one line per
 	// segment, which only happens on terminals too narrow to use anyway.
@@ -200,15 +227,21 @@ export function planLayout(build: SegmentBuilder, width: number, options: Partia
 	if (base.length === 0) return { lines: [], barCells: minBar };
 	const lineCount = flow(base.map((s) => s.text), c).length;
 
-	// Pick the bar width that wraps best, not simply the widest that fits.
+	// Pick the bar width that fills the terminal best, not simply the widest
+	// that fits -- and not the evenest, which is what this used to do.
 	//
-	// Growing the bar adds ink without adding information, which mechanically
-	// improves any slack-based score. Judging candidates by line-length spread
-	// instead keeps that thumb off the scale: a wider bar is only taken when it
-	// leaves the block at least as even. Ties favour the wider bar, so on roomy
-	// terminals the bar still expands into space nothing else wants.
-	let best: { cells: number; segs: Segment[]; packed: number[][]; spread: number } | null = null;
-	for (let cells = minBar; cells <= maxBar; cells++) {
+	// Evening the lines is `balance`'s job, and it has already run by the time a
+	// bar is scored. Judging the bar by evenness as well meant that whenever the
+	// bar sat on the longest line -- the usual case, since it trails the stable
+	// fields -- growing it could only lengthen that line and widen the spread. So
+	// the minimum bar always won, and a two-line footer showed a six-cell bar
+	// next to fifty-seven unused columns.
+	//
+	// Filling is safe here because the loop below refuses any bar that adds a
+	// line: the bar expands into space nothing else wants, and stops. Ties still
+	// favour the wider bar.
+	let best: { cells: number; segs: Segment[]; packed: number[][]; unused: number } | null = null;
+	for (let cells = minBar; cells <= topBar; cells++) {
 		const segs = build(cells);
 		if (segs.length !== base.length) break;
 		const texts = segs.map((s) => s.text);
@@ -219,8 +252,8 @@ export function planLayout(build: SegmentBuilder, width: number, options: Partia
 		if (packed.length > lineCount) break;
 		const balanced = balance(texts, packed.length, c, opts.maxGap);
 		if (balanced) packed = balanced;
-		const s = spread(texts, packed, c);
-		if (!best || s <= best.spread) best = { cells, segs, packed, spread: s };
+		const u = unused(texts, packed, c);
+		if (!best || u <= best.unused) best = { cells, segs, packed, unused: u };
 	}
 	if (!best) return { lines: [], barCells: minBar };
 

@@ -328,19 +328,27 @@ describe("space utilisation", () => {
 	});
 
 
-	it("picks the bar width that wraps most evenly", () => {
-		// Regression: the bar used to take its ceiling whenever the line count
-		// held. Extra bar ink flattered the slack score while pushing a field
-		// onto the next line — at 53 columns it cost 'out' its place by one
-		// column. This sweep is the general form of that check: for every width,
-		// no other bar width may wrap more evenly than the one chosen.
+	it("picks the bar width that fills the terminal best", () => {
+		// The bar is scored by fill, not evenness. Evenness is `balance`'s job and
+		// runs first; scoring the bar that way too meant a bar sitting on the
+		// longest line could only worsen the spread by growing, so the minimum
+		// always won and left the bar tiny beside a half-empty line.
+		//
+		// The earlier hazard this replaced -- a bar taking its ceiling and pushing
+		// a field onto the next line -- is covered by the line-count guard, which
+		// the sweep below holds to by only comparing layouts of equal height.
 		for (const width of WIDTHS.filter((w) => w >= 30)) {
 			const chosen = plan(NOMINAL, DEFAULT_CONFIG, width);
-			const spreadOf = (l: Layout) => {
+			const unusedOf = (l: Layout) => {
 				const lens = l.lines.map((x) => measureText(lineText(x, DEFAULT_CONFIG.separator)));
-				return lens.length > 1 ? Math.max(...lens) - Math.min(...lens) : 0;
+				return width - Math.max(...lens);
 			};
-			for (let bar = DEFAULT_CONFIG.minBar; bar <= DEFAULT_CONFIG.maxBar; bar++) {
+			// Only bars planLayout would actually reach: it stops at the share-of-
+			// width ceiling, and at the first bar whose segments overflow the line.
+			const ceiling = Math.min(DEFAULT_CONFIG.maxBar, Math.max(DEFAULT_CONFIG.minBar, Math.floor(width * 0.4)));
+			for (let bar = DEFAULT_CONFIG.minBar; bar <= ceiling; bar++) {
+				const segs = makeBuilder(NOMINAL, DEFAULT_CONFIG)(bar);
+				if (segs.some((s) => measureText(s.text) > width)) break;
 				const alt = planLayout(makeBuilder(NOMINAL, DEFAULT_CONFIG), width, {
 					separator: DEFAULT_CONFIG.separator,
 					maxGap: DEFAULT_CONFIG.maxGap,
@@ -348,8 +356,27 @@ describe("space utilisation", () => {
 					maxBar: bar,
 				});
 				if (alt.lines.length !== chosen.lines.length) continue;
-				assert.ok(spreadOf(chosen) <= spreadOf(alt), `@${width}: bar ${chosen.barCells} worse than ${bar}`);
+				assert.ok(unusedOf(chosen) <= unusedOf(alt), `@${width}: bar ${chosen.barCells} fills worse than ${bar}`);
 			}
+		}
+	});
+
+	it("never adds a line to widen the bar", () => {
+		// The reason fill is safe to optimise: whatever the bar does, the block
+		// must not grow taller than it would at the narrowest bar.
+		for (const width of WIDTHS.filter((w) => w >= 30)) {
+			const atMin = planLayout(makeBuilder(NOMINAL, DEFAULT_CONFIG), width, {
+				separator: DEFAULT_CONFIG.separator,
+				maxGap: DEFAULT_CONFIG.maxGap,
+				minBar: DEFAULT_CONFIG.minBar,
+				maxBar: DEFAULT_CONFIG.minBar,
+			});
+			const chosen = plan(NOMINAL, DEFAULT_CONFIG, width);
+			assert.equal(
+				chosen.lines.length,
+				atMin.lines.length,
+				`@${width}: bar ${chosen.barCells} used ${chosen.lines.length} lines, min bar used ${atMin.lines.length}`,
+			);
 		}
 	});
 
