@@ -6,6 +6,7 @@ packages:
   - "themes"
   - "tool-blocks"
   - "moshi-push"
+  - "herdr-clipboard"
   - "rename"
   - "response-footer"
   # Shared by the packages that draw, so "fast enough" means the same thing in
