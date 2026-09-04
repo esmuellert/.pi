@@ -72,6 +72,12 @@ export default function (pi: ExtensionAPI) {
 			const result = await ctx.switchSession(moved, {
 				withSession: async (next) => {
 					next.ui.notify(`Now in ${target.path}`, "info");
+					// The original is kept, and its path said rather than remembered.
+					// /cd-prune held the list in the extension's closure, which meant it
+					// worked until pi exited and then the file could never be found
+					// again. A path on screen outlives the process, and deleting one is
+					// a line of shell.
+					next.ui.notify(`Original left at ${source}`, "info");
 				},
 			});
 
@@ -79,14 +85,7 @@ export default function (pi: ExtensionAPI) {
 				// Nothing switched, so the copy is litter rather than history.
 				rmSync(moved, { force: true });
 				ctx.ui.notify("Move cancelled", "warning");
-				return;
 			}
-			// The original is kept, and its path said rather than remembered.
-			// /cd-prune held the list in the extension's closure, which meant it
-			// worked until pi exited and then the file could never be found
-			// again. A path on screen outlives the process, and deleting one is
-			// a line of shell.
-			ctx.ui.notify(`Original left at ${source}`, "info");
 		},
 	});
 }
