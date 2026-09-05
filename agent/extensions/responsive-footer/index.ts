@@ -13,6 +13,11 @@ import { homedir } from "node:os";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import {
+	CODEX_USAGE_STATE_EVENT,
+	isCodexUsageState,
+	type CodexUsageState,
+} from "pi-codex-study/protocol";
 import { loadConfig } from "./config.ts";
 import { lineText, planLayout } from "./layout.ts";
 import { type FooterState, ICON, makeBuilder } from "./segments.ts";
@@ -41,7 +46,7 @@ function detectSubscription(ctx: ExtensionContext, provider: string): boolean {
 }
 
 /** Sum usage across the active branch, mirroring the built-in footer's totals. */
-function readState(ctx: ExtensionContext): FooterState {
+function readState(ctx: ExtensionContext, codexUsage: CodexUsageState): FooterState {
 	let input = 0;
 	let output = 0;
 	let cacheRead = 0;
@@ -85,6 +90,8 @@ function readState(ctx: ExtensionContext): FooterState {
 		cost,
 		hitRate,
 		usingSubscription: detectSubscription(ctx, provider),
+		codexQuota: codexUsage.verified ? codexUsage.quota : null,
+		now: Date.now(),
 		cwd: ctx.cwd,
 		branch: null,
 		sessionName: ctx.sessionManager.getSessionName() ?? null,
@@ -94,17 +101,30 @@ function readState(ctx: ExtensionContext): FooterState {
 }
 
 export default function (pi: ExtensionAPI) {
+	let codexUsage: CodexUsageState = { verified: false, quota: null };
+	let footerTui: { requestRender(): void } | null = null;
+
+	pi.events.on(CODEX_USAGE_STATE_EVENT, (value) => {
+		if (!isCodexUsageState(value)) return;
+		codexUsage = value;
+		footerTui?.requestRender();
+	});
+
 	const factory = (ctx: ExtensionContext) => (tui: any, theme: any, footerData: any) => {
+		footerTui = tui;
 		const cfg = loadConfig();
 		const unsub = footerData.onBranchChange(() => tui.requestRender());
 
 		return {
-			dispose: unsub,
+			dispose() {
+				unsub();
+				if (footerTui === tui) footerTui = null;
+			},
 			invalidate() {},
 			render(width: number): string[] {
 				if (width < 4) return [];
 
-				const state = readState(ctx);
+				const state = readState(ctx, codexUsage);
 				state.branch = footerData.getGitBranch() ?? null;
 
 				const layout = planLayout(makeBuilder(state, cfg), width, {

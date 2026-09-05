@@ -1,0 +1,28 @@
+{
+  "name": "pi-codex-study",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Codex subscription quota display and privacy-safe per-reply usage ledger",
+  "exports": {
+    "./protocol": "./protocol.ts"
+  },
+  "pi": {
+    "extensions": [
+      "./extension.ts"
+    ]
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test *.test.ts",
+    "typecheck": "tsc --noEmit",
+    "smoke": "node --experimental-strip-types -e \"import('./extension.ts').then(m => { if (typeof m.default !== 'function') process.exit(1) })\""
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

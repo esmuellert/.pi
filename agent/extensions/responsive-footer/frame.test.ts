@@ -84,7 +84,10 @@ const mount = (entries: ReturnType<typeof session>) => {
 		},
 	};
 	const handlers = new Map<string, (event: unknown, ctx: unknown) => unknown>();
-	factory({ on: (name: string, fn: never) => handlers.set(name, fn) } as never);
+	factory({
+		on: (name: string, fn: never) => handlers.set(name, fn),
+		events: { on: () => () => {}, emit: () => {} },
+	} as never);
 	handlers.get("session_start")?.({}, full);
 	return { render: (width: number) => made.render(width), walks: () => walks };
 };

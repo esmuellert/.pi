@@ -8,6 +8,8 @@
  * decides only what gets omitted, never what gets shortened or reordered.
  */
 
+import type { QuotaSnapshot } from "pi-codex-study/protocol";
+import { codexQuotaSegments } from "./codex.ts";
 import { formatCount, progressBar, shortenHome } from "./format.ts";
 import type { FooterConfig } from "./config.ts";
 import type { Segment, SegmentBuilder } from "./layout.ts";
@@ -43,6 +45,8 @@ export interface FooterState {
 	cost: number;
 	hitRate: number | null;
 	usingSubscription: boolean;
+	codexQuota: QuotaSnapshot | null;
+	now: number;
 	cwd: string;
 	branch: string | null;
 	sessionName: string | null;
@@ -65,6 +69,8 @@ export const EMPTY_STATE: FooterState = {
 	cost: 0,
 	hitRate: null,
 	usingSubscription: false,
+	codexQuota: null,
+	now: 0,
 	cwd: "/",
 	branch: null,
 	sessionName: null,
@@ -93,7 +99,8 @@ export function makeBuilder(state: FooterState, cfg: FooterConfig): SegmentBuild
 			? `?/${formatCount(state.contextWindow)}`
 			: `${formatCount(state.contextTokens)}/${formatCount(state.contextWindow)}`;
 	const hitText = state.hitRate === null ? "—" : `${state.hitRate.toFixed(0)}%`;
-	const costText = `$${state.cost.toFixed(3)}${state.usingSubscription ? " sub" : ""}`;
+	const codex = state.provider === "openai-codex" && state.codexQuota !== null;
+	const costText = `$${state.cost.toFixed(3)}${codex ? " codex" : state.usingSubscription ? " sub" : ""}`;
 	const cwdText = shortenHome(state.cwd, state.home);
 	const ctxColor = contextColor(state.contextPercent, cfg);
 	const folder = cfg.icons ? `${ICON.folder} ${cwdText}` : cwdText;
@@ -114,11 +121,13 @@ export function makeBuilder(state: FooterState, cfg: FooterConfig): SegmentBuild
 		// Display order is by stability: left-aligned text means a field that
 		// changes width pushes everything to its right, so the fields that rarely
 		// change lead and the per-turn counters trail.
+		const quota = codex ? codexQuotaSegments(state.codexQuota!, state.now) : [];
 		const raw: Segment[] = [
 			{ id: "cwd", text: place, color: "dim" },
 			{ id: "session", text: state.sessionName ? `session ${state.sessionName}` : "", color: "dim" },
 			{ id: "model", text: `${state.modelId} · ${state.thinkingLevel}`, color: "accent" },
 			{ id: "provider", text: state.provider ? `via ${state.provider}` : "", color: "dim" },
+			...quota,
 			{
 				id: "ctx",
 				text: `ctx ${progressBar(state.contextPercent ?? 0, barCells)} ${pctText} ${ctxNums}`,

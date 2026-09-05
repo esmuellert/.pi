@@ -86,6 +86,18 @@ importers:
         specifier: 'catalog:'
         version: 7.0.2
 
+  codex-study:
+    devDependencies:
+      '@earendil-works/pi-coding-agent':
+        specifier: 'catalog:'
+        version: 0.85.0(ws@8.21.3)
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.2.0
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
   frame-budget:
     devDependencies:
       '@types/node':
@@ -150,6 +162,10 @@ importers:
         version: 7.0.2
 
   responsive-footer:
+    dependencies:
+      pi-codex-study:
+        specifier: workspace:*
+        version: link:../codex-study
     devDependencies:
       '@earendil-works/pi-ai':
         specifier: 'catalog:'

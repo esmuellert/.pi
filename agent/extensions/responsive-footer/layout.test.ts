@@ -33,6 +33,8 @@ const NOMINAL: FooterState = {
 	cost: 31.916,
 	hitRate: 100,
 	usingSubscription: false,
+	codexQuota: null,
+	now: Date.UTC(2026, 8, 5),
 	cwd: "/private/tmp",
 	branch: null,
 	sessionName: null,

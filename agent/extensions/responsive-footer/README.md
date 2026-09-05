@@ -73,11 +73,12 @@ in `footer.json` if the glyphs come out as boxes.
 | Field | Meaning |
 |---|---|
 | `model · level` | Current model and reasoning level |
+| `2h25m ███░░░ 44%` | Codex quota pressure: reset countdown, six-cell used bar, and used percentage. The 5-hour and weekly windows appear in that order only for a verified `openai-codex` login and active model. |
 | `ctx ▓▓░░ 40% 403.4k/1.0M` | Context usage; bar turns yellow at `ctxWarn`, red at `ctxDanger` |
 | `in` / `out` | Cumulative input / output tokens |
 | `cache r/w` | Cumulative cache reads / writes |
 | `hit` | Latest cache hit rate (cache reads cost ~10% of fresh input, so this is money) |
-| `$` | Cumulative cost, `sub` when a subscription covers it |
+| `$` | Cumulative estimated cost, suffixed `codex` for a verified active Codex model and `sub` for other subscriptions |
 | `cwd (branch)` | Working directory and git branch (`detached` on a detached HEAD) |
 | `session` | Session name, when set — hidden by default |
 | `via provider` | Model provider — hidden by default |
@@ -92,6 +93,7 @@ so `"hide": []` shows everything.
 index.ts        Extension wiring: reads session state, paints the result
 layout.ts       Pure layout engine: flow, balance, plan
 segments.ts     Session snapshot -> ordered segment list
+codex.ts        Pure Codex quota formatting
 config.ts       footer.json loading and validation
 format.ts       Counts, progress bar, display width, path shortening
 layout.test.ts  260 assertions
