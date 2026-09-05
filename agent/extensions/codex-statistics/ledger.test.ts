@@ -6,6 +6,7 @@ import { describe, it } from "node:test";
 import type { ExtensionContext, TurnEndEvent } from "@earendil-works/pi-coding-agent";
 
 import { addTurn, defaultDataDir, finishReply, JsonlLedger, startReply } from "./ledger.ts";
+import type { QuotaSnapshot } from "./quota.ts";
 function context(): ExtensionContext {
 	return {
 		model: {
@@ -78,8 +79,22 @@ describe("Codex JSONL ledger", () => {
 	it("records numeric detail without conversation content or source paths", async () => {
 		const draft = startReply(context(), "process-ref", 1_000, "reply-id");
 		addTurn(draft, turn(), "max", 1_500, 2_200);
-		const record = finishReply(draft, 2_400);
+		const quotaBefore: QuotaSnapshot = {
+			fetchedAt: 1_100,
+			planType: "plus",
+			primary: { usedPercent: 50, windowSeconds: 18_000, resetAt: 20_000 },
+			secondary: { usedPercent: 8, windowSeconds: 604_800, resetAt: 700_000 },
+		};
+		const quotaAfter: QuotaSnapshot = {
+			...quotaBefore,
+			fetchedAt: 2_300,
+			primary: { ...quotaBefore.primary, usedPercent: 57 },
+		};
+		const record = finishReply(draft, 2_400, quotaBefore, quotaAfter);
 
+		assert.equal(record.schemaVersion, 2);
+		assert.equal(record.quotaBefore?.primary.usedPercent, 50);
+		assert.equal(record.quotaAfter?.primary.usedPercent, 57);
 		assert.equal(record.totals.model.output, 500);
 		assert.equal(record.totals.model.reasoning, 300, "reasoning remains a subset of output");
 		assert.equal(record.totals.nestedTools.totalTokens, 35);

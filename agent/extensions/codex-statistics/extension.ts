@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 import { addTurn, finishReply, JsonlLedger, startReply, type ReplyDraft } from "./ledger.ts";
-import { extractAccountId, fetchQuota } from "./quota.ts";
+import { extractAccountId, fetchQuota, type QuotaSnapshot } from "./quota.ts";
 
 export interface CodexStatisticsDependencies {
 	fetchImpl?: typeof fetch;
@@ -20,9 +20,31 @@ export function installCodexStatistics(pi: ExtensionAPI, dependencies: CodexStat
 	const turnStarts = new Map<number, number>();
 	let enabled = false;
 	let reply: ReplyDraft | null = null;
+	let quotaBefore: Promise<QuotaSnapshot | null> | null = null;
 	let verificationGeneration = 0;
 	let verificationController: AbortController | null = null;
 	let verification: Promise<void> | null = null;
+
+	async function readQuota(ctx: ExtensionContext, signal?: AbortSignal): Promise<QuotaSnapshot> {
+		const auth = await ctx.modelRegistry.getProviderAuth("openai-codex");
+		const apiKey = auth?.auth.apiKey;
+		if (!apiKey) throw new Error("OpenAI Codex OAuth is not configured");
+		return fetchQuota({
+			apiKey,
+			accountId: extractAccountId(apiKey),
+			fetchImpl,
+			now,
+			signal,
+		});
+	}
+
+	async function sampleQuota(ctx: ExtensionContext): Promise<QuotaSnapshot | null> {
+		try {
+			return await readQuota(ctx);
+		} catch {
+			return null;
+		}
+	}
 
 	async function verifyLogin(ctx: ExtensionContext): Promise<void> {
 		if (verification) return verification;
@@ -30,16 +52,7 @@ export function installCodexStatistics(pi: ExtensionAPI, dependencies: CodexStat
 		const controller = new AbortController();
 		verificationController = controller;
 		verification = (async () => {
-			const auth = await ctx.modelRegistry.getProviderAuth("openai-codex");
-			const apiKey = auth?.auth.apiKey;
-			if (!apiKey) throw new Error("OpenAI Codex OAuth is not configured");
-			await fetchQuota({
-				apiKey,
-				accountId: extractAccountId(apiKey),
-				fetchImpl,
-				now,
-				signal: controller.signal,
-			});
+			await readQuota(ctx, controller.signal);
 			if (generation !== verificationGeneration) throw new Error("Stale Codex login verification");
 		})();
 		try {
@@ -56,6 +69,7 @@ export function installCodexStatistics(pi: ExtensionAPI, dependencies: CodexStat
 		verification = null;
 		enabled = false;
 		reply = null;
+		quotaBefore = null;
 		turnStarts.clear();
 		try {
 			await verifyLogin(ctx);
@@ -78,6 +92,9 @@ export function installCodexStatistics(pi: ExtensionAPI, dependencies: CodexStat
 	pi.on("agent_start", (_event, ctx) => {
 		if (!enabled) return;
 		reply = startReply(ctx, processRef, now(), randomId());
+		quotaBefore = reply.startModel?.provider === "openai-codex"
+			? sampleQuota(ctx)
+			: Promise.resolve(null);
 		turnStarts.clear();
 	});
 
@@ -92,12 +109,18 @@ export function installCodexStatistics(pi: ExtensionAPI, dependencies: CodexStat
 		turnStarts.delete(event.turnIndex);
 	});
 
-	pi.on("agent_end", async () => {
+	pi.on("agent_end", async (_event, ctx) => {
 		if (!enabled || !reply) return;
 		const finished = reply;
+		const before = quotaBefore;
 		reply = null;
+		quotaBefore = null;
 		turnStarts.clear();
-		await ledger.append(finishReply(finished, now()));
+		const quotaBeforeSnapshot = await (before ?? Promise.resolve(null));
+		const quotaAfterSnapshot = finished.startModel?.provider === "openai-codex"
+			? await sampleQuota(ctx)
+			: null;
+		await ledger.append(finishReply(finished, now(), quotaBeforeSnapshot, quotaAfterSnapshot));
 	});
 
 	pi.on("session_shutdown", async () => {
@@ -107,6 +130,7 @@ export function installCodexStatistics(pi: ExtensionAPI, dependencies: CodexStat
 		verification = null;
 		enabled = false;
 		reply = null;
+		quotaBefore = null;
 		turnStarts.clear();
 		await ledger.flush();
 	});

@@ -4,6 +4,8 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionContext, TurnEndEvent } from "@earendil-works/pi-coding-agent";
 
+import type { QuotaSnapshot } from "./quota.ts";
+
 interface UsageLike {
 	input?: number;
 	output?: number;
@@ -56,7 +58,7 @@ export interface NumericUsage {
 }
 
 export interface ReplyDraft {
-	schemaVersion: 1;
+	schemaVersion: 2;
 	type: "reply";
 	id: string;
 	processRef: string;
@@ -96,6 +98,8 @@ export interface TurnRecord {
 }
 
 export interface ReplyRecord extends ReplyDraft {
+	quotaBefore: QuotaSnapshot | null;
+	quotaAfter: QuotaSnapshot | null;
 	endedAt: string;
 	durationMs: number;
 	totals: {
@@ -163,7 +167,7 @@ export function startReply(
 ): ReplyDraft {
 	const model = ctx.model;
 	return {
-		schemaVersion: 1,
+		schemaVersion: 2,
 		type: "reply",
 		id,
 		processRef,
@@ -230,7 +234,12 @@ export function addTurn(
 	});
 }
 
-export function finishReply(draft: ReplyDraft, now = Date.now()): ReplyRecord {
+export function finishReply(
+	draft: ReplyDraft,
+	now = Date.now(),
+	quotaBefore: QuotaSnapshot | null = null,
+	quotaAfter: QuotaSnapshot | null = null,
+): ReplyRecord {
 	const model = emptyUsage();
 	const nestedTools = emptyUsage();
 	let toolCalls = 0;
@@ -244,6 +253,8 @@ export function finishReply(draft: ReplyDraft, now = Date.now()): ReplyRecord {
 	const startedAt = Date.parse(draft.startedAt);
 	return {
 		...draft,
+		quotaBefore,
+		quotaAfter,
 		endedAt: new Date(now).toISOString(),
 		durationMs: Math.max(0, now - startedAt),
 		totals: {

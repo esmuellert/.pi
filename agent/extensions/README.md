@@ -44,7 +44,7 @@ load check, and is told the smoke tests were skipped rather than passed.
 | Package | What it does |
 |---|---|
 | `responsive-footer` | Width-adaptive multi-line footer. Wraps instead of abbreviating, so labels stay readable at any terminal size. |
-| `codex-statistics` | Writes privacy-safe per-reply usage metrics to JSONL after verifying a Codex subscription login. |
+| `codex-statistics` | Writes privacy-safe per-reply token metrics and independent before/after Codex quota snapshots to JSONL. |
 | `cd` | `/cd <dir>` moves the session to another directory, which pi otherwise fixes at session creation. |
 | `tool-blocks` | Presentation for tool blocks: a glyph per block, and a bash title with the layers pi gives its other six. |
 | `frame-budget` | What a still frame may cost, and how to measure it. Shared by the packages that draw |
