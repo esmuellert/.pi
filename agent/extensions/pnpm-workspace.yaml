@@ -2,7 +2,7 @@
 # other tools install, and those must not be treated as workspace packages.
 packages:
   - "responsive-footer"
-  - "codex-study"
+  - "codex-statistics"
   - "cd"
   - "themes"
   - "tool-blocks"

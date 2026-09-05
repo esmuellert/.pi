@@ -4,8 +4,6 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionContext, TurnEndEvent } from "@earendil-works/pi-coding-agent";
 
-import type { QuotaSnapshot } from "./quota.ts";
-
 interface UsageLike {
 	input?: number;
 	output?: number;
@@ -70,7 +68,6 @@ export interface ReplyDraft {
 		id: string;
 		thinkingLevel: string;
 	} | null;
-	quotaBefore?: QuotaSnapshot;
 	turns: TurnRecord[];
 }
 
@@ -108,7 +105,6 @@ export interface ReplyRecord extends ReplyDraft {
 		toolCalls: number;
 		toolErrors: number;
 	};
-	quotaAfter?: QuotaSnapshot;
 }
 
 const emptyUsage = (): NumericUsage => ({
@@ -162,7 +158,6 @@ export function hashSessionId(sessionId: string): string {
 export function startReply(
 	ctx: ExtensionContext,
 	processRef: string,
-	quotaBefore: QuotaSnapshot | null,
 	now = Date.now(),
 	id: string = randomUUID(),
 ): ReplyDraft {
@@ -180,7 +175,6 @@ export function startReply(
 			id: model.id,
 			thinkingLevel: ctx.thinkingLevel ?? "off",
 		} : null,
-		...(model?.provider === "openai-codex" && quotaBefore ? { quotaBefore } : {}),
 		turns: [],
 	};
 }
@@ -236,11 +230,7 @@ export function addTurn(
 	});
 }
 
-export function finishReply(
-	draft: ReplyDraft,
-	quotaAfter: QuotaSnapshot | null,
-	now = Date.now(),
-): ReplyRecord {
+export function finishReply(draft: ReplyDraft, now = Date.now()): ReplyRecord {
 	const model = emptyUsage();
 	const nestedTools = emptyUsage();
 	let toolCalls = 0;
@@ -252,8 +242,6 @@ export function finishReply(
 		toolErrors += turn.tools.errors;
 	}
 	const startedAt = Date.parse(draft.startedAt);
-	const usedCodex = draft.startModel?.provider === "openai-codex" ||
-		draft.turns.some((turn) => turn.model.provider === "openai-codex");
 	return {
 		...draft,
 		endedAt: new Date(now).toISOString(),
@@ -265,7 +253,6 @@ export function finishReply(
 			toolCalls,
 			toolErrors,
 		},
-		...(usedCodex && quotaAfter ? { quotaAfter } : {}),
 	};
 }
 
@@ -274,9 +261,9 @@ export function defaultDataDir(
 	platform = process.platform,
 	home = homedir(),
 ): string {
-	if (env.PI_CODEX_STUDY_DATA_DIR) return env.PI_CODEX_STUDY_DATA_DIR;
-	if (platform === "win32") return join(env.LOCALAPPDATA ?? join(home, "AppData", "Local"), "pi-codex-study");
-	return join(env.XDG_DATA_HOME ?? join(home, ".local", "share"), "pi-codex-study");
+	if (env.PI_CODEX_STATISTICS_DATA_DIR) return env.PI_CODEX_STATISTICS_DATA_DIR;
+	if (platform === "win32") return join(env.LOCALAPPDATA ?? join(home, "AppData", "Local"), "pi-codex-statistics");
+	return join(env.XDG_DATA_HOME ?? join(home, ".local", "share"), "pi-codex-statistics");
 }
 
 export class JsonlLedger {

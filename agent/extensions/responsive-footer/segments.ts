@@ -8,8 +8,7 @@
  * decides only what gets omitted, never what gets shortened or reordered.
  */
 
-import type { QuotaSnapshot } from "pi-codex-study/protocol";
-import { codexQuotaSegments } from "./codex.ts";
+import { codexQuotaSegments, type QuotaSnapshot } from "./codex.ts";
 import { formatCount, progressBar, shortenHome } from "./format.ts";
 import type { FooterConfig } from "./config.ts";
 import type { Segment, SegmentBuilder } from "./layout.ts";
@@ -99,7 +98,7 @@ export function makeBuilder(state: FooterState, cfg: FooterConfig): SegmentBuild
 			? `?/${formatCount(state.contextWindow)}`
 			: `${formatCount(state.contextTokens)}/${formatCount(state.contextWindow)}`;
 	const hitText = state.hitRate === null ? "—" : `${state.hitRate.toFixed(0)}%`;
-	const codex = state.provider === "openai-codex" && state.codexQuota !== null;
+	const codex = state.provider === "openai-codex";
 	const costText = `$${state.cost.toFixed(3)}${codex ? " codex" : state.usingSubscription ? " sub" : ""}`;
 	const cwdText = shortenHome(state.cwd, state.home);
 	const ctxColor = contextColor(state.contextPercent, cfg);
@@ -121,7 +120,7 @@ export function makeBuilder(state: FooterState, cfg: FooterConfig): SegmentBuild
 		// Display order is by stability: left-aligned text means a field that
 		// changes width pushes everything to its right, so the fields that rarely
 		// change lead and the per-turn counters trail.
-		const quota = codex ? codexQuotaSegments(state.codexQuota!, state.now) : [];
+		const quota = codex && state.codexQuota ? codexQuotaSegments(state.codexQuota, state.now) : [];
 		const raw: Segment[] = [
 			{ id: "cwd", text: place, color: "dim" },
 			{ id: "session", text: state.sessionName ? `session ${state.sessionName}` : "", color: "dim" },

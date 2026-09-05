@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { visibleWidth } from "@earendil-works/pi-tui";
-import type { QuotaSnapshot } from "pi-codex-study/protocol";
 
+import { extractCodexAccountId, fetchCodexQuota, parseCodexQuota, type QuotaSnapshot } from "./codex.ts";
 import { DEFAULT_CONFIG } from "./config.ts";
 import { lineText, planLayout } from "./layout.ts";
 import { EMPTY_STATE, type FooterState, makeBuilder } from "./segments.ts";
@@ -10,7 +10,6 @@ import { EMPTY_STATE, type FooterState, makeBuilder } from "./segments.ts";
 const now = Date.UTC(2026, 8, 5, 0, 0, 0);
 const quota: QuotaSnapshot = {
 	fetchedAt: now,
-	planType: "plus",
 	primary: { usedPercent: 44, windowSeconds: 18_000, resetAt: now / 1000 + 2 * 3600 + 25 * 60 },
 	secondary: { usedPercent: 7, windowSeconds: 604_800, resetAt: now / 1000 + 6 * 86400 + 21 * 3600 },
 };
@@ -34,6 +33,46 @@ function state(provider: string): FooterState {
 		cwd: "/tmp/project",
 	};
 }
+
+describe("Codex quota source", () => {
+	it("requires both windows from the authenticated endpoint", () => {
+		assert.equal(parseCodexQuota({ rate_limit: { primary_window: {} } }), null);
+		assert.deepEqual(parseCodexQuota({
+			rate_limit: {
+				primary_window: { used_percent: 44, limit_window_seconds: 18_000, reset_at: 1 },
+				secondary_window: { used_percent: 7, limit_window_seconds: 604_800, reset_at: 2 },
+			},
+		}, 3), {
+			fetchedAt: 3,
+			primary: { usedPercent: 44, windowSeconds: 18_000, resetAt: 1 },
+			secondary: { usedPercent: 7, windowSeconds: 604_800, resetAt: 2 },
+		});
+	});
+
+	it("uses the OAuth account claim without retaining it", async () => {
+		const payload = Buffer.from(JSON.stringify({
+			"https://api.openai.com/auth": { chatgpt_account_id: "account-secret" },
+		})).toString("base64url");
+		const token = `header.${payload}.signature`;
+		let accountHeader = "";
+		const snapshot = await fetchCodexQuota({
+			apiKey: token,
+			accountId: extractCodexAccountId(token),
+			now: () => 3,
+			fetchImpl: async (_input, init) => {
+				accountHeader = new Headers(init?.headers).get("chatgpt-account-id") ?? "";
+				return new Response(JSON.stringify({
+					rate_limit: {
+						primary_window: { used_percent: 44, limit_window_seconds: 18_000, reset_at: 1 },
+						secondary_window: { used_percent: 7, limit_window_seconds: 604_800, reset_at: 2 },
+					},
+				}), { status: 200 });
+			},
+		});
+		assert.equal(accountHeader, "account-secret");
+		assert.equal(JSON.stringify(snapshot).includes("account-secret"), false);
+	});
+});
 
 describe("Codex quota segments", () => {
 	it("matches the local Claude Code reset, bar, percentage format", () => {

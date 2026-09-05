@@ -95,7 +95,7 @@ export async function fetchQuota(options: FetchQuotaOptions): Promise<QuotaSnaps
 		headers: {
 			authorization: `Bearer ${apiKey}`,
 			accept: "application/json",
-			"user-agent": "pi-codex-study",
+			"user-agent": "pi-codex-statistics",
 			...(accountId ? { "chatgpt-account-id": accountId } : {}),
 		},
 		signal: requestSignal,

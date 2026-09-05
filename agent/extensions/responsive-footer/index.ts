@@ -13,11 +13,7 @@ import { homedir } from "node:os";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import {
-	CODEX_USAGE_STATE_EVENT,
-	isCodexUsageState,
-	type CodexUsageState,
-} from "pi-codex-study/protocol";
+import { extractCodexAccountId, fetchCodexQuota, type QuotaSnapshot } from "./codex.ts";
 import { loadConfig } from "./config.ts";
 import { lineText, planLayout } from "./layout.ts";
 import { type FooterState, ICON, makeBuilder } from "./segments.ts";
@@ -46,7 +42,7 @@ function detectSubscription(ctx: ExtensionContext, provider: string): boolean {
 }
 
 /** Sum usage across the active branch, mirroring the built-in footer's totals. */
-function readState(ctx: ExtensionContext, codexUsage: CodexUsageState): FooterState {
+function readState(ctx: ExtensionContext, codexQuota: QuotaSnapshot | null, now: number): FooterState {
 	let input = 0;
 	let output = 0;
 	let cacheRead = 0;
@@ -90,8 +86,8 @@ function readState(ctx: ExtensionContext, codexUsage: CodexUsageState): FooterSt
 		cost,
 		hitRate,
 		usingSubscription: detectSubscription(ctx, provider),
-		codexQuota: codexUsage.verified ? codexUsage.quota : null,
-		now: Date.now(),
+		codexQuota,
+		now,
 		cwd: ctx.cwd,
 		branch: null,
 		sessionName: ctx.sessionManager.getSessionName() ?? null,
@@ -100,15 +96,55 @@ function readState(ctx: ExtensionContext, codexUsage: CodexUsageState): FooterSt
 	};
 }
 
-export default function (pi: ExtensionAPI) {
-	let codexUsage: CodexUsageState = { verified: false, quota: null };
-	let footerTui: { requestRender(): void } | null = null;
+export interface ResponsiveFooterDependencies {
+	fetchImpl?: typeof fetch;
+	now?: () => number;
+}
 
-	pi.events.on(CODEX_USAGE_STATE_EVENT, (value) => {
-		if (!isCodexUsageState(value)) return;
-		codexUsage = value;
+export function installResponsiveFooter(pi: ExtensionAPI, dependencies: ResponsiveFooterDependencies = {}): void {
+	const fetchImpl = dependencies.fetchImpl ?? fetch;
+	const now = dependencies.now ?? Date.now;
+	let codexQuota: QuotaSnapshot | null = null;
+	let footerTui: { requestRender(): void } | null = null;
+	let quotaGeneration = 0;
+	let quotaController: AbortController | null = null;
+	let quotaInflight: Promise<void> | null = null;
+
+	const refreshCodexQuota = (ctx: ExtensionContext): Promise<void> => {
+		if (ctx.model?.provider !== "openai-codex") return Promise.resolve();
+		if (quotaInflight) return quotaInflight;
+		const generation = quotaGeneration;
+		const controller = new AbortController();
+		quotaController = controller;
+		quotaInflight = (async () => {
+			const auth = await ctx.modelRegistry.getProviderAuth("openai-codex");
+			const apiKey = auth?.auth.apiKey;
+			if (!apiKey) return;
+			const snapshot = await fetchCodexQuota({
+				apiKey,
+				accountId: extractCodexAccountId(apiKey),
+				fetchImpl,
+				now,
+				signal: controller.signal,
+			});
+			if (generation !== quotaGeneration || ctx.model?.provider !== "openai-codex") return;
+			codexQuota = snapshot;
+			footerTui?.requestRender();
+		})().catch(() => {}).finally(() => {
+			if (generation === quotaGeneration) quotaInflight = null;
+		});
+		return quotaInflight;
+	};
+
+	const selectModel = (ctx: ExtensionContext) => {
+		quotaGeneration += 1;
+		quotaController?.abort();
+		quotaController = null;
+		quotaInflight = null;
+		codexQuota = null;
 		footerTui?.requestRender();
-	});
+		if (ctx.model?.provider === "openai-codex") void refreshCodexQuota(ctx);
+	};
 
 	const factory = (ctx: ExtensionContext) => (tui: any, theme: any, footerData: any) => {
 		footerTui = tui;
@@ -124,7 +160,7 @@ export default function (pi: ExtensionAPI) {
 			render(width: number): string[] {
 				if (width < 4) return [];
 
-				const state = readState(ctx, codexUsage);
+				const state = readState(ctx, codexQuota, now());
 				state.branch = footerData.getGitBranch() ?? null;
 
 				const layout = planLayout(makeBuilder(state, cfg), width, {
@@ -154,10 +190,24 @@ export default function (pi: ExtensionAPI) {
 
 	// session_start also fires after /reload, with reason "reload", so this one
 	// handler covers both. There is no separate "reload" event.
-	const apply = (ctx: ExtensionContext) => {
+	pi.on("session_start", async (_event, ctx) => {
 		if (ctx.mode !== "tui") return;
 		ctx.ui.setFooter(factory(ctx));
-	};
+		selectModel(ctx);
+	});
 
-	pi.on("session_start", async (_e, ctx) => apply(ctx));
+	pi.on("model_select", (_event, ctx) => selectModel(ctx));
+	pi.on("agent_end", (_event, ctx) => {
+		if (ctx.model?.provider === "openai-codex") void refreshCodexQuota(ctx);
+	});
+	pi.on("session_shutdown", () => {
+		quotaGeneration += 1;
+		quotaController?.abort();
+		quotaController = null;
+		quotaInflight = null;
+		codexQuota = null;
+		footerTui = null;
+	});
 }
+
+export default installResponsiveFooter;

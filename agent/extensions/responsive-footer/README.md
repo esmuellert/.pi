@@ -78,7 +78,7 @@ in `footer.json` if the glyphs come out as boxes.
 | `in` / `out` | Cumulative input / output tokens |
 | `cache r/w` | Cumulative cache reads / writes |
 | `hit` | Latest cache hit rate (cache reads cost ~10% of fresh input, so this is money) |
-| `$` | Cumulative estimated cost, suffixed `codex` for a verified active Codex model and `sub` for other subscriptions |
+| `$` | Cumulative estimated cost, suffixed `codex` for the active Codex provider and `sub` for other subscriptions |
 | `cwd (branch)` | Working directory and git branch (`detached` on a detached HEAD) |
 | `session` | Session name, when set — hidden by default |
 | `via provider` | Model provider — hidden by default |
@@ -93,7 +93,7 @@ so `"hide": []` shows everything.
 index.ts        Extension wiring: reads session state, paints the result
 layout.ts       Pure layout engine: flow, balance, plan
 segments.ts     Session snapshot -> ordered segment list
-codex.ts        Pure Codex quota formatting
+codex.ts        Codex OAuth quota fetch, validation and formatting
 config.ts       footer.json loading and validation
 format.ts       Counts, progress bar, display width, path shortening
 layout.test.ts  260 assertions

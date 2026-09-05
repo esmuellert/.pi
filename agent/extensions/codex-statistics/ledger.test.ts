@@ -6,15 +6,6 @@ import { describe, it } from "node:test";
 import type { ExtensionContext, TurnEndEvent } from "@earendil-works/pi-coding-agent";
 
 import { addTurn, defaultDataDir, finishReply, JsonlLedger, startReply } from "./ledger.ts";
-import type { QuotaSnapshot } from "./quota.ts";
-
-const quota: QuotaSnapshot = {
-	fetchedAt: 1_000,
-	planType: "plus",
-	primary: { usedPercent: 20, windowSeconds: 18_000, resetAt: 20_000 },
-	secondary: { usedPercent: 4, windowSeconds: 604_800, resetAt: 700_000 },
-};
-
 function context(): ExtensionContext {
 	return {
 		model: {
@@ -79,15 +70,15 @@ function turn(): TurnEndEvent {
 
 describe("Codex JSONL ledger", () => {
 	it("uses the platform data root and allows an explicit local override", () => {
-		assert.equal(defaultDataDir({ XDG_DATA_HOME: "/data" }, "linux", "/home/user"), join("/data", "pi-codex-study"));
-		assert.equal(defaultDataDir({ LOCALAPPDATA: "/local" }, "win32", "/home/user"), join("/local", "pi-codex-study"));
-		assert.equal(defaultDataDir({ PI_CODEX_STUDY_DATA_DIR: "/chosen" }, "darwin", "/home/user"), "/chosen");
+		assert.equal(defaultDataDir({ XDG_DATA_HOME: "/data" }, "linux", "/home/user"), join("/data", "pi-codex-statistics"));
+		assert.equal(defaultDataDir({ LOCALAPPDATA: "/local" }, "win32", "/home/user"), join("/local", "pi-codex-statistics"));
+		assert.equal(defaultDataDir({ PI_CODEX_STATISTICS_DATA_DIR: "/chosen" }, "darwin", "/home/user"), "/chosen");
 	});
 
 	it("records numeric detail without conversation content or source paths", async () => {
-		const draft = startReply(context(), "process-ref", quota, 1_000, "reply-id");
+		const draft = startReply(context(), "process-ref", 1_000, "reply-id");
 		addTurn(draft, turn(), "max", 1_500, 2_200);
-		const record = finishReply(draft, { ...quota, fetchedAt: 2_300 }, 2_400);
+		const record = finishReply(draft, 2_400);
 
 		assert.equal(record.totals.model.output, 500);
 		assert.equal(record.totals.model.reasoning, 300, "reasoning remains a subset of output");
@@ -100,7 +91,7 @@ describe("Codex JSONL ledger", () => {
 			assert.equal(serialized.includes(secret), false, secret);
 		}
 
-		const directory = await mkdtemp(join(tmpdir(), "pi-codex-study-"));
+		const directory = await mkdtemp(join(tmpdir(), "pi-codex-statistics-"));
 		try {
 			const ledger = new JsonlLedger(directory);
 			await ledger.append(record);

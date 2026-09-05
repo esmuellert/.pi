@@ -14,9 +14,6 @@
 		"typecheck": "tsc --noEmit",
 		"smoke": "pi --no-extensions -e . --no-tools --no-session -p \"reply with exactly: SMOKE_OK\""
 	},
-	"dependencies": {
-		"pi-codex-study": "workspace:*"
-	},
 	"peerDependencies": {
 		"@earendil-works/pi-ai": "*",
 		"@earendil-works/pi-coding-agent": "*",

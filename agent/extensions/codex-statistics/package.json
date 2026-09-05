@@ -1,12 +1,9 @@
 {
-  "name": "pi-codex-study",
+  "name": "pi-codex-statistics",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Codex subscription quota display and privacy-safe per-reply usage ledger",
-  "exports": {
-    "./protocol": "./protocol.ts"
-  },
+  "description": "Privacy-safe per-reply statistics for a verified Codex subscription",
   "pi": {
     "extensions": [
       "./extension.ts"

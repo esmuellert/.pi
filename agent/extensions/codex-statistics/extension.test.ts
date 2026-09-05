@@ -5,8 +5,7 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
-import { installCodexStudy } from "./extension.ts";
-import { CODEX_USAGE_STATE_EVENT, type CodexUsageState } from "./protocol.ts";
+import { installCodexStatistics } from "./extension.ts";
 
 const quotaPayload = {
 	plan_type: "plus",
@@ -20,19 +19,12 @@ type Handler = (event: any, ctx: ExtensionContext) => unknown;
 
 function harness(fetchImpl: typeof fetch, dataDir: string) {
 	const handlers = new Map<string, Handler[]>();
-	const usageStates: CodexUsageState[] = [];
-	let footerCalls = 0;
+	let uiCalls = 0;
 	const pi = {
 		on(name: string, handler: Handler) {
 			const list = handlers.get(name) ?? [];
 			list.push(handler);
 			handlers.set(name, list);
-		},
-		events: {
-			emit(channel: string, value: unknown) {
-				if (channel === CODEX_USAGE_STATE_EVENT) usageStates.push(value as CodexUsageState);
-			},
-			on() { return () => {}; },
 		},
 	} as unknown as ExtensionAPI;
 
@@ -53,12 +45,10 @@ function harness(fetchImpl: typeof fetch, dataDir: string) {
 		sessionManager: {
 			getSessionId: () => "session-secret",
 		},
-		ui: {
-			setFooter() { footerCalls += 1; },
-		},
+		ui: new Proxy({}, { get: () => () => { uiCalls += 1; } }),
 	};
 	const ctx = raw as ExtensionContext;
-	installCodexStudy(pi, {
+	installCodexStatistics(pi, {
 		fetchImpl,
 		dataDir,
 		now: () => 10_000,
@@ -71,7 +61,7 @@ function harness(fetchImpl: typeof fetch, dataDir: string) {
 	const emit = async (name: string, event: any = {}) => {
 		for (const handler of handlers.get(name) ?? []) await handler(event, ctx);
 	};
-	return { ctx: raw, emit, usageStates, getFooterCalls: () => footerCalls };
+	return { ctx: raw, emit, getUiCalls: () => uiCalls };
 }
 
 function fakeJwt(): string {
@@ -81,36 +71,27 @@ function fakeJwt(): string {
 	return `header.${claims}.signature`;
 }
 
-describe("Codex study extension", () => {
+describe("Codex statistics extension", () => {
 	it("stays inert unless the quota endpoint verifies the login", async () => {
 		const directory = await mkdtemp(join(tmpdir(), "pi-codex-disabled-"));
 		try {
 			const app = harness(async () => new Response("denied", { status: 401 }), directory);
 			await app.emit("session_start", { type: "session_start", reason: "startup" });
-			assert.deepEqual(app.usageStates.at(-1), { verified: false, quota: null });
-			assert.equal(app.getFooterCalls(), 0);
 			await app.emit("agent_start", { type: "agent_start" });
 			await app.emit("agent_end", { type: "agent_end", messages: [] });
+			assert.equal(app.getUiCalls(), 0);
 			await assert.rejects(readFile(join(directory, "usage-1970-01-01.jsonl"), "utf8"), { code: "ENOENT" });
 		} finally {
 			await rm(directory, { recursive: true, force: true });
 		}
 	});
 
-	it("publishes verified usage without taking ownership of the footer", async () => {
-		const directory = await mkdtemp(join(tmpdir(), "pi-codex-state-"));
+	it("has no UI behavior after successful verification", async () => {
+		const directory = await mkdtemp(join(tmpdir(), "pi-codex-statistics-ui-"));
 		try {
 			const app = harness(async () => new Response(JSON.stringify(quotaPayload), { status: 200 }), directory);
 			await app.emit("session_start", { type: "session_start", reason: "startup" });
-			assert.equal(app.usageStates.at(-1)?.verified, true);
-			assert.equal(app.usageStates.at(-1)?.quota?.primary.usedPercent, 19);
-			assert.equal(app.getFooterCalls(), 0);
-
-			app.ctx.model = { ...app.ctx.model, provider: "openai-codex", api: "openai-codex-responses" };
-			const before = app.usageStates.length;
-			await app.emit("model_select", { type: "model_select", model: app.ctx.model, source: "set" });
-			assert.ok(app.usageStates.length > before, "model switch should publish immediately");
-			assert.equal(app.usageStates[before]!.verified, true);
+			assert.equal(app.getUiCalls(), 0);
 		} finally {
 			await rm(directory, { recursive: true, force: true });
 		}
@@ -153,8 +134,8 @@ describe("Codex study extension", () => {
 			assert.equal(line.includes("DO NOT STORE THIS"), false);
 			const record = JSON.parse(line);
 			assert.equal(record.totals.model.totalTokens, 35);
-			assert.equal(record.quotaBefore.primary.usedPercent, 19);
-			assert.equal(record.quotaAfter.secondary.usedPercent, 3);
+			assert.equal("quotaBefore" in record, false);
+			assert.equal("quotaAfter" in record, false);
 		} finally {
 			await rm(directory, { recursive: true, force: true });
 		}
