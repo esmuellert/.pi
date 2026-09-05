@@ -33,6 +33,7 @@
 		"text": "text",
 		"thinkingText": "overlay1",
 		"selectedBg": "surface1",
+		"scrollbarTrack": "surface1",
 		"scrollbarThumb": "surface2",
 		"searchMatchBg": "surface1",
 		"searchMatchText": "text",

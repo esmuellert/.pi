@@ -31,6 +31,7 @@
 		"text": "text",
 		"thinkingText": "subtle",
 		"selectedBg": "overlay",
+		"scrollbarTrack": "highlightMed",
 		"scrollbarThumb": "highlightHigh",
 		"searchMatchBg": "overlay",
 		"searchMatchText": "text",

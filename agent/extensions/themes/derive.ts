@@ -1,10 +1,12 @@
-// The rules that turn a palette's semantics into pi's 55 tokens.
+// The rules that turn a palette's semantics into pi's theme tokens.
 //
 // Nothing here names a colour, a role, or a palette. Everything is expressed as
 // a position on one of the two ladders or one of the named accents, so the same
 // rules produce a coherent theme from any palette that can describe itself.
 // derive.test.ts checks that by deriving a theme from a synthetic palette whose
 // roles are named nothing like rose-pine's or catppuccin's.
+
+import type { ThemeColor } from "@earendil-works/pi-coding-agent";
 
 import { composite, contrast, luminance } from "./color.ts";
 import type { Palette } from "./palettes.ts";
@@ -26,7 +28,6 @@ export const BORDER_FLOOR = 1.5;
 /** pi exports ThemeColor but not the background half of its token union. */
 export type ThemeBgToken =
 	| "selectedBg"
-	| "scrollbarThumb"
 	| "searchMatchBg"
 	| "userMessageBg"
 	| "customMessageBg"
@@ -143,7 +144,7 @@ function atLeast(palette: Palette, ladder: readonly string[], behind: string, fl
 }
 
 export type Derived = {
-	readonly colors: Readonly<Record<string, Ref>>;
+	readonly colors: Readonly<Record<ThemeColor | ThemeBgToken, Ref>>;
 	readonly export: Readonly<Record<string, Ref>>;
 };
 
@@ -199,6 +200,7 @@ export function derive(palette: Palette, semantics: Semantics): Derived {
 			thinkingText: ref(secondary),
 
 			selectedBg: ref(raised),
+			scrollbarTrack: ref(softEdge),
 			scrollbarThumb: ref(edge),
 			searchMatchBg: ref(raised),
 			searchMatchText: ref(body),

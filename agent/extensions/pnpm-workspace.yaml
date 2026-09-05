@@ -19,9 +19,9 @@ packages:
 catalog:
   # Pinned to the pi we build against. When `pnpm contract` reports that the
   # installed pi differs, bump this, reinstall, and re-run `pnpm verify`.
-  "@earendil-works/pi-ai": 0.84.4
-  "@earendil-works/pi-coding-agent": 0.84.4
-  "@earendil-works/pi-tui": 0.84.4
+  "@earendil-works/pi-ai": 0.85.0
+  "@earendil-works/pi-coding-agent": 0.85.0
+  "@earendil-works/pi-tui": 0.85.0
   # Upstream palettes, so "official" is enforced by the dependency graph
   # rather than by transcription. Bumping these can change theme output.
   "@catppuccin/palette": ^1.8.0
@@ -34,6 +34,14 @@ catalog:
   "@types/node": ^26.2.0
   turbo: ^2.10.11
   typescript: ^7.0.2
+
+# pi-coding-agent 0.85.0 imports the experimental server from its public module
+# graph but omitted this package from its published dependencies. Scope the
+# repair to that exact release so a later upstream fix owns its dependency again.
+packageExtensions:
+  "@earendil-works/pi-coding-agent@0.85.0":
+    dependencies:
+      "@earendil-works/pi-server": 0.85.0
 
 # Whichever platform is installing, and no others. turbo and TypeScript 7 ship
 # one native binary per platform as optional dependencies; without this pnpm
