@@ -23,6 +23,7 @@ import {
 	summaryFor,
 	unask,
 	WRITER,
+	WRITER_THINKING_LEVEL,
 	tidy,
 	useRegistry,
 } from "./summary.ts";
@@ -141,10 +142,9 @@ describe("choosing who writes them", () => {
 	const model = (id: string, output: number) => ({ id, provider: "p", cost: { output } });
 
 	it("prefers the ones that were measured", () => {
-		// Twelve real commands, four instructions, eight models, ranked blind by
-		// a stronger model: sonnet-4.6 6.4, haiku-4.5 5.2, everything else 4.8
-		// to 5.8 and three to seven times slower.
-		const available = [model("gemini-3.7-flash", 1), model("claude-haiku-4.5", 5), model(WRITER, 15)];
+		// The writer is pinned so an account gaining another model does not change
+		// the summary voice without an explicit configuration change.
+		const available = [model("gemini-3.7-flash", 1), model("claude-haiku-4.5", 5), model(WRITER, 30)];
 		assert.equal(pick(available as never)?.id, WRITER);
 	});
 
@@ -152,7 +152,7 @@ describe("choosing who writes them", () => {
 		// Each model writes in a recognisably different way. A note whose voice
 		// changes because an account gained a cheaper model is worse than one
 		// written by something slightly weaker.
-		const available = [model("something-cheaper", 1), model(WRITER, 15)];
+		const available = [model("something-cheaper", 1), model(WRITER, 30)];
 		assert.equal(pick(available as never)?.id, WRITER);
 	});
 
@@ -225,6 +225,23 @@ describe("the language it writes in", () => {
 	});
 });
 
+describe("the writer configuration", () => {
+	it("pins Luna at max thinking", async () => {
+		let options: unknown;
+		const registry = {
+			getAvailable: () => [{ id: WRITER, provider: "openai-codex" }],
+			complete: async (_model: unknown, _context: unknown, received: unknown) => {
+				options = received;
+				return { role: "assistant", content: [{ type: "text", text: "summarized" }] };
+			},
+		};
+		useRegistry(registry as never);
+		summaryFor("bash", "echo hi", "hi", {}, () => {});
+		await settle();
+		assert.deepEqual(options, { thinkingLevel: WRITER_THINKING_LEVEL, maxTokens: 40 });
+	});
+});
+
 describe("a transcript rebuilt while requests are in the air", () => {
 	it("does not ask twice for the same block", async () => {
 		// /reload and reopening both clear the chat and build every row again.
@@ -233,7 +250,7 @@ describe("a transcript rebuilt while requests are in the air", () => {
 		unask();
 		let asked = 0;
 		const registry = {
-			getAvailable: () => [{ id: WRITER, cost: { output: 15 } }],
+			getAvailable: () => [{ id: WRITER, cost: { output: 30 } }],
 			complete: async () => {
 				asked += 1;
 				await new Promise((settle) => setTimeout(settle, 20));

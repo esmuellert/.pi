@@ -13,10 +13,8 @@
  * first ask sends the request and returns nothing, and the answer arriving
  * redraws that one block.
  *
- * haiku rather than a flash model, measured rather than assumed:
- * claude-haiku-4.5 answered in 831ms against gemini-3.7-flash's 3008ms, and
- * more specifically -- "shows modified files with their status codes" rather
- * than "displays repository status".
+ * Luna is pinned at max thinking rather than selected dynamically, so the
+ * writer's behavior stays stable when the available model catalog changes.
  */
 import type { ModelRegistry } from "@earendil-works/pi-coding-agent";
 
@@ -143,14 +141,12 @@ export function sample(from: SessionSource | undefined = session): string {
  * different way, and a note whose voice changes when an account gains a model
  * is worse than one written by something weaker.
  *
- * Which one was measured -- twelve real commands, four instructions, eight
- * models, ranked blind. sonnet-4.6 led at 6.4, haiku-4.5 next at 5.2, and every
- * gemini, gpt-mini and mai model scored lower and answered slower.
- *
- * The price fallback is there so a machine without it gets sentences rather
- * than silence.
+ * Luna is the deliberate writer choice for this short, high-volume task. The
+ * price fallback is there so a machine without it gets sentences rather than
+ * silence.
  */
-export const WRITER = "claude-sonnet-4.6";
+export const WRITER = "gpt-5.6-luna";
+export const WRITER_THINKING_LEVEL = "max" as const;
 
 export function pick(available: readonly Model<Api>[]): Model<Api> | undefined {
 	const preferred = available.find((model) => model.id === WRITER);
@@ -292,7 +288,7 @@ async function write(
 						timestamp: Date.now(),
 					}],
 				},
-				{ thinkingLevel: "off", maxTokens: 40 },
+				{ thinkingLevel: WRITER_THINKING_LEVEL, maxTokens: 40 },
 			),
 			new Promise<never>((_, reject) => {
 				timer = setTimeout(() => reject(new Error("summary timed out")), DEADLINE_MS);
