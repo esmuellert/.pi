@@ -51,7 +51,7 @@ load check, and is told the smoke tests were skipped rather than passed.
 | `wheel` | How far one wheel event scrolls the fullscreen transcript, and probes to decide it |
 | `themes` | Five dark themes generated from the upstream rose-pine and catppuccin palettes, so "official" is provable rather than claimed. |
 | `moshi-push` | An iOS notification when a turn finishes. Moshi only rings for approvals and errors, so this borrows one and then corrects the card. |
-| `model-shortcuts` | `Ctrl+1` through `Ctrl+6` switch between the configured Copilot and Codex models at max thinking. |
+| `model-shortcuts` | `Alt+1` through `Alt+6` switch between the configured Copilot and Codex models at max thinking over SSH-friendly terminal input. |
 
 The `themes` package is a generator rather than an extension: it writes
 `~/.pi/agent/themes/*.json`, which pi reads.

@@ -34,12 +34,12 @@ function harness(availableModels = MODEL_SHORTCUTS) {
 describe("model shortcuts", () => {
 	it("registers the six requested shortcuts in order", () => {
 		const app = harness();
-		assert.deepEqual([...app.shortcuts.keys()], ["ctrl+1", "ctrl+2", "ctrl+3", "ctrl+4", "ctrl+5", "ctrl+6"]);
+		assert.deepEqual([...app.shortcuts.keys()], ["alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6"]);
 	});
 
 	it("selects the mapped model and thinking level", async () => {
 		const app = harness();
-		await app.shortcuts.get("ctrl+6")!.handler(app.ctx);
+		await app.shortcuts.get("alt+6")!.handler(app.ctx);
 		assert.deepEqual(app.modelChanges, ["openai-codex/gpt-5.6-luna"]);
 		assert.deepEqual(app.thinkingChanges, ["max"]);
 		assert.deepEqual(app.notices, ["Model: openai-codex/gpt-5.6-luna:max"]);
@@ -47,9 +47,9 @@ describe("model shortcuts", () => {
 
 	it("reports an unavailable model without changing the session", async () => {
 		const app = harness(MODEL_SHORTCUTS.slice(1));
-		await app.shortcuts.get("ctrl+1")!.handler(app.ctx);
+		await app.shortcuts.get("alt+1")!.handler(app.ctx);
 		assert.deepEqual(app.modelChanges, []);
 		assert.deepEqual(app.thinkingChanges, []);
-		assert.deepEqual(app.notices, ["ctrl+1: github-copilot/gpt-6-astra:max is unavailable"]);
+		assert.deepEqual(app.notices, ["alt+1: github-copilot/gpt-6-astra:max is unavailable"]);
 	});
 });
