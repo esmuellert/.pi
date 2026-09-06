@@ -15,14 +15,15 @@ packages:
   - "wheel"
   - "behind"
   - "frame-budget"
+  - "model-shortcuts"
 
 # Single source of truth for tooling versions. Packages reference "catalog:".
 catalog:
   # Pinned to the pi we build against. When `pnpm contract` reports that the
   # installed pi differs, bump this, reinstall, and re-run `pnpm verify`.
-  "@earendil-works/pi-ai": 0.85.0
-  "@earendil-works/pi-coding-agent": 0.85.0
-  "@earendil-works/pi-tui": 0.85.0
+  "@earendil-works/pi-ai": 0.85.1
+  "@earendil-works/pi-coding-agent": 0.85.1
+  "@earendil-works/pi-tui": 0.85.1
   # Upstream palettes, so "official" is enforced by the dependency graph
   # rather than by transcription. Bumping these can change theme output.
   "@catppuccin/palette": ^1.8.0
