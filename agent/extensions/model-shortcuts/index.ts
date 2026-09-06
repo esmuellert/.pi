@@ -5,19 +5,18 @@ type ShortcutKey = Parameters<ExtensionAPI["registerShortcut"]>[0];
 
 export interface ModelShortcut {
 	key: ShortcutKey;
-	fallbackKey: ShortcutKey;
 	provider: string;
 	model: string;
 	thinkingLevel: ThinkingLevel;
 }
 
 export const MODEL_SHORTCUTS: readonly ModelShortcut[] = [
-	{ key: "ctrl+1", fallbackKey: "alt+1", provider: "github-copilot", model: "gpt-6-astra", thinkingLevel: "max" },
-	{ key: "ctrl+2", fallbackKey: "alt+2", provider: "github-copilot", model: "gpt-5.6-sol", thinkingLevel: "max" },
-	{ key: "ctrl+3", fallbackKey: "alt+3", provider: "github-copilot", model: "gpt-5.6-luna", thinkingLevel: "max" },
-	{ key: "ctrl+4", fallbackKey: "alt+4", provider: "openai-codex", model: "gpt-6-astra", thinkingLevel: "max" },
-	{ key: "ctrl+5", fallbackKey: "alt+5", provider: "openai-codex", model: "gpt-5.6-sol", thinkingLevel: "max" },
-	{ key: "ctrl+6", fallbackKey: "alt+6", provider: "openai-codex", model: "gpt-5.6-luna", thinkingLevel: "max" },
+	{ key: "ctrl+1", provider: "github-copilot", model: "gpt-6-astra", thinkingLevel: "max" },
+	{ key: "ctrl+2", provider: "github-copilot", model: "gpt-5.6-sol", thinkingLevel: "max" },
+	{ key: "ctrl+3", provider: "github-copilot", model: "gpt-5.6-luna", thinkingLevel: "max" },
+	{ key: "ctrl+4", provider: "openai-codex", model: "gpt-6-astra", thinkingLevel: "max" },
+	{ key: "ctrl+5", provider: "openai-codex", model: "gpt-5.6-sol", thinkingLevel: "max" },
+	{ key: "ctrl+6", provider: "openai-codex", model: "gpt-5.6-luna", thinkingLevel: "max" },
 ];
 
 function modelLabel(shortcut: ModelShortcut): string {
@@ -42,12 +41,10 @@ export function installModelShortcuts(
 			pi.setThinkingLevel(shortcut.thinkingLevel);
 			ctx.ui.notify(`Model: ${modelLabel(shortcut)}`, "info");
 		};
-		for (const key of [shortcut.key, shortcut.fallbackKey]) {
-			pi.registerShortcut(key, {
-				description: `Switch to ${modelLabel(shortcut)}`,
-				handler,
-			});
-		}
+		pi.registerShortcut(shortcut.key, {
+			description: `Switch to ${modelLabel(shortcut)}`,
+			handler,
+		});
 	}
 }
 
