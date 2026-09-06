@@ -2,6 +2,7 @@
 # New files (secrets, third-party extensions, caches) default to ignored.
 /*
 !.gitignore
+!.gitattributes
 
 # --- docs: notes that outlive a session, not loaded into context ---
 !/docs/

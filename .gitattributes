@@ -1,0 +1,3 @@
+# Generated themes are compared byte-for-byte with generator output.
+# Keep them LF on Windows even when the user's global core.autocrlf is true.
+/agent/themes/*.json text eol=lf
