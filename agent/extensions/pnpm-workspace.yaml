@@ -16,6 +16,7 @@ packages:
   - "behind"
   - "frame-budget"
   - "model-shortcuts"
+  - "compaction-effort"
 
 # Single source of truth for tooling versions. Packages reference "catalog:".
 catalog:

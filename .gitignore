@@ -56,6 +56,7 @@
 !/agent/extensions/tool-blocks/
 !/agent/extensions/frame-budget/
 !/agent/extensions/model-shortcuts/
+!/agent/extensions/compaction-effort/
 !/agent/extensions/wheel/
 !/agent/extensions/behind/
 !/agent/extensions/moshi-push/
