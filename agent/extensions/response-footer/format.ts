@@ -1,11 +1,11 @@
 /**
  * The line itself: which parts, in what order, and what to drop when narrow.
  *
- * Parts are ordered by how often they tell you something. Tools and time are
- * what a reader scans for; cost answers "why was that expensive"; the cache
- * rate answers it more precisely, and tokens are the raw figure behind both.
- * When the width runs out the tail goes first, so the same two facts stay in
- * the same place at every width rather than the line rearranging itself.
+ * Parts are ordered by how often they tell you something. Completion time and
+ * tool count identify the finished reply; duration describes the work; cost
+ * answers "why was that expensive"; the cache rate answers it more precisely,
+ * and tokens are the raw figure behind both. When the width runs out the tail
+ * goes first, so completion time stays visible rather than being dropped.
  */
 
 import type { Stats } from "./stats.ts";
@@ -39,9 +39,18 @@ export const SEPARATOR = "  ";
  * stays aligned either way.
  */
 export const ICON = {
+	completedAt: "\uF017",
 	tools: "\uF0AD",
 	cache: "\uF1C0",
 } as const;
+
+/** Format a completion timestamp in the local time zone. */
+export function completedTime(timestamp: number): string {
+	const date = new Date(timestamp);
+	if (!Number.isFinite(timestamp) || Number.isNaN(date.getTime())) return "";
+	const pad = (value: number): string => String(value).padStart(2, "0");
+	return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
 
 /** Seconds, then minutes, then hours -- never more than three characters of number. */
 export function duration(ms: number): string {
@@ -73,6 +82,8 @@ export function money(cost: number): string {
 /** Every part the line could carry, most useful first. */
 export function parts(s: Stats): string[] {
 	const out: string[] = [];
+	const finishedAt = s.completedAt ? completedTime(s.completedAt) : "";
+	if (finishedAt) out.push(`${ICON.completedAt} ${finishedAt}`);
 	if (s.tools > 0) out.push(`${ICON.tools} ${s.tools}`);
 	out.push(duration(s.ms));
 	if (s.cost > 0) out.push(money(s.cost));

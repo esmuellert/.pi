@@ -3,9 +3,9 @@
 One line under each reply, right-aligned.
 
 ```
-                        1  39s  $0.897   100%  ↑1.7M ↓1.3k
-                     10  2m22s  $4.58   100%  ↑8.6M ↓9.4k
-                     36  4m37s  $8.08   100%  ↑15.1M ↓15k
+            14:37:08  1  39s  $0.897   100%  ↑1.7M ↓1.3k
+         14:39:30  10  2m22s  $4.58   100%  ↑8.6M ↓9.4k
+         14:44:07  36  4m37s  $8.08   100%  ↑15.1M ↓15k
 
 (a wrench and a database glyph; both Nerd Font, one column each)
 ```
@@ -14,7 +14,7 @@ Narrow terminals drop from the end, so the leading figures stay put:
 
 ```
 53 columns
-      1  39s  $0.897   100%  ↑1.7M ↓1.3k
+ 14:37:08  1  39s  $0.897   100%  ↑1.7M ↓1.3k
 ```
 
 See it without writing anything:
@@ -35,6 +35,14 @@ So the line is a separate `custom` entry appended after the reply. `appendEntry`
 writes it to the session file, and `sessionEntryToContextMessages` returns
 nothing for the `custom` type, so it survives a restart and never reaches the
 model.
+
+## Completion time
+
+The first field is the local completion time in `HH:mm:ss` format. It is written
+from the `agent_end` timestamp, so it marks the end of the whole reply,
+including its tool turns, rather than the end of one intermediate model call.
+The exact Unix-millisecond value is stored in the footer entry; old entries
+without it continue to render without a time.
 
 ## A reply is many turns
 

@@ -1,5 +1,5 @@
 /**
- * A line under each reply: tools, time, cost, cache, tokens.
+ * A line under each reply: completion time, tools, duration, cost, cache, tokens.
  *
  * pi renders assistant messages with an internal component an extension cannot
  * reach, so the line is a separate entry appended after the reply rather than
@@ -64,6 +64,7 @@ export default function (pi: ExtensionAPI) {
 				// renderer that throws is drawn as a red error box by pi.
 				const line = layout(
 					{
+						completedAt: stats.completedAt ?? 0,
 						tools: stats.tools ?? 0,
 						ms: stats.ms ?? 0,
 						tokensIn: stats.tokensIn ?? 0,

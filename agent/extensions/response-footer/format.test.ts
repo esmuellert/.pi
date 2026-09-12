@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { duration, fit, ICON, layout, money, parts, SEPARATOR, tokens } from "./format.ts";
+import { completedTime, duration, fit, ICON, layout, money, parts, SEPARATOR, tokens } from "./format.ts";
 import { add, close, empty, type Stats, worthShowing } from "./stats.ts";
 
 const wide = (s: string) => s.length;
 
+const completedAt = new Date(2026, 0, 2, 3, 4, 5).getTime();
 const stats = (over: Partial<Stats> = {}): Stats => ({
-	tools: 6, ms: 89_000, tokensIn: 1_902_525, tokensOut: 3300, cacheHit: 0.94, cost: 3.03, ...over,
+	completedAt, tools: 6, ms: 89_000, tokensIn: 1_902_525, tokensOut: 3300, cacheHit: 0.94, cost: 3.03, ...over,
 });
 
 describe("gathering what a reply cost", () => {
@@ -18,6 +19,7 @@ describe("gathering what a reply cost", () => {
 		add(t, { input: 10, output: 100, cacheRead: 5000, cost: 1 }, 2);
 		add(t, { input: 20, output: 200, cacheRead: 6000, cost: 2 }, 3);
 		const s = close(t, 90_000);
+		assert.equal(s.completedAt, 90_000);
 		assert.equal(s.tools, 5);
 		assert.equal(s.tokensOut, 300);
 		assert.equal(s.cost, 3);
@@ -51,6 +53,16 @@ describe("gathering what a reply cost", () => {
 });
 
 describe("the figures", () => {
+	it("formats completion time in the local time zone", () => {
+		assert.equal(completedTime(completedAt), "03:04:05");
+		const epoch = new Date(0);
+		const epochText = [epoch.getHours(), epoch.getMinutes(), epoch.getSeconds()]
+			.map((value) => String(value).padStart(2, "0"))
+			.join(":");
+		assert.equal(completedTime(0), epochText);
+		assert.equal(completedTime(Number.NaN), "");
+	});
+
 	it("never spends more than three characters on a number", () => {
 		// A footer that grows with the numbers pushes the useful parts off the
 		// end of a narrow line.
@@ -78,7 +90,7 @@ describe("the figures", () => {
 
 describe("what the line carries", () => {
 	it("leads with what a reader scans for", () => {
-		assert.deepEqual(parts(stats()).slice(0, 3), [`${ICON.tools} 6`, "1m29s", "$3.03"]);
+		assert.deepEqual(parts(stats()).slice(0, 4), [`${ICON.completedAt} 03:04:05`, `${ICON.tools} 6`, "1m29s", "$3.03"]);
 	});
 
 	it("spends one column on each glyph", () => {
@@ -88,7 +100,7 @@ describe("what the line carries", () => {
 	});
 
 	it("leaves out what did not happen", () => {
-		const bare = parts(stats({ tools: 0, cost: 0, cacheHit: null, tokensIn: 0, tokensOut: 0 }));
+		const bare = parts(stats({ completedAt: 0, tools: 0, cost: 0, cacheHit: null, tokensIn: 0, tokensOut: 0 }));
 		assert.deepEqual(bare, ["1m29s"]);
 	});
 });
@@ -99,7 +111,7 @@ describe("fitting a narrow terminal", () => {
 		// window is resized.
 		const all = parts(stats());
 		const narrow = fit(all, 24, wide);
-		assert.ok(narrow.startsWith(`${ICON.tools} 6`), narrow);
+		assert.ok(narrow.startsWith(`${ICON.completedAt} 03:04:05`), narrow);
 		assert.ok(wide(narrow) <= 24);
 	});
 

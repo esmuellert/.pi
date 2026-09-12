@@ -8,6 +8,8 @@
 
 /** What is stored per reply. Fields may be added; renaming one drops it from every entry already written. */
 export interface Stats {
+	/** Local completion timestamp in Unix milliseconds. Missing on older entries. */
+	completedAt?: number;
 	tools: number;
 	ms: number;
 	/** Everything sent: fresh tokens plus both halves of the cache. */
@@ -65,6 +67,7 @@ export function add(tally: Tally, usage: Usage | undefined, toolCalls: number): 
 export function close(tally: Tally, now: number): Stats {
 	const sent = tally.input + tally.cacheRead + tally.cacheWrite;
 	return {
+		completedAt: now,
 		tools: tally.tools,
 		ms: Math.max(0, now - tally.startedAt),
 		tokensIn: sent,
