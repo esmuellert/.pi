@@ -29,15 +29,13 @@ export interface StartTaskOptions {
 	environment?: NodeJS.ProcessEnv;
 	now?: () => number;
 	randomId?: () => string;
-	onChange?: () => void;
-	onFinish?: (task: WatchedTask) => void;
 }
 
 export interface TaskRegistryOptions {
 	now?: () => number;
 	randomId?: () => string;
 	onChange?: () => void;
-	onFinish?: (task: WatchedTask) => void;
+	onFinish?: (task: WatchedTask, hadWaiter: boolean) => void;
 	onArchive?: (tasks: WatchedTask[]) => void;
 	archiveAfterMs?: number;
 }
@@ -47,7 +45,7 @@ export class TaskRegistry {
 	private readonly now: () => number;
 	private readonly randomId: () => string;
 	private readonly onChange?: () => void;
-	private readonly onFinish?: (task: WatchedTask) => void;
+	private readonly onFinish?: (task: WatchedTask, hadWaiter: boolean) => void;
 	private readonly onArchive?: (tasks: WatchedTask[]) => void;
 	private readonly archiveAfterMs: number;
 
@@ -212,10 +210,11 @@ export class TaskRegistry {
 		task.finishedAt = this.now();
 		task.updatedAt = task.finishedAt;
 		const snapshot = this.snapshot(task);
+		const hadWaiter = task.waiters.size > 0;
 		for (const waiter of task.waiters) waiter(snapshot);
 		task.waiters.clear();
 		this.onChange?.();
-		this.onFinish?.(snapshot);
+		this.onFinish?.(snapshot, hadWaiter);
 	}
 
 	private snapshot(task: RunningTask): WatchedTask {

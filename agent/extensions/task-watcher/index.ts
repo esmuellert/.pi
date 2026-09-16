@@ -7,15 +7,19 @@ import { TaskArchive, type ArchivedTask } from "./archive.ts";
 import { elapsed, TaskRegistry, taskStateGlyph, type WatchedTask } from "./task.ts";
 
 const WIDGET_KEY = "task-watcher";
+const COMPLETION_NOTIFICATION_GRACE_MS = 2_000;
 type WatchView = "all" | "archive" | string;
 
 export default function taskWatcher(pi: ExtensionAPI): void {
 	let ui: ExtensionContext["ui"] | undefined;
 	let cleanupTimer: NodeJS.Timeout | undefined;
+	const completionNotifications = new Map<string, NodeJS.Timeout>();
 	const archive = new TaskArchive();
 	const registry = new TaskRegistry({
 		onChange: () => renderWidget(),
-		onFinish: (task) => notifyAgent(task),
+		onFinish: (task, hadWaiter) => {
+			if (!hadWaiter) scheduleNotification(task);
+		},
 		onArchive: (tasks) => void archive.appendMany(tasks),
 	});
 
@@ -31,6 +35,21 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 			active.slice(0, 3).map((task) => `${taskStateGlyph(task.state)} ${task.label}  ${elapsed(task.startedAt)}`),
 			{ placement: "aboveEditor" },
 		);
+	}
+
+	function scheduleNotification(task: WatchedTask): void {
+		const timer = setTimeout(() => {
+			completionNotifications.delete(task.id);
+			notifyAgent(task);
+		}, COMPLETION_NOTIFICATION_GRACE_MS);
+		completionNotifications.set(task.id, timer);
+	}
+
+	function suppressNotification(taskId: string): void {
+		const timer = completionNotifications.get(taskId);
+		if (!timer) return;
+		clearTimeout(timer);
+		completionNotifications.delete(taskId);
 	}
 
 	function notifyAgent(task: WatchedTask): void {
@@ -57,6 +76,8 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 	pi.on("session_shutdown", async () => {
 		if (cleanupTimer) clearInterval(cleanupTimer);
 		cleanupTimer = undefined;
+		for (const timer of completionNotifications.values()) clearTimeout(timer);
+		completionNotifications.clear();
 		await archive.appendMany(registry.removeFinished());
 		registry.cancelAll();
 		ui?.setWidget(WIDGET_KEY, undefined);
@@ -113,6 +134,7 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 			taskId: Type.String({ description: "Task ID returned by start_watched_task" }),
 		}),
 		async execute(_toolCallId, params, signal) {
+			suppressNotification(params.taskId);
 			const task = await registry.wait(params.taskId, signal);
 			return { content: [{ type: "text", text: formatTaskForAgent(task) }], details: task };
 		},
