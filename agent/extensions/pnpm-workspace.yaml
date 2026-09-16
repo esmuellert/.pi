@@ -10,6 +10,7 @@ packages:
   - "herdr-clipboard"
   - "rename"
   - "response-footer"
+  - "task-watcher"
   # Shared by the packages that draw, so "fast enough" means the same thing in
   # each of them and is measured the same way.
   - "wheel"
@@ -35,6 +36,7 @@ catalog:
   "@shikijs/themes": ^4.4.3
   shiki: ^4.4.3
   "@types/node": ^26.2.0
+  typebox: ^1.3.7
   turbo: ^2.10.11
   typescript: ^7.0.2
 
