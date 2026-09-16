@@ -151,10 +151,7 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 				return;
 			}
 			const view: WatchView = parts[0] && parts[0] !== "list" ? parts[0] : "all";
-			await ctx.ui.custom<null>((tui, theme, _keybindings, done) => new TaskWatchComponent(registry, tui, theme, done, view), {
-				overlay: true,
-				overlayOptions: { width: "72%", minWidth: 54, maxHeight: "70%", anchor: "center", margin: 2 },
-			});
+			await ctx.ui.custom<null>((tui, theme, _keybindings, done) => new TaskWatchComponent(registry, tui, theme, done, view));
 		},
 	});
 }
