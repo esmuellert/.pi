@@ -38,6 +38,8 @@ export interface TaskRegistryOptions {
 	randomId?: () => string;
 	onChange?: () => void;
 	onFinish?: (task: WatchedTask) => void;
+	onArchive?: (tasks: WatchedTask[]) => void;
+	archiveAfterMs?: number;
 }
 
 export class TaskRegistry {
@@ -46,12 +48,16 @@ export class TaskRegistry {
 	private readonly randomId: () => string;
 	private readonly onChange?: () => void;
 	private readonly onFinish?: (task: WatchedTask) => void;
+	private readonly onArchive?: (tasks: WatchedTask[]) => void;
+	private readonly archiveAfterMs: number;
 
 	constructor(options: TaskRegistryOptions = {}) {
 		this.now = options.now ?? Date.now;
 		this.randomId = options.randomId ?? (() => randomUUID().slice(0, 8));
 		this.onChange = options.onChange;
 		this.onFinish = options.onFinish;
+		this.onArchive = options.onArchive;
+		this.archiveAfterMs = options.archiveAfterMs ?? 30 * 60 * 1000;
 	}
 
 	start(options: StartTaskOptions): WatchedTask {
@@ -103,6 +109,34 @@ export class TaskRegistry {
 
 	active(): WatchedTask[] {
 		return this.list().filter((task) => task.state === "running");
+	}
+
+	sweepExpired(): WatchedTask[] {
+		const cutoff = this.now() - this.archiveAfterMs;
+		const archived: WatchedTask[] = [];
+		for (const [id, task] of this.tasks) {
+			if (task.state !== "running" && task.finishedAt !== undefined && task.finishedAt <= cutoff) {
+				archived.push(this.snapshot(task));
+				this.tasks.delete(id);
+			}
+		}
+		if (archived.length > 0) {
+			this.onArchive?.(archived);
+			this.onChange?.();
+		}
+		return archived;
+	}
+
+	removeFinished(): WatchedTask[] {
+		const finished: WatchedTask[] = [];
+		for (const [id, task] of this.tasks) {
+			if (task.state !== "running") {
+				finished.push(this.snapshot(task));
+				this.tasks.delete(id);
+			}
+		}
+		if (finished.length > 0) this.onChange?.();
+		return finished;
 	}
 
 	clearFinished(): number {

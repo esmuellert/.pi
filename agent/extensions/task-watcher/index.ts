@@ -3,16 +3,20 @@ import { DynamicBorder, type ExtensionAPI, type ExtensionContext, type Theme } f
 import { Box, Container, Text, type Component, type TUI } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 
+import { TaskArchive, type ArchivedTask } from "./archive.ts";
 import { elapsed, TaskRegistry, taskStateGlyph, type WatchedTask } from "./task.ts";
 
 const WIDGET_KEY = "task-watcher";
-type WatchView = "all" | string;
+type WatchView = "all" | "archive" | string;
 
 export default function taskWatcher(pi: ExtensionAPI): void {
 	let ui: ExtensionContext["ui"] | undefined;
+	let cleanupTimer: NodeJS.Timeout | undefined;
+	const archive = new TaskArchive();
 	const registry = new TaskRegistry({
 		onChange: () => renderWidget(),
 		onFinish: (task) => notifyAgent(task),
+		onArchive: (tasks) => void archive.appendMany(tasks),
 	});
 
 	function renderWidget(): void {
@@ -45,10 +49,15 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 
 	pi.on("session_start", async (_event, ctx) => {
 		ui = ctx.ui;
+		await archive.list();
+		cleanupTimer = setInterval(() => registry.sweepExpired(), 60_000);
 		renderWidget();
 	});
 
 	pi.on("session_shutdown", async () => {
+		if (cleanupTimer) clearInterval(cleanupTimer);
+		cleanupTimer = undefined;
+		await archive.appendMany(registry.removeFinished());
 		registry.cancelAll();
 		ui?.setWidget(WIDGET_KEY, undefined);
 		ui = undefined;
@@ -126,13 +135,18 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 	pi.registerCommand("watch", {
 		description: "Watch asynchronously running tasks",
 		getArgumentCompletions: (prefix) => {
-			const values = ["list", "clear", ...registry.list().map((task) => task.id)];
+			const values = ["list", "archive", "clear", "clear archive", ...registry.list().map((task) => task.id)];
 			const matches = values.filter((value) => value.startsWith(prefix));
 			return matches.length > 0 ? matches.map((value) => ({ value, label: value })) : null;
 		},
 		handler: async (args, ctx) => {
 			ui = ctx.ui;
 			const parts = args.trim().split(/\s+/).filter(Boolean);
+			if (parts[0] === "clear" && parts[1] === "archive") {
+				await archive.clear();
+				ctx.ui.notify("Cleared task archive.", "info");
+				return;
+			}
 			if (parts[0] === "clear") {
 				const removed = registry.clearFinished();
 				ctx.ui.notify(removed > 0 ? `Cleared ${removed} finished task(s).` : "No finished tasks to clear.", "info");
@@ -146,12 +160,14 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 				ctx.ui.notify(registry.cancel(parts[1]) ? `Cancellation requested for ${parts[1]}.` : `Task is not running: ${parts[1]}`, "info");
 				return;
 			}
+			const view: WatchView = parts[0] === "archive" ? "archive" : parts[0] && parts[0] !== "list" ? parts[0] : "all";
+			const archived = view === "archive" ? await archive.list() : [];
 			if (ctx.mode !== "tui") {
-				ctx.ui.notify(registry.list().map(formatTaskForAgent).join("\n") || "No watched tasks.", "info");
+				const entries = view === "archive" ? archived : registry.list();
+				ctx.ui.notify(entries.map(formatTaskForAgent).join("\n") || "No watched tasks.", "info");
 				return;
 			}
-			const view: WatchView = parts[0] && parts[0] !== "list" ? parts[0] : "all";
-			await ctx.ui.custom<null>((tui, theme, _keybindings, done) => new TaskWatchComponent(registry, tui, theme, done, view));
+			await ctx.ui.custom<null>((tui, theme, _keybindings, done) => new TaskWatchComponent(registry, archived, tui, theme, done, view));
 		},
 	});
 }
@@ -166,9 +182,11 @@ class TaskWatchComponent implements Component {
 	private readonly theme: Theme;
 	private readonly done: (value: null) => void;
 	private readonly view: WatchView;
+	private readonly archived: ArchivedTask[];
 
-	constructor(registry: TaskRegistry, tui: TUI, theme: Theme, done: (value: null) => void, view: WatchView) {
+	constructor(registry: TaskRegistry, archived: ArchivedTask[], tui: TUI, theme: Theme, done: (value: null) => void, view: WatchView) {
 		this.registry = registry;
+		this.archived = archived;
 		this.tui = tui;
 		this.theme = theme;
 		this.done = done;
@@ -207,13 +225,15 @@ class TaskWatchComponent implements Component {
 	}
 
 	private refresh(): void {
-		const tasks = this.registry.list().filter((task) => this.view === "all" || task.id === this.view);
-		const title = this.view === "all" ? "Watched tasks" : `Watched task ${this.view}`;
+		const tasks = this.view === "archive"
+			? this.archived
+			: this.registry.list().filter((task) => this.view === "all" || task.id === this.view);
+		const title = this.view === "archive" ? "Task archive" : this.view === "all" ? "Watched tasks" : `Watched task ${this.view}`;
 		this.title.setText(this.theme.fg("accent", this.theme.bold(title)));
 		const lines = tasks.length === 0
 			? [this.theme.fg("muted", "No watched tasks.")]
 			: tasks.flatMap((task) => [
-					`${stateColor(this.theme, task.state)(taskStateGlyph(task.state))} ${task.id}  ${stateColor(this.theme, task.state)(task.state)}  ${elapsed(task.startedAt)}  ${task.label}`,
+					`${stateColor(this.theme, task.state)(taskStateGlyph(task.state))} ${task.id}  ${stateColor(this.theme, task.state)(task.state)}  ${elapsed(task.startedAt, task.finishedAt ?? Date.now())}  ${task.label}`,
 					...(task.latestMessage ? [`  ${this.theme.fg("muted", task.latestMessage)}`] : []),
 			  ]);
 		this.content.setText(lines.join("\n"));
@@ -227,7 +247,7 @@ function stateColor(theme: Theme, state: WatchedTask["state"]): (text: string) =
 	return (text) => theme.fg("accent", text);
 }
 
-function formatTaskForAgent(task: WatchedTask): string {
+function formatTaskForAgent(task: WatchedTask | ArchivedTask): string {
 	const output = [
 	`Task ${task.id} (${task.label})`,
 	`state: ${task.state}`,
