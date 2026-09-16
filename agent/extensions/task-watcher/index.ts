@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
-import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
-import { Text, type TUI } from "@earendil-works/pi-tui";
+import { DynamicBorder, type ExtensionAPI, type ExtensionContext, type Theme } from "@earendil-works/pi-coding-agent";
+import { Box, Container, Text, type Component, type TUI } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 
 import { elapsed, TaskRegistry, taskStateGlyph, type WatchedTask } from "./task.ts";
@@ -153,13 +153,16 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 			const view: WatchView = parts[0] && parts[0] !== "list" ? parts[0] : "all";
 			await ctx.ui.custom<null>((tui, theme, _keybindings, done) => new TaskWatchComponent(registry, tui, theme, done, view), {
 				overlay: true,
-				overlayOptions: { width: "70%", minWidth: 54, maxHeight: "70%", margin: 2 },
+				overlayOptions: { width: "72%", minWidth: 54, maxHeight: "70%", anchor: "center", margin: 2 },
 			});
 		},
 	});
 }
 
-class TaskWatchComponent extends Text {
+class TaskWatchComponent implements Component {
+	private readonly container = new Container();
+	private readonly title: Text;
+	private readonly content: Text;
 	private readonly timer: NodeJS.Timeout;
 	private readonly registry: TaskRegistry;
 	private readonly tui: TUI;
@@ -168,12 +171,21 @@ class TaskWatchComponent extends Text {
 	private readonly view: WatchView;
 
 	constructor(registry: TaskRegistry, tui: TUI, theme: Theme, done: (value: null) => void, view: WatchView) {
-		super("", 1, 1);
 		this.registry = registry;
 		this.tui = tui;
 		this.theme = theme;
 		this.done = done;
 		this.view = view;
+		const border = new DynamicBorder((line: string) => theme.fg("accent", line));
+		const body = new Box(1, 0, (line: string) => theme.bg("customMessageBg", line));
+		this.title = new Text("", 1, 0);
+		this.content = new Text("", 1, 0);
+		body.addChild(this.title);
+		body.addChild(this.content);
+		body.addChild(new Text(theme.fg("dim", "q / Escape close  •  /watch stop <task-id> cancel"), 1, 0));
+		this.container.addChild(border);
+		this.container.addChild(body);
+		this.container.addChild(border);
 		this.refresh();
 		this.timer = setInterval(() => {
 			this.refresh();
@@ -181,8 +193,16 @@ class TaskWatchComponent extends Text {
 		}, 1000);
 	}
 
+	render(width: number): string[] {
+		return this.container.render(width);
+	}
+
 	handleInput(data: string): void {
 		if (data === "q" || data === "\x1b" || data === "\x03") this.done(null);
+	}
+
+	invalidate(): void {
+		this.container.invalidate();
 	}
 
 	dispose(): void {
@@ -191,17 +211,15 @@ class TaskWatchComponent extends Text {
 
 	private refresh(): void {
 		const tasks = this.registry.list().filter((task) => this.view === "all" || task.id === this.view);
-		const lines = [
-			this.theme.bold("Watched tasks"),
-			"",
-			...(tasks.length === 0 ? [this.theme.fg("muted", "No watched tasks.")] : tasks.flatMap((task) => [
-				`${stateColor(this.theme, task.state)(taskStateGlyph(task.state))} ${task.id}  ${stateColor(this.theme, task.state)(task.state)}  ${elapsed(task.startedAt)}  ${task.label}`,
-				...(task.latestMessage ? [`  ${this.theme.fg("muted", task.latestMessage)}`] : []),
-			])),
-			"",
-			this.theme.fg("dim", "Press q or Escape to close; /watch stop <task-id> cancels a running task."),
-		];
-		this.setText(lines.join("\n"));
+		const title = this.view === "all" ? "Watched tasks" : `Watched task ${this.view}`;
+		this.title.setText(this.theme.fg("accent", this.theme.bold(title)));
+		const lines = tasks.length === 0
+			? [this.theme.fg("muted", "No watched tasks.")]
+			: tasks.flatMap((task) => [
+					`${stateColor(this.theme, task.state)(taskStateGlyph(task.state))} ${task.id}  ${stateColor(this.theme, task.state)(task.state)}  ${elapsed(task.startedAt)}  ${task.label}`,
+					...(task.latestMessage ? [`  ${this.theme.fg("muted", task.latestMessage)}`] : []),
+			  ]);
+		this.content.setText(lines.join("\n"));
 	}
 }
 
