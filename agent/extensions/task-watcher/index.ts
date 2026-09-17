@@ -12,6 +12,7 @@ type WatchView = "all" | "archive" | string;
 
 export default function taskWatcher(pi: ExtensionAPI): void {
 	let ui: ExtensionContext["ui"] | undefined;
+	let sessionContext: ExtensionContext | undefined;
 	let statusTui: TUI | undefined;
 	let shuttingDown = false;
 	let cleanupTimer: NodeJS.Timeout | undefined;
@@ -28,6 +29,7 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 	function scheduleNotification(task: WatchedTask): void {
 		const timer = setTimeout(() => {
 			completionNotifications.delete(task.id);
+			if (sessionContext && !sessionContext.isIdle()) return;
 			notifyAgent(task);
 		}, COMPLETION_NOTIFICATION_GRACE_MS);
 		completionNotifications.set(task.id, timer);
@@ -56,6 +58,7 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 
 	pi.on("session_start", async (_event, ctx) => {
 		shuttingDown = false;
+		sessionContext = ctx;
 		ui = ctx.ui;
 		await archive.list();
 		cleanupTimer = setInterval(() => registry.sweepExpired(), 60_000);
@@ -79,6 +82,7 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 		await archive.appendMany(registry.removeFinished());
 		ui?.setWidget(WIDGET_KEY, undefined);
 		statusTui = undefined;
+		sessionContext = undefined;
 		ui = undefined;
 	});
 
@@ -90,6 +94,7 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 		promptGuidelines: [
 			"Use start_watched_task only for independent work that can run while the agent continues; use bash when the next step needs the command result immediately.",
 			"After starting a watched task, keep its task ID and use wait_watched_task when the task result is needed.",
+			"If the agent is still running another turn when a task finishes, no follow-up is sent; query the task by ID when its result is needed.",
 		],
 		parameters: Type.Object({
 			label: Type.String({ description: "Short human-readable task label" }),
