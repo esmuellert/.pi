@@ -19,7 +19,7 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 	const registry = new TaskRegistry({
 		onChange: () => statusTui?.requestRender(),
 		onFinish: (task, hadWaiter) => {
-			if (!hadWaiter) scheduleNotification(task);
+			if (!hadWaiter && task.state !== "cancelled") scheduleNotification(task);
 		},
 		onArchive: (tasks) => void archive.appendMany(tasks),
 	});
@@ -142,10 +142,11 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 		parameters: Type.Object({
 			taskId: Type.String({ description: "Task ID returned by start_watched_task" }),
 		}),
-		async execute(_toolCallId, params) {
+		async execute(_toolCallId, params, signal) {
+			suppressNotification(params.taskId);
 			if (!registry.cancel(params.taskId)) throw new Error(`Watched task is not running: ${params.taskId}`);
-			const task = registry.get(params.taskId);
-			return { content: [{ type: "text", text: `Cancellation requested for ${params.taskId}.` }], details: task };
+			const task = await registry.wait(params.taskId, signal);
+			return { content: [{ type: "text", text: formatTaskForAgent(task) }], details: task };
 		},
 	});
 

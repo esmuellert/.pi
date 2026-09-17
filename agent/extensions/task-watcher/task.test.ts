@@ -22,6 +22,20 @@ test("does not emit a second completion notification when an agent is waiting", 
 	assert.deepEqual(notifications, [true]);
 });
 
+test("cancels a running task and waits for the terminal state", async () => {
+	const registry = new TaskRegistry();
+	const task = registry.start({
+		label: "cancelled task",
+		command: `${JSON.stringify(process.execPath)} -e ${JSON.stringify("setTimeout(() => console.log('late'), 30000)")}`,
+		cwd: process.cwd(),
+	});
+
+	assert.equal(registry.cancel(task.id), true);
+	const finished = await registry.wait(task.id);
+	assert.equal(finished.state, "cancelled");
+	assert.equal(finished.exitCode, null);
+});
+
 test("starts an asynchronous task and waits for its result", async () => {
 	const registry = new TaskRegistry();
 	const task = registry.start({
