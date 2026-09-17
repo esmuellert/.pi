@@ -13,28 +13,29 @@ type WatchView = "all" | "archive" | string;
 export default function taskWatcher(pi: ExtensionAPI): void {
 	let ui: ExtensionContext["ui"] | undefined;
 	let cleanupTimer: NodeJS.Timeout | undefined;
+	let statusTimer: NodeJS.Timeout | undefined;
 	const completionNotifications = new Map<string, NodeJS.Timeout>();
 	const archive = new TaskArchive();
 	const registry = new TaskRegistry({
-		onChange: () => renderWidget(),
+		onChange: () => renderStatus(),
 		onFinish: (task, hadWaiter) => {
 			if (!hadWaiter) scheduleNotification(task);
 		},
 		onArchive: (tasks) => void archive.appendMany(tasks),
 	});
 
-	function renderWidget(): void {
+	function renderStatus(): void {
 		if (!ui) return;
 		const active = registry.active();
 		if (active.length === 0) {
-			ui.setWidget(WIDGET_KEY, undefined);
+			ui.setStatus(WIDGET_KEY, undefined);
 			return;
 		}
-		ui.setWidget(
-			WIDGET_KEY,
-			active.slice(0, 3).map((task) => `${taskStateGlyph(task.state)} ${task.label}  ${elapsed(task.startedAt)}`),
-			{ placement: "aboveEditor" },
-		);
+		const text = active
+			.slice(0, 3)
+			.map((task) => `${taskStateGlyph(task.state)} ${task.label}  ${elapsed(task.startedAt)}`)
+			.join("  ");
+		ui.setStatus(WIDGET_KEY, `watch ${text}`);
 	}
 
 	function scheduleNotification(task: WatchedTask): void {
@@ -70,17 +71,20 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 		ui = ctx.ui;
 		await archive.list();
 		cleanupTimer = setInterval(() => registry.sweepExpired(), 60_000);
-		renderWidget();
+		statusTimer = setInterval(renderStatus, 1_000);
+		renderStatus();
 	});
 
 	pi.on("session_shutdown", async () => {
 		if (cleanupTimer) clearInterval(cleanupTimer);
+		if (statusTimer) clearInterval(statusTimer);
 		cleanupTimer = undefined;
+		statusTimer = undefined;
 		for (const timer of completionNotifications.values()) clearTimeout(timer);
 		completionNotifications.clear();
 		await archive.appendMany(registry.removeFinished());
 		registry.cancelAll();
-		ui?.setWidget(WIDGET_KEY, undefined);
+		ui?.setStatus(WIDGET_KEY, undefined);
 		ui = undefined;
 	});
 
