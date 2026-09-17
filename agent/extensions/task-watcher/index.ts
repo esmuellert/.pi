@@ -12,30 +12,17 @@ type WatchView = "all" | "archive" | string;
 
 export default function taskWatcher(pi: ExtensionAPI): void {
 	let ui: ExtensionContext["ui"] | undefined;
+	let statusTui: TUI | undefined;
 	let cleanupTimer: NodeJS.Timeout | undefined;
 	const completionNotifications = new Map<string, NodeJS.Timeout>();
 	const archive = new TaskArchive();
 	const registry = new TaskRegistry({
-		onChange: () => renderWidget(),
+		onChange: () => statusTui?.requestRender(),
 		onFinish: (task, hadWaiter) => {
 			if (!hadWaiter) scheduleNotification(task);
 		},
 		onArchive: (tasks) => void archive.appendMany(tasks),
 	});
-
-	function renderWidget(): void {
-		if (!ui) return;
-		const active = registry.active();
-		if (active.length === 0) {
-			ui.setWidget(WIDGET_KEY, undefined);
-			return;
-		}
-		ui.setWidget(
-			WIDGET_KEY,
-			active.slice(0, 3).map((task) => `${taskStateGlyph(task.state)} ${task.label}  ${elapsed(task.startedAt)}`),
-			{ placement: "aboveEditor" },
-		);
-	}
 
 	function scheduleNotification(task: WatchedTask): void {
 		const timer = setTimeout(() => {
@@ -70,7 +57,14 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 		ui = ctx.ui;
 		await archive.list();
 		cleanupTimer = setInterval(() => registry.sweepExpired(), 60_000);
-		renderWidget();
+		ui.setWidget(
+			WIDGET_KEY,
+			(tui, theme) => {
+				statusTui = tui;
+				return new TaskStatusWidget(registry, tui, theme);
+			},
+			{ placement: "aboveEditor" },
+		);
 	});
 
 	pi.on("session_shutdown", async () => {
@@ -81,6 +75,7 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 		await archive.appendMany(registry.removeFinished());
 		registry.cancelAll();
 		ui?.setWidget(WIDGET_KEY, undefined);
+		statusTui = undefined;
 		ui = undefined;
 	});
 
@@ -192,6 +187,35 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 			await ctx.ui.custom<null>((tui, theme, _keybindings, done) => new TaskWatchComponent(registry, archived, tui, theme, done, view));
 		},
 	});
+}
+
+class TaskStatusWidget implements Component {
+	private readonly timer: NodeJS.Timeout;
+	private readonly registry: TaskRegistry;
+	private readonly tui: TUI;
+	private readonly theme: Theme;
+
+	constructor(registry: TaskRegistry, tui: TUI, theme: Theme) {
+		this.registry = registry;
+		this.tui = tui;
+		this.theme = theme;
+		this.timer = setInterval(() => this.tui.requestRender(), 1_000);
+	}
+
+	render(_width: number): string[] {
+		return this.registry.active().slice(0, 3).map((task) => {
+			const glyph = this.theme.fg("accent", taskStateGlyph(task.state));
+			const label = this.theme.fg("text", task.label);
+			const time = this.theme.fg("muted", elapsed(task.startedAt));
+			return `${glyph} ${label}  ${time}`;
+		});
+	}
+
+	invalidate(): void {}
+
+	dispose(): void {
+		clearInterval(this.timer);
+	}
 }
 
 class TaskWatchComponent implements Component {
