@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
 import { resolve } from "node:path";
 
-export type TaskState = "running" | "succeeded" | "failed" | "cancelled";
+export type TaskState = "running" | "succeeded" | "failed" | "cancelled" | "orphaned";
 
 export interface WatchedTask {
 	id: string;
@@ -13,6 +13,7 @@ export interface WatchedTask {
 	finishedAt?: number;
 	exitCode?: number | null;
 	latestMessage?: string;
+	pid?: number;
 }
 
 interface RunningTask extends WatchedTask {
@@ -48,6 +49,8 @@ export class TaskRegistry {
 	private readonly onFinish?: (task: WatchedTask, hadWaiter: boolean) => void;
 	private readonly onArchive?: (tasks: WatchedTask[]) => void;
 	private readonly archiveAfterMs: number;
+	private static readonly terminateGraceMs = 2_000;
+	private static readonly forceKillGraceMs = 1_000;
 
 	constructor(options: TaskRegistryOptions = {}) {
 		this.now = options.now ?? Date.now;
@@ -152,19 +155,26 @@ export class TaskRegistry {
 	cancel(id: string): boolean {
 		const task = this.tasks.get(id);
 		if (!task || task.state !== "running") return false;
-		task.cancelRequested = true;
-		if (task.process.pid && process.platform !== "win32") {
-			try {
-				process.kill(-task.process.pid, "SIGTERM");
-			} catch {
-				task.process.kill("SIGTERM");
-			}
-		} else {
-			task.process.kill();
-		}
-		task.updatedAt = this.now();
-		this.onChange?.();
+		this.requestCancel(task, "SIGTERM");
 		return true;
+	}
+
+	async cancelAndWait(id: string): Promise<WatchedTask> {
+		const task = this.tasks.get(id);
+		if (!task) throw new Error(`Unknown watched task: ${id}`);
+		if (task.state !== "running") return this.snapshot(task);
+
+		this.requestCancel(task, "SIGTERM");
+		const terminated = await this.waitForExit(task, TaskRegistry.terminateGraceMs);
+		if (terminated) return terminated;
+
+		this.requestCancel(task, "SIGKILL");
+		const forceKilled = await this.waitForExit(task, TaskRegistry.forceKillGraceMs);
+		if (forceKilled) return forceKilled;
+
+		task.latestMessage = `Process ${task.process.pid ?? "unknown"} did not exit after cancellation`;
+		this.finish(task, "orphaned", null);
+		return this.snapshot(task);
 	}
 
 	wait(id: string, signal?: AbortSignal): Promise<WatchedTask> {
@@ -186,9 +196,39 @@ export class TaskRegistry {
 		});
 	}
 
-	cancelAll(): void {
-		for (const task of this.tasks.values()) {
-			if (task.state === "running") this.cancel(task.id);
+	async cancelAll(): Promise<void> {
+		const running = this.list().filter((task) => task.state === "running");
+		await Promise.all(running.map((task) => this.cancelAndWait(task.id).catch(() => undefined)));
+	}
+
+	private requestCancel(task: RunningTask, signal: "SIGTERM" | "SIGKILL"): void {
+		task.cancelRequested = true;
+		if (task.process.pid && process.platform !== "win32") {
+			try {
+				process.kill(-task.process.pid, signal);
+			} catch {
+				try {
+					task.process.kill(signal);
+				} catch {
+					// The process may have exited between the group and child checks.
+				}
+			}
+		} else {
+			try {
+				task.process.kill(signal);
+			} catch {
+				// The process may have exited already.
+			}
+		}
+		task.updatedAt = this.now();
+		this.onChange?.();
+	}
+
+	private async waitForExit(task: RunningTask, timeoutMs: number): Promise<WatchedTask | undefined> {
+		try {
+			return await this.wait(task.id, AbortSignal.timeout(timeoutMs));
+		} catch {
+			return task.state === "running" ? undefined : this.snapshot(task);
 		}
 	}
 
@@ -227,6 +267,7 @@ export class TaskRegistry {
 			...(task.finishedAt === undefined ? {} : { finishedAt: task.finishedAt }),
 			...(task.exitCode === undefined ? {} : { exitCode: task.exitCode }),
 			...(task.latestMessage ? { latestMessage: task.latestMessage } : {}),
+			...(task.process.pid === undefined ? {} : { pid: task.process.pid }),
 		};
 	}
 }
@@ -244,5 +285,6 @@ export function taskStateGlyph(state: TaskState): string {
 		case "succeeded": return "✓";
 		case "failed": return "✗";
 		case "cancelled": return "-";
+		case "orphaned": return "!";
 	}
 }

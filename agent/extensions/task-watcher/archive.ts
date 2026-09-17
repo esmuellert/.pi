@@ -11,6 +11,7 @@ export interface ArchivedTask {
 	startedAt: number;
 	finishedAt: number;
 	exitCode?: number | null;
+	pid?: number;
 }
 
 const DEFAULT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
@@ -46,6 +47,7 @@ export class TaskArchive {
 			startedAt: task.startedAt,
 			finishedAt: task.finishedAt,
 			...(task.exitCode === undefined ? {} : { exitCode: task.exitCode }),
+			...(task.pid === undefined ? {} : { pid: task.pid }),
 		};
 		return this.enqueue(async () => {
 			const entries = await this.readEntries();
@@ -143,6 +145,7 @@ function toArchivedTask(task: WatchedTask & { state: Exclude<TaskState, "running
 		startedAt: task.startedAt,
 		finishedAt: task.finishedAt,
 		...(task.exitCode === undefined ? {} : { exitCode: task.exitCode }),
+		...(task.pid === undefined ? {} : { pid: task.pid }),
 	};
 }
 

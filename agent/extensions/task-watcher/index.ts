@@ -13,13 +13,14 @@ type WatchView = "all" | "archive" | string;
 export default function taskWatcher(pi: ExtensionAPI): void {
 	let ui: ExtensionContext["ui"] | undefined;
 	let statusTui: TUI | undefined;
+	let shuttingDown = false;
 	let cleanupTimer: NodeJS.Timeout | undefined;
 	const completionNotifications = new Map<string, NodeJS.Timeout>();
 	const archive = new TaskArchive();
 	const registry = new TaskRegistry({
 		onChange: () => statusTui?.requestRender(),
 		onFinish: (task, hadWaiter) => {
-			if (!hadWaiter && task.state !== "cancelled") scheduleNotification(task);
+			if (!shuttingDown && !hadWaiter && task.state !== "cancelled" && task.state !== "orphaned") scheduleNotification(task);
 		},
 		onArchive: (tasks) => void archive.appendMany(tasks),
 	});
@@ -54,6 +55,7 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 	}
 
 	pi.on("session_start", async (_event, ctx) => {
+		shuttingDown = false;
 		ui = ctx.ui;
 		await archive.list();
 		cleanupTimer = setInterval(() => registry.sweepExpired(), 60_000);
@@ -68,12 +70,13 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 	});
 
 	pi.on("session_shutdown", async () => {
+		shuttingDown = true;
 		if (cleanupTimer) clearInterval(cleanupTimer);
 		cleanupTimer = undefined;
 		for (const timer of completionNotifications.values()) clearTimeout(timer);
 		completionNotifications.clear();
+		await registry.cancelAll();
 		await archive.appendMany(registry.removeFinished());
-		registry.cancelAll();
 		ui?.setWidget(WIDGET_KEY, undefined);
 		statusTui = undefined;
 		ui = undefined;
@@ -144,8 +147,7 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 		}),
 		async execute(_toolCallId, params, signal) {
 			suppressNotification(params.taskId);
-			if (!registry.cancel(params.taskId)) throw new Error(`Watched task is not running: ${params.taskId}`);
-			const task = await registry.wait(params.taskId, signal);
+			const task = await registry.cancelAndWait(params.taskId);
 			return { content: [{ type: "text", text: formatTaskForAgent(task) }], details: task };
 		},
 	});
@@ -175,7 +177,12 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 					ctx.ui.notify("Usage: /watch stop <task-id>", "warning");
 					return;
 				}
-				ctx.ui.notify(registry.cancel(parts[1]) ? `Cancellation requested for ${parts[1]}.` : `Task is not running: ${parts[1]}`, "info");
+				try {
+					const task = await registry.cancelAndWait(parts[1]);
+					ctx.ui.notify(`Task ${task.id}: ${task.state}${task.pid ? ` (pid ${task.pid})` : ""}`, task.state === "orphaned" ? "error" : "info");
+				} catch (error) {
+					ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");
+				}
 				return;
 			}
 			const view: WatchView = parts[0] === "archive" ? "archive" : parts[0] && parts[0] !== "list" ? parts[0] : "all";
@@ -289,7 +296,7 @@ class TaskWatchComponent implements Component {
 
 function stateColor(theme: Theme, state: WatchedTask["state"]): (text: string) => string {
 	if (state === "succeeded") return (text) => theme.fg("success", text);
-	if (state === "failed") return (text) => theme.fg("error", text);
+	if (state === "failed" || state === "orphaned") return (text) => theme.fg("error", text);
 	if (state === "cancelled") return (text) => theme.fg("muted", text);
 	return (text) => theme.fg("accent", text);
 }
@@ -301,6 +308,7 @@ function formatTaskForAgent(task: WatchedTask | ArchivedTask): string {
 	`elapsed: ${elapsed(task.startedAt, task.finishedAt ?? Date.now())}`,
 	];
 	if (task.exitCode !== undefined) output.push(`exitCode: ${task.exitCode ?? "signal"}`);
+	if (task.pid !== undefined) output.push(`pid: ${task.pid}`);
 	if (task.latestMessage) output.push(`latestOutput: ${task.latestMessage}`);
 	return output.join("\n");
 }
