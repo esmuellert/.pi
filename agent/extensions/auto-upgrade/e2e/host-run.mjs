@@ -243,7 +243,13 @@ try {
 		} catch {
 			// The PTY may already have exited during failure cleanup.
 		}
+		const deadline = Date.now() + 2_000;
+		while (!ptyExited && Date.now() < deadline) await sleep(50);
 	}
 	if (serverStarted) server.close();
-	rmSync(tempRoot, { recursive: true, force: true });
+	try {
+		rmSync(tempRoot, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
+	} catch (error) {
+		if (process.platform !== "win32") throw error;
+	}
 }

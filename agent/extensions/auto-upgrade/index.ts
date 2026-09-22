@@ -146,6 +146,21 @@ export default function autoUpgrade(pi: ExtensionAPI): void {
 
 		pendingVersion = undefined;
 		pendingNoticeShown = false;
+		if (process.platform === "win32") {
+			const originalExit = process.exit;
+			let shutdownExitCode = 0;
+			process.exit = ((code?: number | string | null) => {
+				if (typeof code === "number") shutdownExitCode = code;
+			}) as typeof process.exit;
+			ctx.shutdown();
+			const replacementExitCode = await new Promise<number>((resolve) => {
+				helper.once("error", () => resolve(1));
+				helper.once("exit", (code, signal) => resolve(signal ? 1 : code ?? shutdownExitCode));
+			});
+			process.exit = originalExit;
+			originalExit(replacementExitCode);
+			return;
+		}
 		ctx.shutdown();
 	}
 
