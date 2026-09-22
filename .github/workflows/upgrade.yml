@@ -139,6 +139,25 @@ jobs:
           node scripts/check-install.mjs
           pnpm exec node scripts/check-install.mjs
 
+  auto-upgrade-e2e:
+    name: auto-upgrade container E2E
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.13.1 --activate
+
+      - name: run the interactive handoff in a pseudo-terminal
+        working-directory: agent/extensions/auto-upgrade
+        run: pnpm e2e
+
   the-check-is-not-vacuous:
     # A machine that never held two versions cannot tell whether the check that
     # forbids two versions works. So one is put there on purpose.

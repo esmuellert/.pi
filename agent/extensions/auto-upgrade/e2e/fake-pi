@@ -1,0 +1,16 @@
+#!/bin/sh
+set -eu
+
+marker=${PI_AUTO_UPGRADE:-0}
+printf 'restart=%s args=%s\n' "$marker" "$*" >> /tmp/pi-invocations.log
+
+if [ "${1:-}" = "--version" ]; then
+	if [ "$marker" = "1" ]; then
+		echo "$PI_TEST_BASE_VERSION"
+	else
+		echo "$PI_TEST_UPGRADED_VERSION"
+	fi
+	exit 0
+fi
+
+exec /usr/local/bin/node /app/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js "$@"

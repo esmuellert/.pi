@@ -18,21 +18,37 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 	let cleanupTimer: NodeJS.Timeout | undefined;
 	const completionNotifications = new Map<string, NodeJS.Timeout>();
 	const archive = new TaskArchive();
+	let lastPublishedRunning = -1;
+	let lastPublishedNotifications = -1;
+	function publishTaskWatcherState(force = false): void {
+		const running = registry.active().length;
+		const pendingNotifications = completionNotifications.size;
+		if (!force && running === lastPublishedRunning && pendingNotifications === lastPublishedNotifications) return;
+		lastPublishedRunning = running;
+		lastPublishedNotifications = pendingNotifications;
+		pi.events.emit("task-watcher:state", { running, pendingNotifications });
+	}
 	const registry = new TaskRegistry({
-		onChange: () => statusTui?.requestRender(),
+		onChange: () => {
+			statusTui?.requestRender();
+			publishTaskWatcherState();
+		},
 		onFinish: (task, hadWaiter) => {
 			if (!shuttingDown && !hadWaiter && task.state !== "cancelled" && task.state !== "orphaned") scheduleNotification(task);
 		},
 		onArchive: (tasks) => void archive.appendMany(tasks),
 	});
+	pi.events.emit("task-watcher:available", {});
 
 	function scheduleNotification(task: WatchedTask): void {
 		const timer = setTimeout(() => {
 			completionNotifications.delete(task.id);
+			publishTaskWatcherState();
 			if (sessionContext && !sessionContext.isIdle()) return;
 			notifyAgent(task);
 		}, COMPLETION_NOTIFICATION_GRACE_MS);
 		completionNotifications.set(task.id, timer);
+		publishTaskWatcherState();
 	}
 
 	function suppressNotification(taskId: string): void {
@@ -40,6 +56,7 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 		if (!timer) return;
 		clearTimeout(timer);
 		completionNotifications.delete(taskId);
+		publishTaskWatcherState();
 	}
 
 	function notifyAgent(task: WatchedTask): void {
@@ -61,6 +78,8 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 		sessionContext = ctx;
 		ui = ctx.ui;
 		await archive.list();
+		pi.events.emit("task-watcher:available", {});
+		publishTaskWatcherState(true);
 		cleanupTimer = setInterval(() => registry.sweepExpired(), 60_000);
 		ui.setWidget(
 			WIDGET_KEY,

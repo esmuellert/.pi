@@ -39,6 +39,16 @@ Smoke tests start pi and call a real model, so they run only where credentials
 exist. A machine that has not run `pi login` still gets tests, typechecks and a
 load check, and is told the smoke tests were skipped rather than passed.
 
+The upgrade handoff also has a network-isolated container E2E test. It starts the
+real interactive Pi in a pseudo-terminal, serves a local fake model, reports a
+new installed version, and verifies that the replacement process resumes the
+same session:
+
+```bash
+cd auto-upgrade
+pnpm e2e
+```
+
 ## Packages
 
 | Package | What it does |
@@ -54,6 +64,7 @@ load check, and is told the smoke tests were skipped rather than passed.
 | `model-shortcuts` | `Alt+1` through `Alt+6` switch between the configured Copilot and Codex models at max thinking over SSH-friendly terminal input. |
 | `compaction-effort` | Runs built-in compaction summaries at low reasoning effort without changing the session's normal thinking level. |
 | `task-watcher` | Lets the agent start asynchronous tasks and gives the user a foreground `/watch` view of their state. |
+| `auto-upgrade` | Detects a completed local Pi upgrade after an idle response and hands the session to the new process. |
 
 The `themes` package is a generator rather than an extension: it writes
 `~/.pi/agent/themes/*.json`, which pi reads.

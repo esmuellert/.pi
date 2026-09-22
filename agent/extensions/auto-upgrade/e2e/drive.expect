@@ -1,0 +1,47 @@
+#!/usr/bin/expect -f
+
+log_user 0
+log_file -noappend /tmp/pi-tui.log
+set timeout 2
+set invocationLog "/tmp/pi-invocations.log"
+set deadline [expr {[clock seconds] + 60}]
+set editorCleared 0
+
+proc readText {path} {
+	if {![file exists $path]} { return "" }
+	set handle [open $path r]
+	set text [read $handle]
+	close $handle
+	return $text
+}
+
+spawn pi \
+	--extension /app/auto-upgrade \
+	--extension /app/e2e/fake-provider.ts \
+	--extension /app/e2e/session-marker.ts \
+	--model e2e/fake \
+	--session /tmp/pi-agent/e2e-session.jsonl \
+	--tui-mode regular \
+	"run the restart e2e test"
+
+while {[clock seconds] < $deadline} {
+	set log [readText $invocationLog]
+	if {!$editorCleared && [regexp {restart=0 args=--version} $log]} {
+		# A CLI startup prompt can still be present in the interactive editor.
+		# Clear it so the test exercises the same safe-idle state as a user.
+		send "\025"
+		set editorCleared 1
+	}
+	set resumed [readText "/tmp/pi-resumed"]
+	set session [readText "/tmp/pi-agent/e2e-session.jsonl"]
+	if {[regexp {restart=1 args=.*--session } $log] && [regexp {^/tmp/pi-agent/e2e-session\.jsonl} $resumed] && [string match {*E2E_OK*} $session]} {
+		puts "Pi restarted with the current session."
+		exit 0
+	}
+	after 100
+}
+
+puts stderr "Pi did not restart within the test deadline."
+puts stderr [readText $invocationLog]
+puts stderr [readText "/tmp/pi-tui.log"]
+exit 1

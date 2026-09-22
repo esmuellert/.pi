@@ -18,6 +18,7 @@ packages:
   - "frame-budget"
   - "model-shortcuts"
   - "compaction-effort"
+  - "auto-upgrade"
 
 # Single source of truth for tooling versions. Packages reference "catalog:".
 catalog:
