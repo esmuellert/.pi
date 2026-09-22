@@ -1,3 +1,4 @@
+import { appendFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
 
@@ -11,6 +12,7 @@ const server = createServer((request, response) => {
 
 	request.resume();
 	request.once("end", () => {
+		appendFileSync("/tmp/provider-count", "1\n", "utf8");
 		response.writeHead(200, {
 			"Cache-Control": "no-cache",
 			Connection: "keep-alive",

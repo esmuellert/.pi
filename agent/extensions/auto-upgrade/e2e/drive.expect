@@ -6,6 +6,7 @@ set timeout 2
 set invocationLog "/tmp/pi-invocations.log"
 set deadline [expr {[clock seconds] + 60}]
 set editorCleared 0
+set keyboardSent 0
 
 proc readText {path} {
 	if {![file exists $path]} { return "" }
@@ -34,8 +35,15 @@ while {[clock seconds] < $deadline} {
 	}
 	set resumed [readText "/tmp/pi-resumed"]
 	set session [readText "/tmp/pi-agent/e2e-session.jsonl"]
-	if {[regexp {restart=1 args=.*--session } $log] && [regexp {^/tmp/pi-agent/e2e-session\.jsonl} $resumed] && [string match {*E2E_OK*} $session]} {
-		puts "Pi restarted with the current session."
+	if {!$keyboardSent && [regexp {restart=1 args=.*--session } $log] && [regexp {^/tmp/pi-agent/e2e-session\.jsonl} $resumed] && [string match {*E2E_OK*} $session]} {
+		if {[catch {send -- "keyboard-after-restart\r"} error]} {
+			puts stderr "Could not send keyboard input after restart: $error"
+			exit 1
+		}
+		set keyboardSent 1
+	}
+	if {$keyboardSent && [regexp {(^|\n)1\n1\n} [readText "/tmp/provider-count"]] && [string match {*keyboard-after-restart*} $session]} {
+		puts "Pi restarted and accepted keyboard input."
 		exit 0
 	}
 	after 100

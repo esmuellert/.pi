@@ -12,7 +12,7 @@ if (!versionMatch) throw new Error("Could not find the pinned pi-coding-agent ve
 const piVersion = versionMatch[1];
 const semverMatch = piVersion.match(/^(\d+)\.(\d+)\.(\d+)(.*)$/);
 if (!semverMatch) throw new Error(`E2E requires an exact semver pin, got ${piVersion}`);
-const upgradedVersion = `${semverMatch[1]}.${semverMatch[2]}.${Number(semverMatch[3]) + 1}${semverMatch[4]}`;
+const runtimeVersion = piVersion === "0.85.1" ? "0.84.4" : "0.85.1";
 
 function run(command, args) {
 	return new Promise((resolve, reject) => {
@@ -27,7 +27,7 @@ const buildCode = await run("docker", [
 	"--build-arg",
 	`PI_VERSION=${piVersion}`,
 	"--build-arg",
-	`PI_UPGRADED_VERSION=${upgradedVersion}`,
+	`PI_RUNTIME_VERSION=${runtimeVersion}`,
 	"--tag",
 	tag,
 	"--file",

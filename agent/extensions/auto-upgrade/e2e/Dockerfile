@@ -7,12 +7,15 @@ RUN apt-get update \
 WORKDIR /app
 
 ARG PI_VERSION
+ARG PI_RUNTIME_VERSION
 RUN npm init --yes >/dev/null \
-  && npm install --ignore-scripts --no-audit --no-fund @earendil-works/pi-coding-agent@${PI_VERSION}
+  && npm install --ignore-scripts --no-audit --no-fund @earendil-works/pi-coding-agent@${PI_VERSION} \
+  && mkdir /app/runtime \
+  && cd /app/runtime \
+  && npm init --yes >/dev/null \
+  && npm install --ignore-scripts --no-audit --no-fund @earendil-works/pi-coding-agent@${PI_RUNTIME_VERSION}
 
-ARG PI_UPGRADED_VERSION
 ENV PI_TEST_BASE_VERSION=${PI_VERSION}
-ENV PI_TEST_UPGRADED_VERSION=${PI_UPGRADED_VERSION}
 
 COPY package.json auto-upgrade/package.json
 COPY index.ts restart.ts handoff.mjs auto-upgrade/
