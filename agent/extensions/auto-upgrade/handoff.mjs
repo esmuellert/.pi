@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { appendFileSync, readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 
 const [, , encodedConfig] = process.argv;
@@ -17,6 +17,12 @@ try {
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const debug = (message) => {
+  if (process.env.PI_AUTO_UPGRADE_DEBUG === "1") {
+    const path = process.env.PI_AUTO_UPGRADE_DEBUG_FILE ?? "/tmp/auto-upgrade-handoff.log";
+    appendFileSync(path, `${new Date().toISOString()} ${message}\n`);
+  }
+};
 
 function isZombie(pid) {
   if (process.platform !== "linux") return false;
@@ -67,6 +73,7 @@ function spawnPi() {
   };
 
   if (process.platform !== "win32" && process.stdin.isTTY) {
+    debug(`using python tty reexec pid=${process.pid} ppid=${process.ppid}`);
     return spawn(
       "python3",
       ["-c", POSIX_TTY_REEXEC, JSON.stringify({ command: config.command, args: config.args, cwd: config.cwd })],
@@ -75,6 +82,7 @@ function spawnPi() {
   }
 
   if (process.platform !== "win32" || !/\.(?:cmd|bat)$/i.test(config.command)) {
+    debug(`using direct spawn command=${config.command}`);
     return spawn(config.command, config.args, options);
   }
 
@@ -83,6 +91,7 @@ function spawnPi() {
     quoteWindowsArg(config.command),
     ...config.args.map(quoteWindowsArg),
   ].join(" ");
+  debug(`using cmd spawn commandLine=${commandLine}`);
   return spawn(process.env.ComSpec ?? "cmd.exe", ["/d", "/s", "/c", commandLine], options);
 }
 
@@ -97,12 +106,15 @@ if (isAlive(config.parentPid)) {
 }
 
 await sleep(100);
+debug(`parent exited; spawning command=${config.command} args=${JSON.stringify(config.args)}`);
 const child = spawnPi();
 child.once("error", (error) => {
+  debug(`child error ${error.message}`);
   console.error(`auto-upgrade: could not start Pi: ${error.message}`);
   process.exit(1);
 });
 child.once("exit", (code, signal) => {
+  debug(`child exit code=${code} signal=${signal ?? "none"}`);
   if (signal) {
     process.kill(process.pid, signal);
     return;
