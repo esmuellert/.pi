@@ -104,7 +104,7 @@ if "%~1"=="--version" (
   if "%marker%"=="1" (echo 0.87.0) else (echo 0.88.0)
   exit /b 0
 )
-call "${realPi}" %*
+"${realPi}" %*
 set "status=%ERRORLEVEL%"
 >>"${invocationLog}" echo child-exit=%status%
 exit /b %status%
