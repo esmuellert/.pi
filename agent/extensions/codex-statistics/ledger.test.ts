@@ -26,6 +26,18 @@ function turn(): TurnEndEvent {
 	return {
 		type: "turn_end",
 		turnIndex: 0,
+		messageEntryId: "message-1",
+		toolResultEntryIds: ["tool-1"],
+		entries: [],
+		continue: false,
+		context: {
+			contextEntries: [],
+			contextMessages: [],
+			llmMessages: [],
+			pendingMessages: [],
+			canContinue: false,
+		},
+		outcome: "completed",
 		message: {
 			role: "assistant",
 			provider: "openai-codex",
