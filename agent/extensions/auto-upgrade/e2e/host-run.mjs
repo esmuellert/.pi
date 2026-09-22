@@ -17,6 +17,7 @@ const agentDir = join(tempRoot, "agent");
 const sessionFile = join(agentDir, "session.jsonl");
 const invocationLog = join(tempRoot, "pi-invocations.log");
 const handoffLog = join(tempRoot, "handoff.log");
+const restartErrorLog = join(tempRoot, "restart-stderr.log");
 const resumedMarker = join(tempRoot, "pi-resumed");
 const providerCount = join(tempRoot, "provider-count");
 
@@ -104,10 +105,13 @@ if "%~1"=="--version" (
   if "%marker%"=="1" (echo 0.87.0) else (echo 0.88.0)
   exit /b 0
 )
+if "%marker%"=="1" (
+  call "${realPi}" %* 2>>"${restartErrorLog}"
+  set "status=%ERRORLEVEL%"
+  >>"${invocationLog}" echo child-exit=%status%
+  exit /b %status%
+)
 "${realPi}" %*
-set "status=%ERRORLEVEL%"
->>"${invocationLog}" echo child-exit=%status%
-exit /b %status%
 `);
 		return;
 	}
@@ -174,6 +178,7 @@ try {
 	environment.PI_AGENT_DIR = agentDir;
 	environment.PI_AUTO_UPGRADE_DEBUG = "1";
 	environment.PI_AUTO_UPGRADE_DEBUG_FILE = handoffLog;
+	environment.PI_E2E_RESTART_STDERR = restartErrorLog;
 	environment.PI_E2E_RESUMED_MARKER = resumedMarker;
 	environment.PI_OFFLINE = "1";
 	environment.TERM = "xterm-256color";
@@ -226,6 +231,7 @@ try {
 	console.error(error instanceof Error ? error.message : String(error));
 	console.error(`invocations:\n${text(invocationLog)}`);
 	console.error(`handoff:\n${text(handoffLog)}`);
+	console.error(`restart-stderr:\n${text(restartErrorLog)}`);
 	console.error(`resumed-marker:\n${text(resumedMarker)}`);
 	console.error(`session:\n${text(sessionFile)}`);
 	console.error(`pty-output:\n${output}`);
