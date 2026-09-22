@@ -151,13 +151,13 @@ export default function autoUpgrade(pi: ExtensionAPI): void {
 			process.exit = ((code?: number | string | null) => {
 				if (typeof code === "number") shutdownExitCode = code;
 			}) as typeof process.exit;
+			const finish = (code: number): void => {
+				process.exit = originalExit;
+				originalExit(code);
+			};
+			helper.once("error", () => finish(1));
+			helper.once("exit", (code, signal) => finish(signal ? 1 : code ?? shutdownExitCode));
 			ctx.shutdown();
-			const replacementExitCode = await new Promise<number>((resolve) => {
-				helper.once("error", () => resolve(1));
-				helper.once("exit", (code, signal) => resolve(signal ? 1 : code ?? shutdownExitCode));
-			});
-			process.exit = originalExit;
-			originalExit(replacementExitCode);
 			return;
 		}
 		ctx.shutdown();
@@ -207,9 +207,9 @@ export default function autoUpgrade(pi: ExtensionAPI): void {
 		sessionContext = undefined;
 	});
 
-	pi.on("agent_settled", (_event, ctx) => {
+	pi.on("agent_settled", async (_event, ctx) => {
 		if (ctx.mode !== "tui") return;
-		void checkForUpgrade(ctx as RestartContext);
+		await checkForUpgrade(ctx as RestartContext);
 	});
 }
 
