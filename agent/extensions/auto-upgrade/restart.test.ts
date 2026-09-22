@@ -1,12 +1,23 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildRestartArgs, isPiVersionChanged, parsePiVersion } from "./restart.ts";
+import { buildRestartArgs, detectLoadedPiVersion, isPiVersionChanged, parsePiVersion } from "./restart.ts";
 
 test("parses the version printed by pi", () => {
 	assert.equal(parsePiVersion("0.85.1\n"), "0.85.1");
 	assert.equal(parsePiVersion("v0.85.2\n"), "0.85.2");
 	assert.equal(parsePiVersion("not a version"), undefined);
+});
+
+test("uses the running Pi executable version after the workspace dependency is upgraded", () => {
+	assert.equal(
+		detectLoadedPiVersion(
+			"/Users/yanuo/Library/pnpm/global/5/.pnpm/@earendil-works+pi-coding-agent@0.85.1_ws@8.21.3/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js",
+			"0.87.0",
+		),
+		"0.85.1",
+	);
+	assert.equal(detectLoadedPiVersion("/tmp/pi/cli.js", "0.87.0"), "0.87.0");
 });
 
 test("detects installed version drift without treating a missing probe as an upgrade", () => {

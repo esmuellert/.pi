@@ -1,4 +1,36 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+
 export const RESTART_POLL_INTERVAL_MS = 250;
+
+const CORE_PACKAGE_NAME = "@earendil-works/pi-coding-agent";
+const CORE_PACKAGE_PATH = /@earendil-works\+pi-coding-agent@([^/\\_]+)/;
+
+function packageVersionFromExecutable(executablePath: string | undefined): string | undefined {
+	if (!executablePath) return undefined;
+	let directory = dirname(executablePath);
+	for (let depth = 0; depth < 8; depth += 1) {
+		try {
+			const packageJson = JSON.parse(readFileSync(join(directory, "package.json"), "utf8")) as {
+				name?: unknown;
+				version?: unknown;
+			};
+			if (packageJson.name === CORE_PACKAGE_NAME && typeof packageJson.version === "string") {
+				return packageJson.version;
+			}
+		} catch {
+			// The executable may be inside a pruned pnpm package directory.
+		}
+		const parent = dirname(directory);
+		if (parent === directory) break;
+		directory = parent;
+	}
+	return CORE_PACKAGE_PATH.exec(executablePath)?.[1];
+}
+
+export function detectLoadedPiVersion(executablePath: string | undefined, fallback: string): string {
+	return packageVersionFromExecutable(executablePath) ?? fallback;
+}
 
 const VALUE_OPTIONS = new Set([
 	"--provider",

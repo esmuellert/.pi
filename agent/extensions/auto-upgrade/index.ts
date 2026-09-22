@@ -8,11 +8,13 @@ import {
 	buildRestartArgs,
 	isPiVersionChanged,
 	parsePiVersion,
+	detectLoadedPiVersion,
 } from "./restart.ts";
 
 const STATUS_KEY = "auto-upgrade";
 const HANDOFF_PATH = fileURLToPath(new URL("./handoff.mjs", import.meta.url));
 const HANDOFF_START_TIMEOUT_MS = 2_000;
+const LOADED_VERSION = detectLoadedPiVersion(process.argv[1], VERSION);
 
 type TaskWatcherState = { running?: number; pendingNotifications?: number };
 type RestartContext = ExtensionContext & {
@@ -37,7 +39,7 @@ export default function autoUpgrade(pi: ExtensionAPI): void {
 
 	function setPendingStatus(ctx: RestartContext, version: string): void {
 		pendingVersion = version;
-		ctx.ui.setStatus(STATUS_KEY, `Pi ${VERSION} → ${version}; restart pending`);
+		ctx.ui.setStatus(STATUS_KEY, `Pi ${LOADED_VERSION} → ${version}; restart pending`);
 		if (!pendingNoticeShown) {
 			pendingNoticeShown = true;
 			ctx.ui.notify(
@@ -137,7 +139,7 @@ export default function autoUpgrade(pi: ExtensionAPI): void {
 		if (result.code !== 0) return;
 
 		const installedVersion = parsePiVersion(result.stdout);
-		if (!isPiVersionChanged(VERSION, installedVersion)) return;
+		if (!isPiVersionChanged(LOADED_VERSION, installedVersion)) return;
 		await startHandoff(ctx, installedVersion!);
 	}
 
@@ -175,4 +177,4 @@ export default function autoUpgrade(pi: ExtensionAPI): void {
 	});
 }
 
-export { buildRestartArgs, isPiVersionChanged, parsePiVersion } from "./restart.ts";
+export { buildRestartArgs, detectLoadedPiVersion, isPiVersionChanged, parsePiVersion } from "./restart.ts";
