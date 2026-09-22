@@ -41,8 +41,8 @@ load check, and is told the smoke tests were skipped rather than passed.
 
 The upgrade handoff also has a network-isolated container E2E test. It starts the
 real interactive Pi in a pseudo-terminal, serves a local fake model, reports a
-new installed version, and verifies that the replacement process resumes the
-same session:
+new installed version, verifies that the replacement process resumes the
+same session, and sends keyboard input through the replacement TUI:
 
 ```bash
 cd auto-upgrade
