@@ -44,13 +44,6 @@ function isAlive(pid) {
   }
 }
 
-function quoteWindowsArg(value) {
-  if (value.length > 0 && /^[a-zA-Z0-9_./:\\-]+$/.test(value)) {
-    return value;
-  }
-  return `"${value.replace(/(\\*)"/g, "$1$1\\\"").replace(/(\\+)$/g, "$1$1")}"`;
-}
-
 const POSIX_TTY_REEXEC = [
   "import json, os, signal, sys",
   "config = json.loads(sys.argv[1])",
@@ -86,12 +79,8 @@ function spawnPi() {
     return spawn(config.command, config.args, options);
   }
 
-  const commandLine = [
-    quoteWindowsArg(config.command),
-    ...config.args.map(quoteWindowsArg),
-  ].join(" ");
-  debug(`using cmd spawn commandLine=${commandLine}`);
-  return spawn(process.env.ComSpec ?? "cmd.exe", ["/d", "/s", "/c", commandLine], options);
+  debug(`using shell spawn command=${config.command}`);
+  return spawn(config.command, config.args, { ...options, shell: true });
 }
 
 const deadline = Date.now() + 15_000;
