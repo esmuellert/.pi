@@ -151,7 +151,10 @@ export default function autoUpgrade(pi: ExtensionAPI): void {
 	async function checkForUpgrade(ctx: RestartContext): Promise<void> {
 		if (ctx.mode !== "tui" || !ctx.isIdle() || restartStarted || shuttingDown) return;
 
-		const result = await pi.exec(process.platform === "win32" ? "pi.cmd" : "pi", ["--version"], {
+		const versionProbe = process.platform === "win32"
+			? { command: process.env.ComSpec ?? "cmd.exe", args: ["/d", "/s", "/c", "call pi.cmd --version"] }
+			: { command: "pi", args: ["--version"] };
+		const result = await pi.exec(versionProbe.command, versionProbe.args, {
 			timeout: 5_000,
 		});
 		if (result.code !== 0) return;

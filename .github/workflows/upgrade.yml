@@ -175,25 +175,12 @@ jobs:
         run: pnpm bootstrap
 
       - name: run the interactive handoff in a native PTY
+        if: matrix.os != 'ubuntu-latest'
         working-directory: agent/extensions/auto-upgrade
         run: pnpm e2e:host
 
-  auto-upgrade-container-e2e:
-    name: auto-upgrade container E2E
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-
-      - name: pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@10.13.1 --activate
-
-      - name: run the interactive handoff in a pseudo-terminal
+      - name: run the interactive handoff in an isolated container PTY
+        if: matrix.os == 'ubuntu-latest'
         working-directory: agent/extensions/auto-upgrade
         run: pnpm e2e
 
