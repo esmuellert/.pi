@@ -105,7 +105,9 @@ if "%~1"=="--version" (
   exit /b 0
 )
 call "${realPi}" %*
-exit /b %ERRORLEVEL%
+set "status=%ERRORLEVEL%"
+>>"${invocationLog}" echo child-exit=%status%
+exit /b %status%
 `);
 		return;
 	}
