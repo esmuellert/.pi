@@ -83,18 +83,25 @@ function spawnPi() {
   return spawn(config.command, config.args, { ...options, shell: true });
 }
 
-const deadline = Date.now() + 15_000;
-while (isAlive(config.parentPid) && Date.now() < deadline) {
+if (process.platform === "win32") {
+  // Keep the original cmd.exe invocation occupied while the replacement takes
+  // ownership of the inherited console input handle.
   await sleep(50);
+} else {
+  const deadline = Date.now() + 15_000;
+  while (isAlive(config.parentPid) && Date.now() < deadline) {
+    await sleep(50);
+  }
+
+  if (isAlive(config.parentPid)) {
+    console.error("auto-upgrade: old Pi process did not exit; not starting a second session");
+    process.exit(1);
+  }
+
+  await sleep(100);
 }
 
-if (isAlive(config.parentPid)) {
-  console.error("auto-upgrade: old Pi process did not exit; not starting a second session");
-  process.exit(1);
-}
-
-await sleep(100);
-debug(`parent exited; spawning command=${config.command} args=${JSON.stringify(config.args)}`);
+debug(`spawning command=${config.command} args=${JSON.stringify(config.args)}`);
 const child = spawnPi();
 child.once("error", (error) => {
   debug(`child error ${error.message}`);
