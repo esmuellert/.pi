@@ -1,6 +1,9 @@
 {
+  "openaiSearchModel": "gpt-5.6-luna",
+  "openaiSearchProviders": ["openai-codex"],
   "searchRouting": {
-    "providers": ["parallel-mcp", "exa", "anysearch", "duckduckgo"],
-    "fallbackOn": ["transient", "quota", "network", "invalid-response"]
+    "providers": ["openai", "parallel-mcp", "exa", "anysearch", "duckduckgo"],
+    "useCurrentModel": false,
+    "fallbackOn": ["unsupported", "transient", "quota", "network", "invalid-response"]
   }
 }
