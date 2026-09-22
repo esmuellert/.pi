@@ -4,12 +4,17 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Restart the interactive Pi session after a completed local Pi upgrade",
-  "pi": { "extensions": ["./index.ts"] },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
   "scripts": {
     "test": "node --experimental-strip-types --test *.test.ts",
     "typecheck": "tsc --noEmit",
     "smoke": "pi --no-extensions -e . --no-tools --no-session -p \"reply with exactly: AUTO_UPGRADE_SMOKE\"",
-    "e2e": "node e2e/run.mjs"
+    "e2e": "node e2e/run.mjs",
+    "e2e:host": "node e2e/host-run.mjs"
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*"
@@ -17,6 +22,7 @@
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "catalog:",
     "@types/node": "catalog:",
+    "node-pty": "1.1.0",
     "typescript": "catalog:"
   }
 }

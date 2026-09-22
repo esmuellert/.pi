@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { accessSync, constants, readFileSync } from "node:fs";
+import { delimiter, dirname, join } from "node:path";
 
 export const RESTART_POLL_INTERVAL_MS = 250;
 
@@ -68,6 +68,29 @@ export function parsePiVersion(output: string): string | undefined {
 
 export function isPiVersionChanged(loadedVersion: string, installedVersion: string | undefined): boolean {
 	return installedVersion !== undefined && installedVersion !== loadedVersion;
+}
+
+export function resolveExecutable(command: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
+	if (command.includes("/") || command.includes("\\")) {
+		try {
+			accessSync(command, constants.X_OK);
+			return command;
+		} catch {
+			return undefined;
+		}
+	}
+
+	for (const directory of (env.PATH ?? "").split(delimiter)) {
+		if (!directory) continue;
+		const candidate = join(directory, command);
+		try {
+			accessSync(candidate, constants.X_OK);
+			return candidate;
+		} catch {
+			// Keep searching the executable path.
+		}
+	}
+	return undefined;
 }
 
 /**

@@ -39,14 +39,17 @@ Smoke tests start pi and call a real model, so they run only where credentials
 exist. A machine that has not run `pi login` still gets tests, typechecks and a
 load check, and is told the smoke tests were skipped rather than passed.
 
-The upgrade handoff also has a network-isolated container E2E test. It starts the
-real interactive Pi in a pseudo-terminal, serves a local fake model, reports a
-new installed version, verifies that the replacement process resumes the
-same session, and sends keyboard input through the replacement TUI:
+The upgrade handoff has both an isolated container E2E and a native PTY E2E.
+On POSIX with Node 22.15 or newer, the restart replaces the current process in place so
+the shell's job and terminal process group do not change. It starts the real
+interactive Pi in a pseudo-terminal, serves a local fake model, reports a new
+installed version, verifies that the replacement process resumes the same
+session, and sends keyboard input through the replacement TUI:
 
 ```bash
 cd auto-upgrade
-pnpm e2e
+pnpm e2e                 # isolated Docker PTY
+pnpm e2e:host            # native node-pty/ConPTY on the current machine
 ```
 
 ## Packages

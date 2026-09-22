@@ -9,6 +9,7 @@ import {
 	isPiVersionChanged,
 	parsePiVersion,
 	detectLoadedPiVersion,
+	resolveExecutable,
 } from "./restart.ts";
 
 const STATUS_KEY = "auto-upgrade";
@@ -86,7 +87,25 @@ export default function autoUpgrade(pi: ExtensionAPI): void {
 		ctx.ui.setStatus(STATUS_KEY, `Restarting Pi ${installedVersion}…`);
 
 		const args = buildRestartArgs(process.argv.slice(2), currentSessionFile);
+		const restartCwd = ctx.cwd;
 		const command = process.platform === "win32" ? "pi.cmd" : "pi";
+		const restartEnvironment = { ...process.env, PI_AUTO_UPGRADE: "1" };
+		const executable = process.platform === "win32" ? undefined : resolveExecutable(command, restartEnvironment);
+		if (executable && typeof process.execve === "function") {
+			process.once("exit", () => {
+				try {
+					process.chdir(restartCwd);
+					process.execve!(executable, [executable, ...args], restartEnvironment);
+				} catch (error) {
+					console.error(`auto-upgrade: could not replace Pi: ${String(error)}`);
+				}
+			});
+			pendingVersion = undefined;
+			pendingNoticeShown = false;
+			ctx.shutdown();
+			return;
+		}
+
 		const helper = spawn(
 			process.execPath,
 			[
@@ -95,14 +114,13 @@ export default function autoUpgrade(pi: ExtensionAPI): void {
 					parentPid: process.pid,
 					command,
 					args,
-					cwd: ctx.cwd,
+					cwd: restartCwd,
 				}),
 			],
 			{
-				cwd: ctx.cwd,
-				detached: true,
+				cwd: restartCwd,
 				stdio: "inherit",
-				env: { ...process.env, PI_AUTO_UPGRADE: "1" },
+				env: restartEnvironment,
 			},
 		);
 

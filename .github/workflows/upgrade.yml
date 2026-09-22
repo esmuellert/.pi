@@ -139,7 +139,46 @@ jobs:
           node scripts/check-install.mjs
           pnpm exec node scripts/check-install.mjs
 
-  auto-upgrade-e2e:
+  auto-upgrade-pty-e2e:
+    name: auto-upgrade native PTY E2E (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.13.1 --activate
+
+      - name: PNPM_HOME on PATH
+        run: |
+          node -e "
+            const { homedir } = require('node:os');
+            const { join } = require('node:path');
+            const { mkdirSync, appendFileSync } = require('node:fs');
+            const home = join(homedir(), '.pnpm-global');
+            mkdirSync(home, { recursive: true });
+            appendFileSync(process.env.GITHUB_ENV, 'PNPM_HOME=' + home + '\n');
+            appendFileSync(process.env.GITHUB_PATH, home + '\n');
+          "
+
+      - name: bootstrap Pi and workspace dependencies
+        working-directory: agent/extensions
+        run: pnpm bootstrap
+
+      - name: run the interactive handoff in a native PTY
+        working-directory: agent/extensions/auto-upgrade
+        run: pnpm e2e:host
+
+  auto-upgrade-container-e2e:
     name: auto-upgrade container E2E
     runs-on: ubuntu-latest
     steps:

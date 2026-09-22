@@ -36,7 +36,7 @@ while {[clock seconds] < $deadline} {
 	set resumed [readText "/tmp/pi-resumed"]
 	set session [readText "/tmp/pi-agent/e2e-session.jsonl"]
 	if {!$keyboardSent && [regexp {restart=1 args=.*--session } $log] && [regexp {^/tmp/pi-agent/e2e-session\.jsonl} $resumed] && [string match {*E2E_OK*} $session]} {
-		if {[catch {send -- "keyboard-after-restart\r"} error]} {
+		if {[catch {send -- "k"; send -- "eyboard-after-restart\r"} error]} {
 			puts stderr "Could not send keyboard input after restart: $error"
 			exit 1
 		}

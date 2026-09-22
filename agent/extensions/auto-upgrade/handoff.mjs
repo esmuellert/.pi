@@ -1,5 +1,5 @@
-import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { spawn } from "node:child_process";
 
 const [, , encodedConfig] = process.argv;
 if (!encodedConfig) {
@@ -45,12 +45,34 @@ function quoteWindowsArg(value) {
   return `"${value.replace(/(\\*)"/g, "$1$1\\\"").replace(/(\\+)$/g, "$1$1")}"`;
 }
 
+const POSIX_TTY_REEXEC = [
+  "import json, os, signal, sys",
+  "config = json.loads(sys.argv[1])",
+  "for signal_number in (signal.SIGTTOU, signal.SIGTTIN, signal.SIGTSTP):",
+  "    signal.signal(signal_number, signal.SIG_IGN)",
+  "try:",
+  "    if os.isatty(0):",
+  "        os.setpgid(0, os.tcgetpgrp(0))",
+  "except OSError:",
+  "    pass",
+  "os.chdir(config['cwd'])",
+  "os.execvpe(config['command'], [config['command'], *config['args']], os.environ)",
+].join("\n");
+
 function spawnPi() {
   const options = {
     cwd: config.cwd,
     env: { ...process.env, PI_AUTO_UPGRADE: "1" },
     stdio: "inherit",
   };
+
+  if (process.platform !== "win32" && process.stdin.isTTY) {
+    return spawn(
+      "python3",
+      ["-c", POSIX_TTY_REEXEC, JSON.stringify({ command: config.command, args: config.args, cwd: config.cwd })],
+      options,
+    );
+  }
 
   if (process.platform !== "win32" || !/\.(?:cmd|bat)$/i.test(config.command)) {
     return spawn(config.command, config.args, options);
