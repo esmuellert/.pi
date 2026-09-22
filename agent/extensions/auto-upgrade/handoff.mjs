@@ -87,7 +87,6 @@ function spawnPi() {
   }
 
   const commandLine = [
-    "call",
     quoteWindowsArg(config.command),
     ...config.args.map(quoteWindowsArg),
   ].join(" ");
