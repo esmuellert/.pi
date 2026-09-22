@@ -187,7 +187,7 @@ try {
 		rows: 40,
 		cwd: repositoryRoot,
 		env: environment,
-		...(process.platform === "win32" ? { useConpty: true } : {}),
+		...(process.platform === "win32" ? { useConpty: false } : {}),
 	});
 	ptyProcess.onData((data) => {
 		output = `${output}${data}`.slice(-100_000);

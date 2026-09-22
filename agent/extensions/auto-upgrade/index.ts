@@ -119,6 +119,7 @@ export default function autoUpgrade(pi: ExtensionAPI): void {
 			],
 			{
 				cwd: restartCwd,
+				detached: process.platform === "win32",
 				stdio: "inherit",
 				env: restartEnvironment,
 			},
