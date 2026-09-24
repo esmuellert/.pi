@@ -64,7 +64,7 @@ pnpm e2e:host            # native node-pty/ConPTY on the current machine
 | `wheel` | How far one wheel event scrolls the fullscreen transcript, and probes to decide it |
 | `themes` | Five dark themes generated from the upstream rose-pine and catppuccin palettes, so "official" is provable rather than claimed. |
 | `moshi-push` | An iOS notification when a turn finishes. Moshi only rings for approvals and errors, so this borrows one and then corrects the card. |
-| `model-shortcuts` | `Alt+1` through `Alt+6` switch between the configured Copilot and Codex models at max thinking over SSH-friendly terminal input. |
+| [`model-shortcuts`](model-shortcuts/README.md) | `Alt+1` through `Alt+7` select GPT-6 Astra/Sol/Luna on Copilot and Codex, plus Copilot Opus 5.5, at max thinking over SSH-friendly terminal input. |
 | `compaction-effort` | Runs built-in compaction summaries at low reasoning effort without changing the session's normal thinking level. |
 | `task-watcher` | Lets the agent start asynchronous tasks and gives the user a foreground `/watch` view of their state. |
 | `auto-upgrade` | Detects a completed local Pi upgrade after an idle response and hands the session to the new process. |

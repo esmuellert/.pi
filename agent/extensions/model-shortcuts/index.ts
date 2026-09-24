@@ -12,11 +12,12 @@ export interface ModelShortcut {
 
 export const MODEL_SHORTCUTS: readonly ModelShortcut[] = [
 	{ key: "alt+1", provider: "github-copilot", model: "gpt-6-astra", thinkingLevel: "max" },
-	{ key: "alt+2", provider: "github-copilot", model: "gpt-5.6-sol", thinkingLevel: "max" },
-	{ key: "alt+3", provider: "github-copilot", model: "gpt-5.6-luna", thinkingLevel: "max" },
+	{ key: "alt+2", provider: "github-copilot", model: "gpt-6-sol", thinkingLevel: "max" },
+	{ key: "alt+3", provider: "github-copilot", model: "gpt-6-luna", thinkingLevel: "max" },
 	{ key: "alt+4", provider: "openai-codex", model: "gpt-6-astra", thinkingLevel: "max" },
-	{ key: "alt+5", provider: "openai-codex", model: "gpt-5.6-sol", thinkingLevel: "max" },
-	{ key: "alt+6", provider: "openai-codex", model: "gpt-5.6-luna", thinkingLevel: "max" },
+	{ key: "alt+5", provider: "openai-codex", model: "gpt-6-sol", thinkingLevel: "max" },
+	{ key: "alt+6", provider: "openai-codex", model: "gpt-6-luna", thinkingLevel: "max" },
+	{ key: "alt+7", provider: "github-copilot", model: "claude-opus-5.5", thinkingLevel: "max" },
 ];
 
 function modelLabel(shortcut: ModelShortcut): string {

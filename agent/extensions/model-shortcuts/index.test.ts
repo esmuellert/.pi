@@ -32,18 +32,30 @@ function harness(availableModels = MODEL_SHORTCUTS) {
 }
 
 describe("model shortcuts", () => {
-	it("registers the six requested shortcuts in order", () => {
+	const expected = [
+		["alt+1", "github-copilot/gpt-6-astra"],
+		["alt+2", "github-copilot/gpt-6-sol"],
+		["alt+3", "github-copilot/gpt-6-luna"],
+		["alt+4", "openai-codex/gpt-6-astra"],
+		["alt+5", "openai-codex/gpt-6-sol"],
+		["alt+6", "openai-codex/gpt-6-luna"],
+		["alt+7", "github-copilot/claude-opus-5.5"],
+	] as const;
+
+	it("registers the seven requested shortcuts in order", () => {
 		const app = harness();
-		assert.deepEqual([...app.shortcuts.keys()], ["alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6"]);
+		assert.deepEqual([...app.shortcuts.keys()], expected.map(([key]) => key));
 	});
 
-	it("selects the mapped model and thinking level", async () => {
-		const app = harness();
-		await app.shortcuts.get("alt+6")!.handler(app.ctx);
-		assert.deepEqual(app.modelChanges, ["openai-codex/gpt-5.6-luna"]);
-		assert.deepEqual(app.thinkingChanges, ["max"]);
-		assert.deepEqual(app.notices, ["Model: openai-codex/gpt-5.6-luna:max"]);
-	});
+	for (const [key, model] of expected) {
+		it(`${key} selects ${model} at max thinking`, async () => {
+			const app = harness();
+			await app.shortcuts.get(key)!.handler(app.ctx);
+			assert.deepEqual(app.modelChanges, [model]);
+			assert.deepEqual(app.thinkingChanges, ["max"]);
+			assert.deepEqual(app.notices, [`Model: ${model}:max`]);
+		});
+	}
 
 	it("reports an unavailable model without changing the session", async () => {
 		const app = harness(MODEL_SHORTCUTS.slice(1));
