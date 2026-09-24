@@ -1,5 +1,5 @@
 {
-  "lastChangelogVersion": "0.85.0",
+  "lastChangelogVersion": "0.85.1",
   "theme": "rose-pine",
   "defaultProvider": "github-copilot",
   "defaultModel": "gpt-5.6-sol",
@@ -12,6 +12,9 @@
     "github-copilot/gpt-6-astra:max",
     "github-copilot/gpt-5.6-sol:max",
     "github-copilot/gpt-5.6-luna:max",
+    "github-copilot/gpt-6-sol:max",
+    "github-copilot/gpt-6-luna:max",
+    "github-copilot/claude-opus-5.5:max",
     "openai-codex/gpt-6-astra:max",
     "openai-codex/gpt-5.6-sol:max",
     "openai-codex/gpt-5.6-luna:max"
