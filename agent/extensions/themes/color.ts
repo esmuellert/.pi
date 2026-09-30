@@ -11,6 +11,8 @@
 // https://github.com/rose-pine/vscode/blob/main/themes/rose-pine-color-theme.json
 // https://github.com/catppuccin/vscode/blob/main/packages/catppuccin-vsc/src/theme/uiColors.ts
 
+import { colorToRgb, parseColor } from "@earendil-works/pi-tui";
+
 export type Rgb = readonly [number, number, number];
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -19,6 +21,12 @@ export function parse(hex: string): Rgb {
 	if (!HEX.test(hex)) throw new Error(`not a 6 digit hex colour: ${hex}`);
 	const n = Number.parseInt(hex.slice(1), 16);
 	return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
+}
+
+function toRgb(value: string): Rgb {
+	if (HEX.test(value)) return parse(value);
+	const { r, g, b } = colorToRgb(parseColor(value));
+	return [r, g, b];
 }
 
 export function format([r, g, b]: Rgb): string {
@@ -40,7 +48,7 @@ export function luminance(hex: string): number {
 		const s = v / 255;
 		return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
 	};
-	const [r, g, b] = parse(hex);
+	const [r, g, b] = toRgb(hex);
 	return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
 }
 
@@ -61,8 +69,8 @@ export function contrast(a: string, b: string): number {
  * https://www.compuphase.com/cmetric.htm
  */
 export function difference(a: string, b: string): number {
-	const [ar, ag, ab] = parse(a);
-	const [br, bg, bb] = parse(b);
+	const [ar, ag, ab] = toRgb(a);
+	const [br, bg, bb] = toRgb(b);
 	const mean = (ar + br) / 2;
 	const [dr, dg, db] = [ar - br, ag - bg, ab - bb];
 	return Math.sqrt((2 + mean / 256) * dr ** 2 + 4 * dg ** 2 + (2 + (255 - mean) / 256) * db ** 2);

@@ -12,8 +12,9 @@
   },
   "devDependencies": {
     "@catppuccin/palette": "catalog:",
-    "@rose-pine/palette": "catalog:",
     "@earendil-works/pi-coding-agent": "catalog:",
+    "@earendil-works/pi-tui": "catalog:",
+    "@rose-pine/palette": "catalog:",
     "@types/node": "catalog:",
     "typescript": "catalog:"
   }

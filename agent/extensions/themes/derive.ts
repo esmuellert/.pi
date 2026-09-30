@@ -67,7 +67,7 @@ function rung(ladder: readonly string[], index: number, what: string): string {
  * anchoring the targets to pi means "as readable as what pi ships" rather than
  * numbers someone liked. contract.test.ts checks them against pi.
  */
-export const FOREGROUND_TIERS = { body: 11.9, secondary: 4.5, tertiary: 3.1 } as const;
+export const FOREGROUND_TIERS = { body: 11.6, secondary: 6.1, tertiary: 4.2 } as const;
 
 /** WCAG's floor for text that still has to be read. */
 export const LEGIBLE = 3;
