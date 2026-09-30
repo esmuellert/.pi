@@ -29,10 +29,10 @@ test("detects installed version drift without treating a missing probe as an upg
 test("restarts the current session instead of replaying the startup prompt", () => {
 	assert.deepEqual(
 		buildRestartArgs(
-			["--model", "gpt-5.6-sol", "--tui-mode", "fullscreen", "initial prompt"],
+			["--model", "gpt-6.1-sol", "--tui-mode", "fullscreen", "initial prompt"],
 			"/tmp/session.jsonl",
 		),
-		["--model", "gpt-5.6-sol", "--tui-mode", "fullscreen", "--session", "/tmp/session.jsonl"],
+		["--model", "gpt-6.1-sol", "--tui-mode", "fullscreen", "--session", "/tmp/session.jsonl"],
 	);
 });
 

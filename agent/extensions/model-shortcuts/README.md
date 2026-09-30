@@ -6,10 +6,10 @@ They do not change the startup default.
 | Shortcut | Provider | Model |
 |---|---|---|
 | Alt+1 | GitHub Copilot | `gpt-6-astra` |
-| Alt+2 | GitHub Copilot | `gpt-6-sol` |
+| Alt+2 | GitHub Copilot | `gpt-6.1-sol` |
 | Alt+3 | GitHub Copilot | `gpt-6-luna` |
 | Alt+4 | OpenAI Codex | `gpt-6-astra` |
-| Alt+5 | OpenAI Codex | `gpt-6-sol` |
+| Alt+5 | OpenAI Codex | `gpt-6.1-sol` |
 | Alt+6 | OpenAI Codex | `gpt-6-luna` |
 | Alt+7 | GitHub Copilot | `claude-opus-5.5` |
 

@@ -45,7 +45,7 @@ function harness(fetchImpl: typeof fetch, dataDir: string) {
 		model: {
 			provider: "github-copilot",
 			api: "openai-responses",
-			id: "gpt-5.6-sol",
+			id: "gpt-6.1-sol",
 			contextWindow: 1_000_000,
 		},
 		thinkingLevel: "max",
@@ -128,7 +128,7 @@ describe("Codex statistics extension", () => {
 					role: "assistant",
 					provider: "openai-codex",
 					api: "openai-codex-responses",
-					model: "gpt-5.6-sol",
+					model: "gpt-6.1-sol",
 					content: [{ type: "text", text: "DO NOT STORE THIS" }],
 					usage: {
 						input: 10,

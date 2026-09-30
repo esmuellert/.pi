@@ -30,7 +30,7 @@ function harness() {
 	const raw: any = {
 		mode: "tui",
 		cwd: "/repo",
-		model: { provider: "github-copilot", api: "openai-responses", id: "gpt-5.6-sol", contextWindow: 1_000_000 },
+		model: { provider: "github-copilot", api: "openai-responses", id: "gpt-6.1-sol", contextWindow: 1_000_000 },
 		thinkingLevel: "max",
 		modelRegistry: {
 			runtime: { isUsingSubscription: () => true },

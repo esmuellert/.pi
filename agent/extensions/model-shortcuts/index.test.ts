@@ -34,10 +34,10 @@ function harness(availableModels = MODEL_SHORTCUTS) {
 describe("model shortcuts", () => {
 	const expected = [
 		["alt+1", "github-copilot/gpt-6-astra"],
-		["alt+2", "github-copilot/gpt-6-sol"],
+		["alt+2", "github-copilot/gpt-6.1-sol"],
 		["alt+3", "github-copilot/gpt-6-luna"],
 		["alt+4", "openai-codex/gpt-6-astra"],
-		["alt+5", "openai-codex/gpt-6-sol"],
+		["alt+5", "openai-codex/gpt-6.1-sol"],
 		["alt+6", "openai-codex/gpt-6-luna"],
 		["alt+7", "github-copilot/claude-opus-5.5"],
 	] as const;

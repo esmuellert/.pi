@@ -12,7 +12,7 @@ function context(): ExtensionContext {
 		model: {
 			provider: "openai-codex",
 			api: "openai-codex-responses",
-			id: "gpt-5.6-sol",
+			id: "gpt-6.1-sol",
 			contextWindow: 272_000,
 		} as ExtensionContext["model"],
 		thinkingLevel: "max",
@@ -42,8 +42,8 @@ function turn(): TurnEndEvent {
 			role: "assistant",
 			provider: "openai-codex",
 			api: "openai-codex-responses",
-			model: "gpt-5.6-sol",
-			responseModel: "gpt-5.6-sol-2026-08-01",
+			model: "gpt-6.1-sol",
+			responseModel: "gpt-6.1-sol-test-snapshot",
 			providerThinkingLevel: "max",
 			content: [
 				{ type: "text", text: "SECRET RESPONSE" },
