@@ -9,6 +9,7 @@ import { blank, plain } from "../shared/ansi.ts";
 import { TOOLS, type ToolName } from "./builtins.ts";
 import { present } from "./override.ts";
 
+process.env.PI_CODING_AGENT_DIR ??= fileURLToPath(new URL("../../..", import.meta.url));
 initTheme("rose-pine");
 
 const entry = fileURLToPath(import.meta.resolve("@earendil-works/pi-coding-agent"));
@@ -95,7 +96,6 @@ describe("where a footnote lands", () => {
 		for (const tool of TOOLS) {
 			const found = note(block(tool));
 			assert.ok(found.index >= 0, `${tool} lost the note`);
-			if (!found.background) console.error(`framed debug ${tool}: ${JSON.stringify(block(tool))}`);
 			assert.ok(found.background, `${tool} drew the note outside the block's background`);
 			assert.equal(found.indent, boxed.indent, `${tool} drew the note at a different indent`);
 			assert.ok(found.last, `${tool} drew the note before the end of the block`);
