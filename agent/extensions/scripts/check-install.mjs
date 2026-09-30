@@ -77,12 +77,19 @@ if (installed !== pinned) {
 
 const store = readdirSync(join(WORKSPACE, "node_modules/.pnpm"));
 for (const pkg of PI_PACKAGES) {
-	const prefix = `@earendil-works+${pkg}@`;
+	const packageName = `@earendil-works/${pkg}`;
 	const found = [
 		...new Set(
-			store
-				.filter((entry) => entry.startsWith(prefix))
-				.map((entry) => entry.slice(prefix.length).split("_")[0]),
+			store.flatMap((entry) => {
+				try {
+					const packageJson = JSON.parse(
+						readFileSync(join(WORKSPACE, "node_modules/.pnpm", entry, "node_modules", "@earendil-works", pkg, "package.json"), "utf8"),
+					);
+					return packageJson.name === packageName && typeof packageJson.version === "string" ? [packageJson.version] : [];
+				} catch {
+					return [];
+				}
+			}),
 		),
 	];
 	console.log(`  ${pkg}: ${found.join(", ") || "none"}`);

@@ -104,10 +104,20 @@ const readInstalled = () => {
  * version is read back off the name rather than matched as a whole.
  */
 function unpackedVersions(store, pkg) {
-	const prefix = `${pkg.replace("/", "+")}@`;
-	return readdirSync(store)
-		.filter((entry) => entry.startsWith(prefix))
-		.map((entry) => entry.slice(prefix.length).split("_")[0]);
+	const versions = [];
+	for (const entry of readdirSync(store)) {
+		try {
+			const packageJson = JSON.parse(
+				readFileSync(join(store, entry, "node_modules", ...pkg.split("/"), "package.json"), "utf8"),
+			);
+			if (packageJson.name === pkg && typeof packageJson.version === "string") {
+				versions.push(packageJson.version);
+			}
+		} catch {
+			// Most virtual-store entries belong to other packages.
+		}
+	}
+	return versions;
 }
 
 function depsMatch(pinned) {
