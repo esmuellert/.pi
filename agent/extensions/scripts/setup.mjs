@@ -117,7 +117,7 @@ function unpackedVersions(store, pkg) {
 			// Most virtual-store entries belong to other packages.
 		}
 	}
-	return versions;
+	return [...new Set(versions)];
 }
 
 function depsMatch(pinned) {
