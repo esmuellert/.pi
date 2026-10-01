@@ -1,9 +1,10 @@
 {
-  "lastChangelogVersion": "0.85.1",
+  "lastChangelogVersion": "0.87.1",
   "theme": "rose-pine",
   "defaultProvider": "github-copilot",
   "defaultModel": "gpt-6.1-sol",
   "defaultThinkingLevel": "max",
+  "defaultTools": ["+codemode"],
   "packages": [
     "npm:pi-web-access"
   ],
