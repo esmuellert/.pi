@@ -80,14 +80,18 @@ const pinnedIn = (yaml) => /"@earendil-works\/pi-coding-agent":\s*(\S+)/.exec(ya
 
 /** Every version of a pi package unpacked in the workspace store. */
 function unpacked(pkg) {
-	const prefix = `${pkg.replace("/", "+")}@`;
-	return [
-		...new Set(
-			readdirSync(join(WORKSPACE, "node_modules/.pnpm"))
-				.filter((entry) => entry.startsWith(prefix))
-				.map((entry) => entry.slice(prefix.length).split("_")[0]),
-		),
-	];
+	const versions = [];
+	for (const entry of readdirSync(join(WORKSPACE, "node_modules/.pnpm"))) {
+		try {
+			const packageJson = JSON.parse(
+				readFileSync(join(WORKSPACE, "node_modules/.pnpm", entry, "node_modules", ...pkg.split("/"), "package.json"), "utf8"),
+			);
+			if (packageJson.name === pkg && typeof packageJson.version === "string") versions.push(packageJson.version);
+		} catch {
+			// Most virtual-store entries belong to other packages.
+		}
+	}
+	return [...new Set(versions)];
 }
 
 // -------------------------------------------------------------- which commit
