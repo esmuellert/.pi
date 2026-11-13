@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Agent-started asynchronous tasks with foreground status watching",
+  "description": "Agent-started asynchronous tasks with completion notifications and a foreground status view",
   "pi": {
     "extensions": ["./index.ts"]
   },

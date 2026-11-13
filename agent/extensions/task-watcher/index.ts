@@ -108,12 +108,12 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 	pi.registerTool({
 		name: "start_watched_task",
 		label: "Start watched task",
-		description: "Start a long-running independent shell task asynchronously. Returns immediately with a task ID. Use get_watched_task or wait_watched_task for its result; the user can observe it with /watch.",
-		promptSnippet: "Start an independent long-running task without blocking the agent",
+		description: "Start a long-running independent shell task asynchronously. Returns immediately with a task ID and ends the agent turn; a completion notification is sent when the task finishes while the session is idle. Do not wait, poll, or sleep for the result.",
+		promptSnippet: "Start an independent task, then go idle for its completion notification",
 		promptGuidelines: [
-			"Use start_watched_task only for independent work that can run while the agent continues; use bash when the next step needs the command result immediately.",
-			"After starting a watched task, keep its task ID and use wait_watched_task when the task result is needed.",
-			"If the agent is still running another turn when a task finishes, no follow-up is sent; query the task by ID when its result is needed.",
+			"Use start_watched_task only for independent work; use bash when the next step needs the command result immediately.",
+			"After calling start_watched_task, end the turn and go idle. Do not call get_watched_task, wait for the task, poll it, or use sleep/setTimeout to wait.",
+			"The task-watcher extension sends a follow-up notification automatically when the task finishes while the session is idle.",
 		],
 		parameters: Type.Object({
 			label: Type.String({ description: "Short human-readable task label" }),
@@ -128,8 +128,9 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 				cwd: params.cwd ? resolve(ctx.cwd, params.cwd) : ctx.cwd,
 			});
 			return {
-				content: [{ type: "text", text: `Started watched task ${task.id} (${task.label}). It is running asynchronously.` }],
+				content: [{ type: "text", text: `Started watched task ${task.id} (${task.label}). The agent will go idle and receive a completion notification.` }],
 				details: task,
+				terminate: true,
 			};
 		},
 	});
@@ -137,7 +138,7 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 	pi.registerTool({
 		name: "get_watched_task",
 		label: "Get watched task",
-		description: "Read the current state of an asynchronously running watched task.",
+		description: "Read a watched task's state after a completion notification or explicit user request. Do not poll this tool while waiting.",
 		parameters: Type.Object({
 			taskId: Type.String({ description: "Task ID returned by start_watched_task" }),
 		}),
@@ -149,27 +150,13 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 	});
 
 	pi.registerTool({
-		name: "wait_watched_task",
-		label: "Wait for watched task",
-		description: "Wait until an asynchronous watched task finishes, then return its final state.",
-		parameters: Type.Object({
-			taskId: Type.String({ description: "Task ID returned by start_watched_task" }),
-		}),
-		async execute(_toolCallId, params, signal) {
-			suppressNotification(params.taskId);
-			const task = await registry.wait(params.taskId, signal);
-			return { content: [{ type: "text", text: formatTaskForAgent(task) }], details: task };
-		},
-	});
-
-	pi.registerTool({
 		name: "cancel_watched_task",
 		label: "Cancel watched task",
 		description: "Request cancellation of an asynchronous watched task.",
 		parameters: Type.Object({
 			taskId: Type.String({ description: "Task ID returned by start_watched_task" }),
 		}),
-		async execute(_toolCallId, params, signal) {
+		async execute(_toolCallId, params, _signal) {
 			suppressNotification(params.taskId);
 			const task = await registry.cancelAndWait(params.taskId);
 			return { content: [{ type: "text", text: formatTaskForAgent(task) }], details: task };
