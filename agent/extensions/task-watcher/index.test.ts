@@ -22,6 +22,6 @@ test("registers non-blocking task controls without a wait tool", () => {
 	]);
 	assert.equal(tools.some((tool) => tool.name === "wait_watched_task"), false);
 	const start = tools[0]!;
-	assert.match(start.description ?? "", /ends the agent turn/);
+	assert.match(start.description ?? "", /completion notification/);
 	assert.ok(start.promptGuidelines?.some((guideline) => guideline.includes("sleep/setTimeout")));
 });

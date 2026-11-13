@@ -108,11 +108,11 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 	pi.registerTool({
 		name: "start_watched_task",
 		label: "Start watched task",
-		description: "Start a long-running independent shell task asynchronously. Returns immediately with a task ID and ends the agent turn; a completion notification is sent when the task finishes while the session is idle. Do not wait, poll, or sleep for the result.",
-		promptSnippet: "Start an independent task, then go idle for its completion notification",
+		description: "Start a long-running independent shell task asynchronously. Returns immediately with a task ID; when the task finishes while the session is idle, a completion notification is sent. Do not wait, poll, or sleep for the result.",
+		promptSnippet: "Start an independent task and receive a completion notification when idle",
 		promptGuidelines: [
 			"Use start_watched_task only for independent work; use bash when the next step needs the command result immediately.",
-			"After calling start_watched_task, end the turn and go idle. Do not call get_watched_task, wait for the task, poll it, or use sleep/setTimeout to wait.",
+			"After calling start_watched_task, do not wait for the task. If no further response is needed, finish the turn and go idle; do not call get_watched_task, poll it, or use sleep/setTimeout to wait.",
 			"The task-watcher extension sends a follow-up notification automatically when the task finishes while the session is idle.",
 		],
 		parameters: Type.Object({
@@ -128,9 +128,8 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 				cwd: params.cwd ? resolve(ctx.cwd, params.cwd) : ctx.cwd,
 			});
 			return {
-				content: [{ type: "text", text: `Started watched task ${task.id} (${task.label}). The agent will go idle and receive a completion notification.` }],
+				content: [{ type: "text", text: `Started watched task ${task.id} (${task.label}). It is running asynchronously; a completion notification will arrive when the session is idle.` }],
 				details: task,
-				terminate: true,
 			};
 		},
 	});
