@@ -32,9 +32,11 @@ type Schema = {
 	};
 };
 
-// package.json is not in pi's exports map, so the package directory is the way in.
-const THEME_DIR = join(getPackageDir(), "dist/modes/interactive/theme");
-const SCHEMA_PATH = join(THEME_DIR, "theme-schema.json");
+// Package metadata is not in pi's exports map, so the package directory is the way in.
+// Since pi 1.2, generated schemas live in the published schemas directory.
+const PACKAGE_DIR = getPackageDir();
+const THEME_DIR = join(PACKAGE_DIR, "dist/modes/interactive/theme");
+const SCHEMA_PATH = join(PACKAGE_DIR, "schemas/theme.schema.json");
 const schema: Schema = JSON.parse(readFileSync(SCHEMA_PATH, "utf-8"));
 const colors = schema.properties.colors;
 

@@ -12,7 +12,7 @@ import type { Theme } from "@earendil-works/pi-coding-agent";
 import { wrapTextWithAnsi } from "@earendil-works/pi-tui";
 
 import { fold, withoutRedundantCd } from "../fold/index.ts";
-import { blank, plain } from "../shared/ansi.ts";
+import { plain } from "../shared/ansi.ts";
 import type { RenderArgs, RenderContext } from "../tools/builtins.ts";
 import { tokenize, type Piece } from "./engine.ts";
 
@@ -138,7 +138,7 @@ function build(
 	// wrapTextWithAnsi is undefined below one column, which is the only case
 	// there is nothing sensible to return for.
 	if (width < 1) return undefined;
-	const wrapped = styled.split("\n").flatMap((line) => unpad(wrapTextWithAnsi(line, width)));
+	const wrapped = styled.split("\n").flatMap((line) => wrapTextWithAnsi(line, width));
 	if (wrapped.length === 0) return undefined;
 	if (expanded) return wrapped;
 
@@ -147,19 +147,5 @@ function build(
 	const head = withoutRedundantCd(command, cwd).split("\n")[0] ?? "";
 	const painted = title(head, theme) ?? head;
 	return fold(wrapped, painted, width, theme);
-}
-
-/**
- * Drop the blank lines wrapping invents around a colour change.
- *
- * pi-tui's wrapTextWithAnsi breaks the same visible text differently depending
- * on whether it carries SGR: where a styled word lands on the boundary it
- * emits an empty line that the unstyled text does not get. Nothing else here
- * produces a blank line — the command's own blank lines arrive as separate
- * segments — so dropping them is safe and keeps the break points matching what
- * pi would have shown.
- */
-function unpad(lines: readonly string[]): string[] {
-	return lines.filter((line, index) => index === 0 || !blank(line));
 }
 

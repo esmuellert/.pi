@@ -151,22 +151,19 @@ describe("title", () => {
 });
 
 describe("pi-tui's wrapping", () => {
-	it("breaks styled text differently from the same text unstyled", () => {
-		// The reason retitling has to drop blank lines. If this ever fails,
-		// pi-tui has been fixed and unpad() can go.
-		//
-		// The bug needs a styled word to land exactly on the boundary, so it
-		// shows at some widths and not others. Searching rather than naming one
-		// width keeps the test about the bug instead of about a coincidence.
+	it("wraps styled and unstyled text at the same places", () => {
+		// Pi 1.5 fixed the styled-boundary bug that used to create blank lines.
+		// Keep the boundary search broad so this remains a regression test rather
+		// than a test for one particular width.
 		const text = "$ cd /home/dev/repos/atlas && sed -n '1,120p' atlas.xcodeproj/project.pbxproj";
 		const styled = text.split(" ").map((word) => (word ? `\u001b[38;2;1;2;3m${word}\u001b[39m` : word)).join(" ");
 		const differs = (width: number) => {
 			const bare = wrapTextWithAnsi(text, width);
 			const coloured = wrapTextWithAnsi(styled, width).map(plain);
-			return JSON.stringify(coloured) !== JSON.stringify(bare) && coloured.includes("");
+			return JSON.stringify(coloured) !== JSON.stringify(bare);
 		};
 		const widths = Array.from({ length: 60 }, (_, i) => i + 12).filter(differs);
-		assert.ok(widths.length > 0, "pi-tui now wraps styled and unstyled text alike at every width");
+		assert.deepEqual(widths, [], "pi-tui wraps styled and unstyled text differently");
 	});
 });
 

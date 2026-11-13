@@ -25,8 +25,7 @@ export type Theme = {
 	export: Record<string, string>;
 };
 
-const SCHEMA =
-	"https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/src/modes/interactive/theme/theme-schema.json";
+const SCHEMA = "https://pi.dev/schemas/theme.schema.json";
 
 export function buildTheme(palette: Palette, semantics: Semantics = semanticsFor(palette)): Theme {
 	const derived = derive(palette, semantics);
