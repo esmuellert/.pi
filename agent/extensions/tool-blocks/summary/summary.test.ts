@@ -238,7 +238,7 @@ describe("the writer configuration", () => {
 		useRegistry(registry as never);
 		summaryFor("bash", "echo hi", "hi", {}, () => {});
 		await settle();
-		assert.deepEqual(options, { thinkingLevel: WRITER_THINKING_LEVEL, maxTokens: 40 });
+		assert.deepEqual(options, { thinkingLevel: WRITER_THINKING_LEVEL, maxTokens: 100 });
 	});
 });
 

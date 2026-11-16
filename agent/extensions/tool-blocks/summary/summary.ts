@@ -288,7 +288,8 @@ async function write(
 						timestamp: Date.now(),
 					}],
 				},
-				{ thinkingLevel: WRITER_THINKING_LEVEL, maxTokens: 40 },
+				// Pi 1.5's max-thinking Luna can spend the old 40-token cap on reasoning.
+				{ thinkingLevel: WRITER_THINKING_LEVEL, maxTokens: 100 },
 			),
 			new Promise<never>((_, reject) => {
 				timer = setTimeout(() => reject(new Error("summary timed out")), DEADLINE_MS);
