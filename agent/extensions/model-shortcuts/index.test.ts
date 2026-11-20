@@ -33,16 +33,12 @@ function harness(availableModels = MODEL_SHORTCUTS) {
 
 describe("model shortcuts", () => {
 	const expected = [
-		["alt+1", "github-copilot/gpt-6-astra"],
-		["alt+2", "github-copilot/gpt-6.1-sol"],
-		["alt+3", "github-copilot/gpt-6-luna"],
-		["alt+4", "openai-codex/gpt-6-astra"],
-		["alt+5", "openai-codex/gpt-6.1-sol"],
-		["alt+6", "openai-codex/gpt-6-luna"],
-		["alt+7", "github-copilot/claude-opus-5.5"],
+		["alt+1", "github-copilot/gemini-4-carbon"],
+		["alt+2", "github-copilot/gemini-4-argon"],
+		["alt+3", "github-copilot/claude-opus-5.5"],
 	] as const;
 
-	it("registers the seven requested shortcuts in order", () => {
+	it("registers the three requested shortcuts in order", () => {
 		const app = harness();
 		assert.deepEqual([...app.shortcuts.keys()], expected.map(([key]) => key));
 	});
@@ -62,6 +58,6 @@ describe("model shortcuts", () => {
 		await app.shortcuts.get("alt+1")!.handler(app.ctx);
 		assert.deepEqual(app.modelChanges, []);
 		assert.deepEqual(app.thinkingChanges, []);
-		assert.deepEqual(app.notices, ["alt+1: github-copilot/gpt-6-astra:max is unavailable"]);
+		assert.deepEqual(app.notices, ["alt+1: github-copilot/gemini-4-carbon:max is unavailable"]);
 	});
 });
