@@ -22,6 +22,8 @@ import { fileURLToPath } from "node:url";
 import { globalPi, globalPiIsReachable, inspect } from "./environment.mjs";
 
 const WORKSPACE = dirname(dirname(fileURLToPath(import.meta.url)));
+const AGENT_DIR = dirname(WORKSPACE);
+const SETTINGS = join(AGENT_DIR, "settings.json");
 const CATALOG = join(WORKSPACE, "pnpm-workspace.yaml");
 const PI_PACKAGES = ["@earendil-works/pi-ai", "@earendil-works/pi-coding-agent", "@earendil-works/pi-tui"];
 const PI_PACKAGE = "@earendil-works/pi-coding-agent";
@@ -188,6 +190,53 @@ function installDeps() {
 	run(bin, [...prefix, "prune"]);
 }
 
+/** Configured packages in this repo's agent/settings.json (such as npm:pi-web-access). */
+function configuredPackages() {
+	const agentDir = process.env.PI_CODING_AGENT_DIR ?? process.env.PI_AGENT_DIR ?? AGENT_DIR;
+	const settingsPath = agentDir === AGENT_DIR ? SETTINGS : join(agentDir, "settings.json");
+	if (!existsSync(settingsPath)) return [];
+	try {
+		const parsed = JSON.parse(readFileSync(settingsPath, "utf-8"));
+		return Array.isArray(parsed?.packages) ? parsed.packages : [];
+	} catch {
+		return [];
+	}
+}
+
+/**
+ * Keep configured Pi packages (e.g. `npm:pi-web-access`) up to date whenever a
+ * machine bootstraps or upgrades Pi.
+ *
+ * Uses the global pi binary against this checkout's agent directory so a fresh
+ * checkout outside `~/.pi` (such as a CI runner) updates the checkout's own
+ * settings rather than an empty home directory. Network or registry hiccups
+ * warn instead of aborting the Pi install.
+ */
+function updateConfiguredPackages() {
+	const packages = configuredPackages();
+	if (packages.length === 0) {
+		skip("update configured packages", "none in settings.json");
+		return;
+	}
+	const path = globalPi();
+	if (!path) {
+		skip("update configured packages", "global pi not found");
+		return;
+	}
+	const agentDir = process.env.PI_CODING_AGENT_DIR ?? process.env.PI_AGENT_DIR ?? AGENT_DIR;
+	const [bin, argv] = viaShell(path, ["update", "--extensions", "--no-approve"]);
+	const result = spawnSync(bin, argv, {
+		cwd: WORKSPACE,
+		stdio: "inherit",
+		env: { ...process.env, PI_CODING_AGENT_DIR: agentDir },
+	});
+	if (result.error || result.status !== 0) {
+		info(`could not update configured packages (${result.error?.message ?? `exit ${result.status}`}); continuing`);
+		return;
+	}
+	done(`update configured packages (${packages.length})`);
+}
+
 /**
  * Prove the install works.
  *
@@ -260,6 +309,7 @@ function bootstrap() {
 		done("install workspace deps");
 	}
 
+	updateConfiguredPackages();
 
 	console.log(`\n${cyan("verify")}`);
 	verify();
@@ -298,6 +348,8 @@ function upgrade(requested) {
 		installGlobalPi(target);
 		done(`install pi ${target}`);
 	}
+
+	updateConfiguredPackages();
 
 	console.log(`\n${cyan("verify")}`);
 	try {

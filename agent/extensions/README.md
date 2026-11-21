@@ -26,9 +26,9 @@ pnpm bootstrap
 ```
 
 Both install pi globally, install the workspace, prune the version they
-replaced, and verify. `pnpm check` reports the three things that can drift --
-the catalog pin, the installed pi, the unpacked dependencies -- and changes
-nothing.
+replaced, update configured Pi packages (such as `npm:pi-web-access`), and
+verify. `pnpm check` reports the three things that can drift -- the catalog pin,
+the installed pi, the unpacked dependencies -- and changes nothing.
 
 node and pnpm are yours to install. `bootstrap` and `upgrade-pi` refuse to start
 when they are missing or misconfigured, and print the command that fixes it;
