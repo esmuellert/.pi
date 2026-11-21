@@ -271,8 +271,9 @@ function capOutput(text: string): string {
  * named fields worth keeping.
  */
 export function argsAsText(args: unknown): string {
-	const command = (args as { command?: unknown } | undefined)?.command;
-	if (typeof command === "string") return command;
+	const record = args as { command?: unknown; code?: unknown } | undefined;
+	if (typeof record?.command === "string") return record.command;
+	if (typeof record?.code === "string") return record.code;
 	try {
 		return JSON.stringify(args, null, 1) ?? String(args);
 	} catch {

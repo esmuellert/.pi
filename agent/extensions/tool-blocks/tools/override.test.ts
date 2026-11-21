@@ -15,7 +15,7 @@ import { createReadToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { Component } from "@earendil-works/pi-tui";
 
 import { builtIn, TOOLS } from "./builtins.ts";
-import { present } from "./override.ts";
+import { present, presentRenderers } from "./override.ts";
 
 /** A theme that reports which colour each piece of text was given. */
 const probe = {
@@ -204,5 +204,56 @@ describe("footnote", () => {
 		const original = () => stub;
 		const plain = present("bash", "/tmp", {}, { renderCall: () => stub, renderResult: original } as never);
 		assert.equal(plain.renderResult, original);
+	});
+});
+
+describe("presentRenderers (for codemode and other non-built-in tools)", () => {
+	it("appends footnotes to container-reusing renderers like codemode without leaking the wrapper", () => {
+		const seenLast: unknown[] = [];
+		const containerStub = { render: () => ["codemode body"], invalidate: () => {}, clear: () => {} };
+		const wrapped = presentRenderers(
+			{
+				renderCall: () => ({ render: () => ["codemode"], invalidate: () => {} }),
+				renderResult: (_r, _o, _t, ctx) => {
+					seenLast.push(ctx.lastComponent);
+					return containerStub as never;
+				},
+			},
+			{ footnote: () => ["summarised codemode script"] },
+		);
+		const first = wrapped?.renderResult?.(
+			{ content: [{ type: "text", text: "Script completed\nWall time 1.0 seconds\nOutput:\nok" }], details: {} } as never,
+			{ expanded: false, isPartial: false } as never,
+			probe,
+			context() as never,
+		);
+		const second = wrapped?.renderResult?.(
+			{ content: [{ type: "text", text: "Script completed\nWall time 1.0 seconds\nOutput:\nok" }], details: {} } as never,
+			{ expanded: false, isPartial: false } as never,
+			probe,
+			context({ lastComponent: first }) as never,
+		);
+		assert.deepEqual(seenLast, [undefined, containerStub], "codemode must get its own Container back");
+		assert.deepEqual(second?.render(60), ["codemode body", "summarised codemode script"]);
+	});
+
+	it("supplies a default result preview plus footnote when a custom tool has no renderResult", () => {
+		const wrapped = presentRenderers(
+			{
+				renderCall: () => ({ render: () => ["custom_tool"], invalidate: () => {} }),
+			},
+			{ footnote: () => ["summarised custom tool"] },
+		);
+		const rendered = wrapped?.renderResult?.(
+			{ content: [{ type: "text", text: "line one\nline two" }], details: {} } as never,
+			{ expanded: false, isPartial: false } as never,
+			probe,
+			context() as never,
+		);
+		assert.deepEqual(rendered?.render(60).map((line) => line.trimEnd()), [
+			"<toolOutput>line one</toolOutput>",
+			"<toolOutput>line two</toolOutput>",
+			"summarised custom tool",
+		]);
 	});
 });

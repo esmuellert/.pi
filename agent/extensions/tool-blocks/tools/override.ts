@@ -14,8 +14,8 @@
  */
 
 import type { Component } from "@earendil-works/pi-tui";
-import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import type { Theme } from "@earendil-works/pi-coding-agent";
+import { Text, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import type { Theme, ToolRenderers } from "@earendil-works/pi-coding-agent";
 
 import { blank, keepBackground, openingBackground, plain } from "../shared/ansi.ts";
 import { builtIn, type BuiltIn, type RenderArgs, type RenderContext, type ToolName } from "./builtins.ts";
@@ -169,6 +169,97 @@ export function present(
 			return presentation.frame ? presentation.frame(noted, args, theme, context) : noted;
 		},
 	};
+}
+
+/**
+ * Apply a footnote (and optional frame) to renderers resolved via
+ * `pi.registerToolRenderer`, such as built-in extensions like `codemode` or
+ * tools without custom renderers.
+ *
+ * Unlike `present()`, this leaves tool registration untouched and falls back to
+ * Pi's default preview when `base.renderResult` is absent so every tool block
+ * can carry a summary.
+ */
+export function presentRenderers(
+	base: ToolRenderers | undefined,
+	presentation: Pick<Presentation, "frame" | "footnote">,
+): ToolRenderers | undefined {
+	if (!base) return undefined;
+	const renderCall = base.renderCall;
+	if (!renderCall && !base.renderResult && !presentation.footnote) return base;
+	const selfFramed = base.renderShell === "self";
+	const renderResult = base.renderResult;
+
+	return {
+		...base,
+		...(presentation.footnote
+			? {
+				renderResult(result: unknown, options: unknown, theme: Theme, context: unknown): Component {
+					const ctx = context as RenderContext;
+					const inner = renderResult
+						? renderResult(
+								result as never,
+								options as never,
+								theme,
+								{ ...ctx, lastComponent: unwrap(ctx.lastComponent) } as never,
+							)
+						: fallbackResultComponent(result, options, theme, ctx);
+					if (selfFramed) {
+						if (!ctx.isPartial) {
+							(ctx.state as Record<string, unknown>)[OUTPUT] = printed(result);
+						}
+						return inner;
+					}
+					return appending(inner, (width) =>
+						presentation.footnote?.(width, ctx.args as RenderArgs, printed(result), theme, ctx),
+					);
+				},
+			}
+			: {}),
+		...(renderCall && (presentation.frame || (selfFramed && presentation.footnote))
+			? {
+				renderCall(args: unknown, theme: Theme, context: unknown): Component {
+					const ctx = context as RenderContext;
+					const state = ctx.state as Record<string, unknown>;
+					const inner = renderCall(args as never, theme, { ...ctx, lastComponent: state[INNER] as Component | undefined } as never);
+					state[INNER] = inner;
+					const noted =
+						selfFramed && presentation.footnote
+							? framing(inner, (width) =>
+									state[OUTPUT] === undefined
+										? undefined
+										: presentation.footnote?.(width, args as RenderArgs, state[OUTPUT] as string, theme, ctx),
+								)
+							: inner;
+					return presentation.frame ? presentation.frame(noted, args as RenderArgs, theme, ctx) : noted;
+				},
+			}
+			: {}),
+	};
+}
+
+const FALLBACK_PREVIEW_LINES = 10;
+
+function fallbackResultComponent(
+	result: unknown,
+	options: unknown,
+	theme: Theme,
+	context: RenderContext,
+): Component {
+	const output = printed(result);
+	if (!output) return new Text("", 0, 0);
+	const expanded = Boolean((options as { expanded?: boolean } | undefined)?.expanded);
+	const lines = output.split("\n");
+	const displayLines = expanded ? lines : lines.slice(0, FALLBACK_PREVIEW_LINES);
+	const remaining = lines.length - displayLines.length;
+	let text = displayLines.map((line) => theme.fg("toolOutput", line)).join("\n");
+	if (remaining > 0) {
+		const hint = typeof context.keyHint === "function"
+			? context.keyHint("app.tools.expand", "to expand")
+			: "to expand";
+		text += `${theme.fg("muted", `\n... (${remaining} more lines,`)} ${hint}${theme.fg("muted", ")")}`;
+	}
+	return new Text(text, 0, 0);
 }
 
 /**

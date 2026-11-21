@@ -83,6 +83,11 @@ ${"x".repeat(20_000)}`;
 		assert.ok(body.includes("END_MARKER"), "the output tail should survive");
 		assert.match(body, /chars omitted/);
 	});
+
+	it("renders codemode's code field bare like bash's command", () => {
+		const script = "const files = await tools.ls({});\nreturn files;";
+		assert.equal(argsAsText({ code: script }), script);
+	});
 });
 
 describe("what comes back", () => {

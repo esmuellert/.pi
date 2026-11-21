@@ -19,8 +19,8 @@ import { retitling } from "./bash/title.ts";
 import { loadConfig } from "./mark/config.ts";
 import { marking } from "./mark/index.ts";
 import { noting, useRegistry, useSession } from "./summary/noting.ts";
-import { TOOLS } from "./tools/builtins.ts";
-import { present } from "./tools/override.ts";
+import { TOOLS, type ToolName } from "./tools/builtins.ts";
+import { present, presentRenderers } from "./tools/override.ts";
 
 export default async function (pi: ExtensionAPI) {
 	const style = loadConfig().style;
@@ -51,4 +51,13 @@ export default async function (pi: ExtensionAPI) {
 			}) as never,
 		);
 	}
+
+	const builtInSet = new Set<string>(TOOLS);
+	// Built-in extension tools like `codemode` (and third-party extension tools)
+	// are not in TOOLS; wrap their resolved renderers so they get summaries too.
+	pi.registerToolRenderer?.((toolName, next) => {
+		const base = next();
+		if (builtInSet.has(toolName as ToolName)) return base;
+		return presentRenderers(base, { footnote: noting(toolName) });
+	});
 }
