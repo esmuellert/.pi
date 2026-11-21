@@ -8,21 +8,30 @@ import { elapsed, TaskRegistry, taskStateGlyph, type WatchedTask } from "./task.
 
 const WIDGET_KEY = "task-watcher";
 const COMPLETION_NOTIFICATION_GRACE_MS = 2_000;
+const STARTUP_PROBE_MS = 300;
 type WatchView = "all" | "archive" | string;
 
-export default function taskWatcher(pi: ExtensionAPI): void {
+export interface TaskWatcherOptions {
+	notificationGraceMs?: number;
+	startupProbeMs?: number;
+}
+
+export default function taskWatcher(pi: ExtensionAPI, options: TaskWatcherOptions = {}): void {
+	const notificationGraceMs = options.notificationGraceMs ?? COMPLETION_NOTIFICATION_GRACE_MS;
+	const startupProbeMs = options.startupProbeMs ?? STARTUP_PROBE_MS;
 	let ui: ExtensionContext["ui"] | undefined;
 	let sessionContext: ExtensionContext | undefined;
 	let statusTui: TUI | undefined;
 	let shuttingDown = false;
 	let cleanupTimer: NodeJS.Timeout | undefined;
-	const completionNotifications = new Map<string, NodeJS.Timeout>();
+	const completionTimers = new Map<string, NodeJS.Timeout>();
+	const deferredNotifications = new Map<string, WatchedTask>();
 	const archive = new TaskArchive();
 	let lastPublishedRunning = -1;
 	let lastPublishedNotifications = -1;
 	function publishTaskWatcherState(force = false): void {
 		const running = registry.active().length;
-		const pendingNotifications = completionNotifications.size;
+		const pendingNotifications = completionTimers.size + deferredNotifications.size;
 		if (!force && running === lastPublishedRunning && pendingNotifications === lastPublishedNotifications) return;
 		lastPublishedRunning = running;
 		lastPublishedNotifications = pendingNotifications;
@@ -41,31 +50,59 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 	pi.events.emit("task-watcher:available", {});
 
 	function scheduleNotification(task: WatchedTask): void {
+		const existing = completionTimers.get(task.id);
+		if (existing) clearTimeout(existing);
 		const timer = setTimeout(() => {
-			completionNotifications.delete(task.id);
+			completionTimers.delete(task.id);
+			if (shuttingDown) {
+				publishTaskWatcherState();
+				return;
+			}
+			// Never drop a completion notice while the agent is mid-turn: hold it
+			// until agent_settled so a task that finishes or fails quickly still
+			// wakes the agent once the current turn ends.
+			if (sessionContext && !sessionContext.isIdle()) {
+				deferredNotifications.set(task.id, registry.get(task.id) ?? task);
+				publishTaskWatcherState();
+				return;
+			}
 			publishTaskWatcherState();
-			if (sessionContext && !sessionContext.isIdle()) return;
-			notifyAgent(task);
-		}, COMPLETION_NOTIFICATION_GRACE_MS);
-		completionNotifications.set(task.id, timer);
+			notifyAgent(registry.get(task.id) ?? task);
+		}, notificationGraceMs);
+		completionTimers.set(task.id, timer);
 		publishTaskWatcherState();
 	}
 
+	function flushDeferredNotifications(): void {
+		if (shuttingDown || deferredNotifications.size === 0) return;
+		if (sessionContext && !sessionContext.isIdle()) return;
+		const ready = [...deferredNotifications.values()];
+		deferredNotifications.clear();
+		publishTaskWatcherState();
+		for (const task of ready) {
+			notifyAgent(registry.get(task.id) ?? task);
+		}
+	}
+
 	function suppressNotification(taskId: string): void {
-		const timer = completionNotifications.get(taskId);
-		if (!timer) return;
-		clearTimeout(timer);
-		completionNotifications.delete(taskId);
+		const timer = completionTimers.get(taskId);
+		const removedDeferred = deferredNotifications.delete(taskId);
+		if (!timer && !removedDeferred) return;
+		if (timer) {
+			clearTimeout(timer);
+			completionTimers.delete(taskId);
+		}
 		publishTaskWatcherState();
 	}
 
 	function notifyAgent(task: WatchedTask): void {
-		const message = [
+		const detail = taskOutputDetail(task);
+		const header = [
 			`[task-watcher] Watched task ${task.id} (${task.label}) finished with state: ${task.state}.`,
 			task.exitCode === undefined ? "" : `Exit code: ${task.exitCode ?? "signal"}.`,
-			task.latestMessage ? `Latest output: ${task.latestMessage}` : "",
 			"Continue from this task result if further work is needed.",
 		].filter(Boolean).join(" ");
+		const message = detail ? `${header}\nRecent output:\n${detail}` : header;
 		try {
 			pi.sendUserMessage(message, { deliverAs: "followUp" });
 		} catch {
@@ -91,12 +128,18 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 		);
 	});
 
+	pi.on("agent_settled", (_event, ctx) => {
+		sessionContext = ctx;
+		flushDeferredNotifications();
+	});
+
 	pi.on("session_shutdown", async () => {
 		shuttingDown = true;
 		if (cleanupTimer) clearInterval(cleanupTimer);
 		cleanupTimer = undefined;
-		for (const timer of completionNotifications.values()) clearTimeout(timer);
-		completionNotifications.clear();
+		for (const timer of completionTimers.values()) clearTimeout(timer);
+		completionTimers.clear();
+		deferredNotifications.clear();
 		await registry.cancelAll();
 		await archive.appendMany(registry.removeFinished());
 		ui?.setWidget(WIDGET_KEY, undefined);
@@ -120,16 +163,40 @@ export default function taskWatcher(pi: ExtensionAPI): void {
 			command: Type.String({ description: "Shell command to run asynchronously" }),
 			cwd: Type.Optional(Type.String({ description: "Working directory; defaults to the current project directory" })),
 		}),
-		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+		async execute(_toolCallId, params, signal, _onUpdate, ctx) {
 			ui = ctx.ui;
 			const task = registry.start({
 				label: params.label,
 				command: params.command,
 				cwd: params.cwd ? resolve(ctx.cwd, params.cwd) : ctx.cwd,
 			});
+			const early = await probeStartup(registry, task.id, startupProbeMs, signal);
+			if (early && early.state !== "running") {
+				// Settled during the startup window: report it inline so the agent
+				// sees typos/missing commands immediately without a duplicate follow-up.
+				suppressNotification(early.id);
+				if (early.state === "failed" || early.state === "orphaned") {
+					return {
+						content: [{
+							type: "text",
+							text: `Watched task ${early.id} (${early.label}) failed immediately during startup.\n${formatTaskForAgent(early)}`,
+						}],
+						details: early,
+						isError: true,
+					};
+				}
+				return {
+					content: [{
+						type: "text",
+						text: `Watched task ${early.id} (${early.label}) finished immediately.\n${formatTaskForAgent(early)}`,
+					}],
+					details: early,
+				};
+			}
+			const current = registry.get(task.id) ?? task;
 			return {
-				content: [{ type: "text", text: `Started watched task ${task.id} (${task.label}). It is running asynchronously; a completion notification will arrive when the session is idle.` }],
-				details: task,
+				content: [{ type: "text", text: `Started watched task ${current.id} (${current.label}). It is running asynchronously; a completion notification will arrive when the session is idle.` }],
+				details: current,
 			};
 		},
 	});
@@ -311,14 +378,42 @@ function stateColor(theme: Theme, state: WatchedTask["state"]): (text: string) =
 	return (text) => theme.fg("accent", text);
 }
 
+function taskOutputDetail(task: WatchedTask | ArchivedTask): string | undefined {
+	if ("outputTail" in task && task.outputTail) return task.outputTail;
+	return task.latestMessage;
+}
+
+async function probeStartup(
+	registry: TaskRegistry,
+	taskId: string,
+	probeMs: number,
+	signal?: AbortSignal,
+): Promise<WatchedTask | undefined> {
+	if (probeMs <= 0) return registry.get(taskId);
+	let timer: NodeJS.Timeout | undefined;
+	const probeController = new AbortController();
+	const onCallerAbort = () => probeController.abort();
+	signal?.addEventListener("abort", onCallerAbort, { once: true });
+	try {
+		timer = setTimeout(() => probeController.abort(), probeMs);
+		return await registry.wait(taskId, probeController.signal);
+	} catch {
+		return registry.get(taskId);
+	} finally {
+		if (timer) clearTimeout(timer);
+		signal?.removeEventListener("abort", onCallerAbort);
+	}
+}
+
 function formatTaskForAgent(task: WatchedTask | ArchivedTask): string {
 	const output = [
-	`Task ${task.id} (${task.label})`,
-	`state: ${task.state}`,
-	`elapsed: ${elapsed(task.startedAt, task.finishedAt ?? Date.now())}`,
+		`Task ${task.id} (${task.label})`,
+		`state: ${task.state}`,
+		`elapsed: ${elapsed(task.startedAt, task.finishedAt ?? Date.now())}`,
 	];
 	if (task.exitCode !== undefined) output.push(`exitCode: ${task.exitCode ?? "signal"}`);
 	if (task.pid !== undefined) output.push(`pid: ${task.pid}`);
-	if (task.latestMessage) output.push(`latestOutput: ${task.latestMessage}`);
+	const detail = taskOutputDetail(task);
+	if (detail) output.push(detail.includes("\n") ? `recentOutput:\n${detail}` : `latestOutput: ${detail}`);
 	return output.join("\n");
 }

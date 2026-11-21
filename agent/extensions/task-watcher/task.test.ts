@@ -55,3 +55,18 @@ test("reports an unknown task without starting a process", async () => {
 	const registry = new TaskRegistry();
 	await assert.rejects(() => registry.wait("task-missing"), /Unknown watched task/);
 });
+
+test("retains multi-line stderr/stdout tail so first-line errors survive trailing hints", async () => {
+	const registry = new TaskRegistry();
+	const task = registry.start({
+		label: "multi-line failure",
+		command: `${JSON.stringify(process.execPath)} -e ${JSON.stringify("console.error('error: unexpected argument -j\\n\\nFor more information, try --help.'); process.exit(1)")}`,
+		cwd: process.cwd(),
+	});
+
+	const finished = await registry.wait(task.id);
+	assert.equal(finished.state, "failed");
+	assert.equal(finished.latestMessage, "For more information, try --help.");
+	assert.match(finished.outputTail ?? "", /error: unexpected argument -j/);
+	assert.match(finished.outputTail ?? "", /For more information, try --help\./);
+});

@@ -13,6 +13,7 @@ export interface WatchedTask {
 	finishedAt?: number;
 	exitCode?: number | null;
 	latestMessage?: string;
+	outputTail?: string;
 	pid?: number;
 }
 
@@ -87,6 +88,7 @@ export class TaskRegistry {
 		this.observeOutput(task, child.stderr);
 		child.once("error", (error) => {
 			task.latestMessage = error.message;
+			task.outputTail = task.outputTail ? `${task.outputTail}\n${error.message}` : error.message;
 			this.finish(task, "failed", null);
 		});
 		child.once("close", (exitCode) => {
@@ -236,8 +238,11 @@ export class TaskRegistry {
 		stream?.on("data", (chunk: Buffer | string) => {
 			const text = String(chunk);
 			task.outputBuffer = `${task.outputBuffer}${text}`.slice(-4000);
-			const lines = task.outputBuffer.split(/\r?\n/).filter(Boolean);
+			const lines = task.outputBuffer.split(/\r?\n/).map((line) => line.trimEnd()).filter(Boolean);
 			task.latestMessage = lines.at(-1)?.trim().slice(-240) || task.latestMessage;
+			if (lines.length > 0) {
+				task.outputTail = lines.slice(-12).join("\n").slice(-1_200);
+			}
 			task.updatedAt = this.now();
 			this.onChange?.();
 		});
@@ -267,6 +272,7 @@ export class TaskRegistry {
 			...(task.finishedAt === undefined ? {} : { finishedAt: task.finishedAt }),
 			...(task.exitCode === undefined ? {} : { exitCode: task.exitCode }),
 			...(task.latestMessage ? { latestMessage: task.latestMessage } : {}),
+			...(task.outputTail ? { outputTail: task.outputTail } : {}),
 			...(task.process.pid === undefined ? {} : { pid: task.process.pid }),
 		};
 	}
