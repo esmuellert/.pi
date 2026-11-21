@@ -70,6 +70,9 @@ export function noting(tool: string) {
 		theme: Theme,
 		context: RenderContext,
 	): string[] | undefined => {
+		// Streaming tool updates call renderResult with partial or empty output;
+		// wait until execution settles so summaries read the real outcome once.
+		if (context.isPartial) return undefined;
 		const text = summaryFor(tool, args, output, context.state as Slot, context.invalidate, context.toolCallId);
 		return text ? layout(text, width, theme, context.isError === true) : undefined;
 	};

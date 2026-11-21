@@ -139,7 +139,9 @@ export function present(
 					// here, because what it has to say arrives later than this
 					// call and pi may reuse the component it was given.
 					if (selfFramed) {
-						(context.state as Record<string, unknown>)[OUTPUT] = printed(result);
+						if (!context.isPartial) {
+							(context.state as Record<string, unknown>)[OUTPUT] = printed(result);
+						}
 						return inner;
 					}
 					return appending(inner, (width) =>

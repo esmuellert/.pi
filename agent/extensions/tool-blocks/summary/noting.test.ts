@@ -122,6 +122,38 @@ describe("what it is gated on", () => {
 		// The request went out despite argsComplete being false, which is the
 		// point: the result renderer only runs once the command is whole.
 	});
+
+	it("waits until streaming finishes instead of summarising partial output", async () => {
+		let calls = 0;
+		useRegistry({
+			getAvailable: () => [{ id: "gemini-4-hydrogen", provider: "github-copilot" }],
+			complete: async () => {
+				calls += 1;
+				return { role: "assistant", content: [{ type: "text", text: "summarised" }] };
+			},
+		} as never);
+		const note = noting("bash");
+		const state = {};
+		note(
+			60,
+			{ command: "sleep 1 && echo done" } as never,
+			"",
+			{ fg: (_t: string, x: string) => x } as never,
+			{ isPartial: true, state, invalidate: () => {}, toolCallId: "partial-1" } as never,
+		);
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		assert.equal(calls, 0, "must not fire while isPartial is true");
+
+		note(
+			60,
+			{ command: "sleep 1 && echo done" } as never,
+			"done",
+			{ fg: (_t: string, x: string) => x } as never,
+			{ isPartial: false, state, invalidate: () => {}, toolCallId: "partial-1" } as never,
+		);
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		assert.equal(calls, 1, "fires once the final result lands");
+	});
 });
 
 describe("when the theme is not ready", () => {

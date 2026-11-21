@@ -18,11 +18,13 @@ import {
 	LANGUAGE_RULE,
 	sample,
 	INSTRUCTION,
+	MAX_OUTPUT_CHARS,
 	orders,
 	type Slot,
 	summaryFor,
 	unask,
 	WRITER,
+	WRITER_MAX_TOKENS,
 	WRITER_THINKING_LEVEL,
 	tidy,
 	useRegistry,
@@ -69,14 +71,17 @@ describe("when a sentence is asked for", () => {
 		assert.equal(asked.length, 2);
 	});
 
-	it("sends the whole command and the whole output", () => {
-		// Truncating loses exactly the part a long command needs summarising for.
+	it("sends the whole command and caps oversized output around head and tail", () => {
+		// Commands stay whole; huge outputs keep both start and end so they do
+		// not blow past the summary deadline while preserving the outcome lines.
 		const command = `head
 ${"x".repeat(20_000)}`;
-		const output = "y".repeat(20_000);
+		const output = `START_MARKER\n${"y".repeat(MAX_OUTPUT_CHARS + 5_000)}\nEND_MARKER`;
 		const body = ask("bash", { command }, output);
 		assert.ok(body.includes(command), "the command should arrive whole");
-		assert.ok(body.includes(output), "the output should arrive whole");
+		assert.ok(body.includes("START_MARKER"), "the output head should survive");
+		assert.ok(body.includes("END_MARKER"), "the output tail should survive");
+		assert.match(body, /chars omitted/);
 	});
 });
 
@@ -226,19 +231,24 @@ describe("the language it writes in", () => {
 });
 
 describe("the writer configuration", () => {
-	it("pins Luna at max thinking", async () => {
+	it("pins Gemini 4 Hydrogen at low thinking via streamSimple", async () => {
 		let options: unknown;
 		const registry = {
-			getAvailable: () => [{ id: WRITER, provider: "openai-codex" }],
-			complete: async (_model: unknown, _context: unknown, received: unknown) => {
+			getAvailable: () => [{ id: WRITER, provider: "github-copilot" }],
+			streamSimple: (_model: unknown, _context: unknown, received: unknown) => {
 				options = received;
-				return { role: "assistant", content: [{ type: "text", text: "summarized" }] };
+				return {
+					result: async () => ({ role: "assistant", content: [{ type: "text", text: "summarized" }] }),
+				};
 			},
 		};
 		useRegistry(registry as never);
 		summaryFor("bash", "echo hi", "hi", {}, () => {});
 		await settle();
-		assert.deepEqual(options, { thinkingLevel: WRITER_THINKING_LEVEL, maxTokens: 100 });
+		const recorded = options as { reasoning?: string; maxTokens?: number; signal?: AbortSignal } | undefined;
+		assert.equal(recorded?.reasoning, WRITER_THINKING_LEVEL);
+		assert.equal(recorded?.maxTokens, WRITER_MAX_TOKENS);
+		assert.ok(recorded?.signal instanceof AbortSignal);
 	});
 });
 

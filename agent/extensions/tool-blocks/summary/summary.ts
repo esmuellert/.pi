@@ -13,8 +13,8 @@
  * first ask sends the request and returns nothing, and the answer arriving
  * redraws that one block.
  *
- * Luna is pinned at max thinking rather than selected dynamically, so the
- * writer's behavior stays stable when the available model catalog changes.
+ * Gemini 4 Hydrogen is pinned at low thinking rather than selected dynamically,
+ * so the writer's behavior stays stable when the available model catalog changes.
  */
 import type { ModelRegistry } from "@earendil-works/pi-coding-agent";
 
@@ -23,7 +23,10 @@ import { recall, remember } from "./store.ts";
 import type { Api, AssistantMessage, Model } from "@earendil-works/pi-ai";
 
 /** How long a sentence may take before the block gives up on it. */
-export const DEADLINE_MS = 6_000;
+export const DEADLINE_MS = 8_000;
+
+/** Cap oversized outputs around head and tail so huge logs do not time out. */
+export const MAX_OUTPUT_CHARS = 12_000;
 
 
 
@@ -141,14 +144,17 @@ export function sample(from: SessionSource | undefined = session): string {
  * different way, and a note whose voice changes when an account gains a model
  * is worse than one written by something weaker.
  *
- * Luna is the deliberate writer choice for this short, high-volume task. The
- * price fallback is there so a machine without it gets sentences rather than
- * silence.
+ * Gemini 4 Hydrogen is the deliberate writer choice for this short, high-volume
+ * task. The price fallback is there so a machine without it gets sentences
+ * rather than silence.
  */
-export const WRITER = "gpt-5.6-luna";
-export const WRITER_THINKING_LEVEL = "max" as const;
+export const WRITER = "gemini-4-hydrogen";
+export const WRITER_THINKING_LEVEL = "low" as const;
+export const WRITER_MAX_TOKENS = 1_000;
 
 export function pick(available: readonly Model<Api>[]): Model<Api> | undefined {
+	const copilotPreferred = available.find((model) => model.provider === "github-copilot" && model.id === WRITER);
+	if (copilotPreferred) return copilotPreferred;
 	const preferred = available.find((model) => model.id === WRITER);
 	if (preferred) return preferred;
 	const priced = available.filter((model) => typeof model.cost?.output === "number");
@@ -244,11 +250,18 @@ export function orders(reader = ""): string {
 
 /** What the writer is shown. */
 export function ask(tool: string, args: unknown, output: string, reader = ""): string {
-	const printed = output.trim();
+	const printed = capOutput(output.trim());
 	const written = reader.trim();
 	return (written ? `THE READER WRITES LIKE THIS:\n${written}\n\n` : "")
 		+ `TOOL: ${tool}\nARGUMENTS:\n${argsAsText(args)}`
 		+ (printed ? `\n\nIT RETURNED:\n${printed}` : "");
+}
+
+function capOutput(text: string): string {
+	if (text.length <= MAX_OUTPUT_CHARS) return text;
+	const half = Math.floor(MAX_OUTPUT_CHARS / 2);
+	const omitted = text.length - half * 2;
+	return `${text.slice(0, half)}\n[... ${omitted} chars omitted ...]\n${text.slice(-half)}`;
 }
 
 /**
@@ -275,30 +288,40 @@ async function write(
 	output: string,
 ): Promise<string | null> {
 	const reader = sample();
+	const controller = new AbortController();
 	let timer: ReturnType<typeof setTimeout> | undefined;
+	const context = {
+		systemPrompt: orders(reader),
+		messages: [{
+			role: "user" as const,
+			content: ask(tool, args, output, reader),
+			timestamp: Date.now(),
+		}],
+	};
+	const request = typeof reg.streamSimple === "function"
+		? reg.streamSimple(model, context, {
+			reasoning: WRITER_THINKING_LEVEL,
+			maxTokens: WRITER_MAX_TOKENS,
+			signal: controller.signal,
+		}).result()
+		: reg.complete(model, context, {
+			maxTokens: WRITER_MAX_TOKENS,
+			signal: controller.signal,
+		});
 	try {
 		const answer = await Promise.race([
-			reg.complete(
-				model,
-				{
-					systemPrompt: orders(reader),
-					messages: [{
-						role: "user",
-						content: ask(tool, args, output, reader),
-						timestamp: Date.now(),
-					}],
-				},
-				// Pi 1.5's max-thinking Luna can spend the old 40-token cap on reasoning.
-				{ thinkingLevel: WRITER_THINKING_LEVEL, maxTokens: 100 },
-			),
+			request,
 			new Promise<never>((_, reject) => {
-				timer = setTimeout(() => reject(new Error("summary timed out")), DEADLINE_MS);
+				timer = setTimeout(() => {
+					controller.abort();
+					reject(new Error("summary timed out"));
+				}, DEADLINE_MS);
 			}),
 		]);
 		return textOf(answer) || null;
 	} finally {
-		// Without this the process keeps a timer alive for six seconds after
-		// every summary, which is what stops a --print run from exiting.
+		// Without this the process keeps a timer alive after every summary,
+		// which is what stops a --print run from exiting.
 		if (timer) clearTimeout(timer);
 	}
 }
