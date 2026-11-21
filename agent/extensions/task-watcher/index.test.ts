@@ -58,6 +58,14 @@ function harness(options?: { notificationGraceMs?: number; startupProbeMs?: numb
 	};
 }
 
+async function waitFor(predicate: () => boolean, timeoutMs = 5_000): Promise<void> {
+	const deadline = Date.now() + timeoutMs;
+	while (!predicate()) {
+		if (Date.now() >= deadline) throw new Error(`Condition not met within ${timeoutMs}ms`);
+		await new Promise((resolve) => setTimeout(resolve, 20));
+	}
+}
+
 test("registers non-blocking task controls without a wait tool", () => {
 	const app = harness();
 	assert.deepEqual([...app.tools.keys()], [
@@ -72,15 +80,20 @@ test("registers non-blocking task controls without a wait tool", () => {
 });
 
 test("returns an immediate error with full recent output when a command fails on startup", async () => {
-	const app = harness({ notificationGraceMs: 20, startupProbeMs: 250 });
+	const app = harness({ notificationGraceMs: 20, startupProbeMs: 3_000 });
 	await app.emit("session_start");
 	try {
 		const start = app.tools.get("start_watched_task")!;
+		const script = [
+			"console.error('fatal: bad flag --nope')",
+			"console.error('See --help')",
+			"process.exit(2)",
+		].join("; ");
 		const result = await start.execute(
 			"call-1",
 			{
 				label: "bad command",
-				command: `${JSON.stringify(process.execPath)} -e ${JSON.stringify("console.error('fatal: bad flag --nope\\nSee --help'); process.exit(2)")}`,
+				command: `${JSON.stringify(process.execPath)} -e ${JSON.stringify(script)}`,
 			},
 			undefined,
 			undefined,
@@ -102,16 +115,21 @@ test("returns an immediate error with full recent output when a command fails on
 });
 
 test("defers completion notifications while the agent is busy and flushes them on agent_settled", async () => {
-	const app = harness({ notificationGraceMs: 20, startupProbeMs: 30 });
+	const app = harness({ notificationGraceMs: 20, startupProbeMs: 0 });
 	await app.emit("session_start");
 	try {
 		app.setIdle(false);
 		const start = app.tools.get("start_watched_task")!;
+		const script = [
+			"console.error('line 1: root cause')",
+			"console.error('line 2: try --help')",
+			"process.exit(1)",
+		].join("; ");
 		const started = await start.execute(
 			"call-2",
 			{
 				label: "dies while agent is still replying",
-				command: `${JSON.stringify(process.execPath)} -e ${JSON.stringify("setTimeout(() => { console.error('line 1: root cause\\nline 2: try --help'); process.exit(1); }, 80)")}`,
+				command: `${JSON.stringify(process.execPath)} -e ${JSON.stringify(script)}`,
 			},
 			undefined,
 			undefined,
@@ -119,8 +137,12 @@ test("defers completion notifications while the agent is busy and flushes them o
 		);
 		assert.equal(started.details.state, "running");
 
-		// Wait past task exit + grace timer while agent is still busy (!isIdle)
-		await new Promise((resolve) => setTimeout(resolve, 160));
+		// Wait until child exits and its grace timer moves it into deferredNotifications
+		await waitFor(() => {
+			const last = app.stateEvents.at(-1);
+			return last?.running === 0 && last?.pendingNotifications === 1;
+		});
+		await new Promise((resolve) => setTimeout(resolve, 40));
 		assert.deepEqual(app.sentMessages, [], "must not fire while busy");
 		assert.equal(app.stateEvents.at(-1)?.pendingNotifications, 1, "keeps pending count visible to auto-upgrade");
 

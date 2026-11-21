@@ -58,9 +58,14 @@ test("reports an unknown task without starting a process", async () => {
 
 test("retains multi-line stderr/stdout tail so first-line errors survive trailing hints", async () => {
 	const registry = new TaskRegistry();
+	const script = [
+		"console.error('error: unexpected argument -j')",
+		"console.error('For more information, try --help.')",
+		"process.exit(1)",
+	].join("; ");
 	const task = registry.start({
 		label: "multi-line failure",
-		command: `${JSON.stringify(process.execPath)} -e ${JSON.stringify("console.error('error: unexpected argument -j\\n\\nFor more information, try --help.'); process.exit(1)")}`,
+		command: `${JSON.stringify(process.execPath)} -e ${JSON.stringify(script)}`,
 		cwd: process.cwd(),
 	});
 

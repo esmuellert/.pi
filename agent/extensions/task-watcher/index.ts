@@ -8,7 +8,7 @@ import { elapsed, TaskRegistry, taskStateGlyph, type WatchedTask } from "./task.
 
 const WIDGET_KEY = "task-watcher";
 const COMPLETION_NOTIFICATION_GRACE_MS = 2_000;
-const STARTUP_PROBE_MS = 300;
+const STARTUP_PROBE_MS = 500;
 type WatchView = "all" | "archive" | string;
 
 export interface TaskWatcherOptions {
